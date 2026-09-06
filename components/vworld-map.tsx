@@ -47,7 +47,7 @@ export function VworldMap({apiKey,center,points,metric,selectedKey,onSelect}:Pro
       const tiles=L.tileLayer(`https://api.vworld.kr/req/wmts/1.0.0/${apiKey}/Satellite/{z}/{y}/{x}.jpeg`,{maxZoom:19,attribution:'© VWorld 공간정보 오픈플랫폼'});
       tiles.on('tileerror',()=>setFailed(true));tiles.on('load',()=>setFailed(false));tiles.addTo(mapRef.current);tileRef.current=tiles;
     });
-  },[apiKey]);
+  },[apiKey,ready]);
 
   useEffect(()=>{
     if(!mapRef.current||!layerRef.current)return;

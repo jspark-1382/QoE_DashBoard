@@ -3,7 +3,7 @@ export type RatFilter = 'ALL' | 'LTE' | 'NR5G';
 
 export interface LocationSummary { name: string; samples: number }
 export interface HeatPoint { lat:number;lon:number;pci:number;count:number;rat:'LTE'|'NR5G';location:string;qoe:number|null;rsrp:number|null;rsrq:number|null;sinr:number|null;mos:number|null }
-export interface PciSummary { rat:'LTE'|'NR5G';pci:number;samples:number;location:string;lat:number;lon:number;qoe:number;rsrp:number|null;rsrq:number|null;sinr:number|null;mos:number|null;poorRate:number }
+export interface PciSummary { rat:'LTE'|'NR5G';pci:number;samples:number;mosSamples:number;location:string;lat:number;lon:number;qoe:number;rsrp:number|null;rsrq:number|null;sinr:number|null;mos:number|null;poorRate:number }
 export interface HourPoint { hour:number;samples:number;qoe:number;rsrp:number|null;sinr:number|null;mos:number|null }
 export interface JourneySample { time:string;location:string;lat:number;lon:number;rat:'LTE'|'NR5G';pci:number;rsrp:number|null;rsrq:number|null;sinr:number|null;mos:number|null;qoe:number;cause:string }
 export interface ServiceEstimate { key:string;label:string;score:number;basis:string }

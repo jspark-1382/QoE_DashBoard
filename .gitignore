@@ -32,9 +32,11 @@ yarn-error.log*
 # private measurement data and generated local dataset
 /data/
 /public/qoe-data.json
+/public/indoor-data.json
 
 # local QA artifact
 /dashboard-local-preview.png
+/indoor-building-preview.png
 
 # project-local command line tools
 /.tools/

@@ -7,7 +7,11 @@
   },
   "scripts": {
     "dev": "vinext dev",
+    "prelocal": "npm run data:all",
     "local": "vinext dev --host 127.0.0.1",
+    "data:outdoor": "python3 scripts/extract_qoe_data.py",
+    "data:indoor": "python3 scripts/extract_indoor_data.py",
+    "data:all": "npm run data:outdoor && npm run data:indoor",
     "build": "vinext build",
     "start": "wrangler dev --config dist/server/wrangler.json",
     "lint": "oxlint",
