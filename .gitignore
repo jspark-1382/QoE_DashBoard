@@ -33,6 +33,7 @@ yarn-error.log*
 /data/
 /public/qoe-data.json
 /public/indoor-data.json
+/public/executive-data.json
 
 # local QA artifact
 /dashboard-local-preview.png

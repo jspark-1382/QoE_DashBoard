@@ -19,6 +19,13 @@ npm run local
 - `npm run local` 실행 시 두 원본을 자동으로 읽어 화면용 분석 데이터를 다시 생성합니다.
 - 실행 중 원본을 교체했다면 서버를 다시 시작합니다.
 
+### Executive Dashboard
+
+- 기본 경로 `/qoe/`는 고객 전화번호를 마스킹한 고객·일자별 Executive Dashboard입니다.
+- 고객별 측정 경로와 KPI는 `public/executive-data.json`에서 읽으며 `npm run data:executive`로 다시 생성합니다.
+- 고객명은 원본에 없으므로 임의 생성하지 않고 `측정 고객 NN`으로 표시합니다.
+- 기존 Engineering/Inbuilding 화면은 `/qoe/engineering` 경로에 유지됩니다.
+
 ### 인빌딩 데이터
 
 - `data` 폴더에 `RTCP`가 포함된 인빌딩 Excel 파일을 넣습니다.
