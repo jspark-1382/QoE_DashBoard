@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from xml.etree import ElementTree as ET
 
-BOOK = next(Path("data").glob("*행정동*.xlsx"))
+BOOK = next(path for path in Path("data").rglob("*행정동*.xlsx") if not path.name.startswith("~$"))
 OUTPUT = Path("public/qoe-data.json")
 NS = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
 

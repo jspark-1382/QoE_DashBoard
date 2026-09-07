@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import type { ExecutiveSample, PoorEpisode } from '@/lib/executive';
 
 interface Props {
+  selectedCallId: string | null;
   samples: ExecutiveSample[];
   episodes: PoorEpisode[];
   selectedEpisodeId: string | null;
@@ -67,10 +68,11 @@ function aggregate(samples: ExecutiveSample[]): { bins: Bin[]; windowSeconds: nu
 
 const fmt = (second: number) => `${String(Math.floor(second / 3600)).padStart(2, '0')}:${String(Math.floor(second % 3600 / 60)).padStart(2, '0')}`;
 
-export function ExecutiveTimeChart({ samples, episodes, selectedEpisodeId, selectedSampleIndex, onEpisodeSelect, onSampleSelect }: Props) {
+export function ExecutiveTimeChart({ samples, episodes, selectedCallId, selectedEpisodeId, selectedSampleIndex, onEpisodeSelect, onSampleSelect }: Props) {
   const [showSignal, setShowSignal] = useState(false);
   const { bins, windowSeconds } = useMemo(() => aggregate(samples), [samples]);
   const selected = selectedSampleIndex != null ? samples[selectedSampleIndex] : null;
+  const callSamples = useMemo(() => selectedCallId ? samples.filter(sample => sample.callId === selectedCallId) : [], [samples, selectedCallId]);
   const minimumByEpisode = useMemo(() => Object.fromEntries(episodes.map(episode => [episode.id, samples[episode.minIndex]])), [episodes, samples]);
 
   if (!samples.length) return <div className="exec-empty"><b>시간대별 품질 데이터가 없습니다.</b><span>선택한 고객과 일자를 확인해 주세요.</span></div>;
@@ -102,13 +104,14 @@ export function ExecutiveTimeChart({ samples, episodes, selectedEpisodeId, selec
         {showSignal && <span className="signal">신호품질 <em>정규화</em></span>}
         <span className="mos"><em className="exec-lab">저하구간</em></span>
       </div>
-      <span className="exec-chart-aggregate">{windowSeconds}초 평균</span>
+      <span className="exec-chart-aggregate">QoE 콜 단위 · MOS {windowSeconds}초 중앙값</span>
       <div className="exec-chart-toggle">
         <button type="button" className={showSignal ? 'on' : ''} onClick={() => setShowSignal(value => !value)}>RSRP/SINR {showSignal ? '숨김' : '보기'}</button>
       </div>
     </div>
     <svg className="exec-time-chart" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" aria-label="선택 고객 시간대별 QoE, MOS">
       {[1, 2, 3, 4, 5].map(value => <g key={value}><line className="grid" x1={left} y1={y(value)} x2={right} y2={y(value)} /><text x="15" y={y(value) + 4}>{value}</text></g>)}
+      {callSamples.length > 0 && <rect x={x(callSamples[0].second)} y={top} width={Math.max(4, x(callSamples[callSamples.length - 1].second) - x(callSamples[0].second))} height={bottom - top} fill="#38c5ff" fillOpacity={.16} stroke="#38c5ff" strokeWidth={1}><title>선택 콜 CI {callSamples[0].ci}</title></rect>}
       {displayEpisodes.map(episode => <rect
         key={episode.id}
         className={`episode-zone ${episode.id === selectedEpisodeId ? 'active' : ''}`}
@@ -122,7 +125,11 @@ export function ExecutiveTimeChart({ samples, episodes, selectedEpisodeId, selec
       ><title>{episode.startTime}~{episode.endTime} · 최저 QoE {episode.minQoe.toFixed(2)}</title></rect>)}
       {showSignal && <path className="signal-path" d={path(bin => bin.signal)} />}
       <path className="mos-path" d={path(bin => bin.mos)} />
-      <path className="qoe-path" d={path(bin => bin.qoe)} />
+      <path className="qoe-path" d={samples.map((sample, index) => {
+        const previous = samples[index - 1];
+        const command = !previous || previous.callId !== sample.callId || sample.second - previous.second > 120 ? 'M' : 'L';
+        return `${command}${x(sample.second).toFixed(1)},${y(sample.qoe).toFixed(1)}`;
+      }).join(' ')} />
       {displayEpisodes.map(episode => {
         const sample = minimumByEpisode[episode.id];
         const active = episode.id === selectedEpisodeId;

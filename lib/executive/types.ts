@@ -1,10 +1,10 @@
-export type ExecutiveRat = 'LTE' | 'NR5G';
+export type ExecutiveRat = 'LTE' | 'NR5G' | 'UNKNOWN';
 export type AreaType = 'outdoor' | 'indoor';
 
 export type ExecutiveRawSample = [
   number, string, number, number, string, AreaType, string, string,
-  ExecutiveRat, number, number | null, number | null, number | null,
-  number | null, number | null, number | null, number, string,
+  ExecutiveRat, number | null, number | null, number | null, number | null,
+  number | null, number | null, number | null, number, string, string?, string?, string?,
 ];
 
 export interface ExecutiveCustomer {
@@ -30,6 +30,8 @@ export interface ExecutiveDay {
 
 export interface ExecutiveDataset {
   meta: {
+    callMeta?: Record<string, { start: string; end: string }>;
+    unscoredCalls?: number;
     sourceFiles: string[];
     sourceRows: Record<string, number>;
     dates: string[];
@@ -46,6 +48,9 @@ export interface ExecutiveDataset {
 }
 
 export interface ExecutiveSample {
+  morphology: string;
+  callId: string;
+  ci: string;
   second: number;
   time: string;
   lat: number;
@@ -55,7 +60,7 @@ export interface ExecutiveSample {
   floorCode: string;
   floorName: string;
   rat: ExecutiveRat;
-  pci: number;
+  pci: number | null;
   rsrp: number | null;
   rsrq: number | null;
   sinr: number | null;
@@ -76,7 +81,7 @@ export interface PoorEpisode {
   durationSeconds: number;
   pointCount: number;
   minQoe: number;
-  primaryPci: number;
+  primaryPci: number | null;
   site: string;
 }
 

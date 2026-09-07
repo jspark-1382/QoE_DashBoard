@@ -3,9 +3,14 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ExecutiveSample, PoorEpisode } from '@/lib/executive';
 import 'leaflet/dist/leaflet.css';
+import { groupMapCalls, mapMetrics, metricColor, type MapMetric } from '@/lib/executive/map-metrics';
 
 interface Props {
+  fixedLocation?: boolean;
+  overviewRevision: number;
   apiKey: string;
+  metric: MapMetric;
+  selectedCallId: string | null;
   samples: ExecutiveSample[];
   episodes: PoorEpisode[];
   selectedEpisodeId: string | null;
@@ -14,10 +19,13 @@ interface Props {
   onEpisodeSelect: (episodeId: string) => void;
 }
 
-const pointColor = (qoe: number) => qoe < 2 ? '#ff365f' : qoe < 2.5 ? '#ff8d32' : qoe < 3.5 ? '#f2d447' : qoe < 4.5 ? '#8edb63' : '#35c779';
+export const pointColor = (qoe: number) => qoe <= 3.5 ? '#ff365f' : qoe < 4 ? '#f2d447' : '#35c779';
 const escapeHtml = (value: string) => value.replace(/[&<>'"]/g, character => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' })[character]!);
 
-export function ExecutiveQoeMap({ apiKey, samples, episodes, selectedEpisodeId, selectedSampleIndex, causeLabels, onEpisodeSelect }: Props) {
+export function ExecutiveQoeMap({ fixedLocation = false, overviewRevision, metric, apiKey, samples, episodes, selectedCallId, selectedEpisodeId, selectedSampleIndex, causeLabels, onEpisodeSelect }: Props) {
+  const metricInfo = mapMetrics[metric];
+  const colorFor = (sample: ExecutiveSample) => metricColor(sample[metric], metric);
+  const valueLabel = (sample: ExecutiveSample) => `${metricInfo.label} ${sample[metric]?.toFixed(metric === 'qoe' ? 2 : 1) ?? '미측정'} ${metricInfo.unit}`;
   const hostRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<import('leaflet').Map | null>(null);
   const tileRef = useRef<import('leaflet').TileLayer | null>(null);
@@ -67,41 +75,65 @@ export function ExecutiveQoeMap({ apiKey, samples, episodes, selectedEpisodeId, 
       selectedMarkerRef.current = null;
       if (!samples.length) return;
       const renderer = L.canvas({ padding: .5 });
-      const step = Math.max(1, Math.ceil(samples.length / 850));
-      const visible = samples.filter((_, index) => index % step === 0 || index === samples.length - 1);
+      const visible = samples;
+      const callSamples = selectedCallId ? samples.filter(sample => sample.callId === selectedCallId) : [];
+      const focused = callSamples.length > 0;
 
-      for (let index = 1; index < visible.length; index += 1) {
-        const previous = visible[index - 1];
-        const sample = visible[index];
-        if (sample.second - previous.second > 120) continue;
-        L.polyline([[previous.lat, previous.lon], [sample.lat, sample.lon]], {
-          renderer, color: pointColor(sample.qoe), weight: 3.1, opacity: .88,
-        }).addTo(layerRef.current);
+      if (fixedLocation) {
+        const shown = focused ? callSamples : samples;
+        const values = metric === 'qoe'
+          ? groupMapCalls(shown).map(call => call[0].qoe)
+          : selectedSampleIndex != null && samples[selectedSampleIndex] ? [samples[selectedSampleIndex][metric]] : shown.map(sample => sample[metric]);
+        const valid = values.filter((v): v is number => v != null);
+        const value = valid.length ? valid.reduce((sum, v) => sum + v, 0) / valid.length : null;
+        const anchor = shown[0];
+        L.circleMarker([anchor.lat, anchor.lon], { renderer, radius: 15, color: '#fff', weight: 3, fillColor: metricColor(value, metric), fillOpacity: 1 })
+          .bindTooltip(`힐스테이트신용더리버아파트 · 지정 좌표<br/>${metricInfo.label} ${value?.toFixed(2) ?? '미측정'} ${metricInfo.unit} · ${metric === 'qoe' ? focused ? '선택 콜' : '콜 평균' : selectedSampleIndex != null ? '선택 이벤트' : '이벤트 평균'}`)
+          .addTo(layerRef.current!);
+      } else if (metric === 'qoe') {
+        // One score, path and tooltip per CI call; GPS points only define its geometry.
+        groupMapCalls(samples).forEach(call => {
+          const first = call[0], last = call[call.length - 1];
+          const tooltip = `CI ${escapeHtml(first.ci)} · ${first.time} ~ ${last.time} · ${valueLabel(first)} (콜 단위)`;
+          const segments: [number, number][][] = [];
+          call.forEach((sample, index) => {
+            if (!index || sample.second - call[index - 1].second > 120) segments.push([]);
+            segments[segments.length - 1].push([sample.lat, sample.lon]);
+          });
+          L.polyline(segments, { renderer, color: colorFor(first), weight: 4, opacity: .9 })
+            .bindTooltip(tooltip).addTo(layerRef.current!);
+          const anchor = call[Math.floor(call.length / 2)];
+          L.circleMarker([anchor.lat, anchor.lon], { renderer, radius: first.callId === selectedCallId ? 8 : 5, color: '#fff', weight: 1, fillColor: colorFor(first), fillOpacity: 1 })
+            .bindTooltip(tooltip).addTo(layerRef.current!);
+        });
+      } else {
+        visible.forEach((sample, index) => {
+          const previous = visible[index - 1];
+          if (previous && previous.callId === sample.callId && sample.second - previous.second <= 120) {
+            L.polyline([[previous.lat, previous.lon], [sample.lat, sample.lon]], {
+              renderer, color: colorFor(sample), weight: 3.1, opacity: .88,
+            }).addTo(layerRef.current!);
+          }
+          L.circleMarker([sample.lat, sample.lon], { renderer, radius: 3, color: colorFor(sample), weight: .5, fillColor: colorFor(sample), fillOpacity: 1 })
+            .bindTooltip(`${sample.time} · ${valueLabel(sample)}`).addTo(layerRef.current!);
+        });
       }
-      visible.filter((_, index) => index % 4 === 0).forEach(sample => {
-        L.circleMarker([sample.lat, sample.lon], { renderer, radius: 2.6, color: '#eaf9ff', weight: .7, fillColor: pointColor(sample.qoe), fillOpacity: 1 }).addTo(layerRef.current!);
-      });
 
-      const displayEpisodes = [...episodes].sort((a, b) => a.minQoe - b.minQoe || b.durationSeconds - a.durationSeconds)
-        .filter((episode, index) => index < 20 || episode.id === selectedEpisodeId);
-      displayEpisodes.forEach(episode => {
-        const path = samples.slice(episode.startIndex, episode.endIndex + 1).map(sample => [sample.lat, sample.lon] as [number, number]);
-        if (!path.length) return;
-        const selected = episode.id === selectedEpisodeId;
-        if (path.length > 1) L.polyline(path, { renderer, color: selected ? '#ffffff' : '#ff365f', weight: selected ? 8 : 5, opacity: selected ? .94 : .7 }).addTo(layerRef.current!);
-        const sample = samples[episode.minIndex];
-        const marker = L.marker([sample.lat, sample.lon], { icon: L.divIcon({
-          className: `exec-episode-marker ${selected ? 'selected' : ''}`,
-          html: `<button type="button" aria-label="${escapeHtml(`${episode.startTime} QoE 저하 Episode`)}"><span>!</span></button>`,
-          iconSize: [24, 24], iconAnchor: [12, 12],
-        }) });
-        marker.bindPopup(`<div class="exec-map-popup"><b>QoE 저하 구간</b><strong>QoE ${sample.qoe.toFixed(2)}</strong><span>${episode.startTime} ~ ${episode.endTime}</span><span>PCI ${episode.primaryPci}</span><em>${escapeHtml(causeLabels[episode.id] ?? 'Rule 근거 부족')}</em></div>`);
-        marker.on('click', () => selectRef.current(episode.id));
-        marker.addTo(layerRef.current!);
-        if (selected) marker.openPopup();
-      });
+      if (focused && !fixedLocation) {
+        callSamples.forEach((sample, index) => {
+          const previous = callSamples[index - 1];
+          if (previous && sample.second - previous.second <= 120) {
+            const segment: [number, number][] = [[previous.lat, previous.lon], [sample.lat, sample.lon]];
+            L.polyline(segment, { renderer, color: '#07131f', weight: 15, opacity: .9 }).addTo(layerRef.current!);
+            L.polyline(segment, { renderer, color: colorFor(sample), weight: 10, opacity: 1 }).addTo(layerRef.current!);
+          }
+          if (metric !== 'qoe') L.circleMarker([sample.lat, sample.lon], { renderer, radius: 7, color: '#ffffff', weight: 1.5, fillColor: colorFor(sample), fillOpacity: 1 })
+            .bindTooltip(`CI ${escapeHtml(sample.ci)} · ${sample.time} · ${valueLabel(sample)}`)
+            .addTo(layerRef.current!);
+        });
+      }
 
-      if (selectedSampleIndex != null && samples[selectedSampleIndex]) {
+      if (!fixedLocation && metric !== 'qoe' && selectedSampleIndex != null && samples[selectedSampleIndex]) {
         const sample = samples[selectedSampleIndex];
         const marker = L.circleMarker([sample.lat, sample.lon], { renderer, radius: 6, color: '#38c5ff', weight: 3, fillColor: '#07131f', fillOpacity: 1 });
         marker.bindTooltip(`${sample.time} · QoE ${sample.qoe.toFixed(2)}`, { permanent: false, direction: 'top' });
@@ -110,26 +142,43 @@ export function ExecutiveQoeMap({ apiKey, samples, episodes, selectedEpisodeId, 
       }
 
       const bounds = L.latLngBounds(visible.map(sample => [sample.lat, sample.lon] as [number, number]));
-      if (bounds.isValid()) map.fitBounds(bounds, { padding: [22, 22], maxZoom: 17, animate: false });
-      if (selectedSampleIndex != null && samples[selectedSampleIndex]) {
+      if (bounds.isValid()) {
+        const overviewZoom = Math.min(17, map.getBoundsZoom(bounds, false, L.point(44, 44)));
+        if (focused) {
+          const callBounds = L.latLngBounds(callSamples.map(sample => [sample.lat, sample.lon] as [number, number]));
+          // Keep surrounding routes visible while making the selected call easier to inspect.
+          const callZoom = map.getBoundsZoom(callBounds, false, L.point(130, 130));
+          map.setView(callBounds.getCenter(), Math.min(overviewZoom + 2, callZoom, 18), { animate: false });
+        } else {
+          map.fitBounds(bounds, { padding: [22, 22], maxZoom: 17, animate: false });
+        }
+      }
+      if (!focused && selectedSampleIndex != null && samples[selectedSampleIndex]) {
         const sample = samples[selectedSampleIndex];
         map.panTo([sample.lat, sample.lon], { animate: false });
       }
     }).catch(() => undefined);
-  }, [samples, episodes, selectedEpisodeId, selectedSampleIndex, causeLabels, ready]);
+  }, [fixedLocation, overviewRevision, metric, samples, episodes, selectedCallId, selectedEpisodeId, selectedSampleIndex, causeLabels, ready]);
 
   useEffect(() => {
-    if (!mapRef.current || selectedSampleIndex == null || !samples[selectedSampleIndex]) return;
+    if (selectedCallId || !mapRef.current || selectedSampleIndex == null || !samples[selectedSampleIndex]) return;
     const sample = samples[selectedSampleIndex];
     mapRef.current.panTo([sample.lat, sample.lon], { animate: true, duration: .35 });
     selectedMarkerRef.current?.openTooltip();
-  }, [selectedSampleIndex, samples]);
+  }, [selectedSampleIndex, samples, selectedCallId]);
 
   return <div className="exec-map-stage">
     <div ref={hostRef} className="exec-vworld-map" />
+    {fixedLocation && <div className="exec-map-status" style={{ left: 8, right: 'auto', maxWidth: '75%' }}>MDT · 지정 좌표 35.2123, 126.8647 · 실제 이동 경로 아님</div>}
     {!samples.length && <div className="exec-empty map"><b>표시할 측정 경로가 없습니다.</b><span>고객, 일자 또는 지역 필터를 변경해 주세요.</span></div>}
     {!apiKey && <div className="exec-map-status">VWorld 키 없음 · 측정 경로만 표시</div>}
     {tileFailed && <div className="exec-map-status error">VWorld 지도 연결 확인 필요</div>}
-    <div className="exec-map-legend"><b>QoE 수준</b><i /><span><em>1.0 매우 열악</em><em>2.5 열악 기준</em><em>5.0 매우 양호</em></span></div>
+    <div className="exec-map-legend" style={{ width: 235 }}>
+      <b>{metricInfo.label} · {metric === 'qoe' ? fixedLocation ? '콜별 무선 추정' : '콜 단위' : fixedLocation ? 'MDT 이벤트' : '초 단위 실측'}{selectedCallId ? ' · 선택 콜 강조' : ''}</b>
+      <div style={{ display: 'grid', gap: 6, marginTop: 8 }}>
+        {['#ff365f', '#f2d447', '#35c779', ...(metric === 'qoe' ? [] : ['#8896a3'])].map((color, index) =>
+          <div key={color} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}><span style={{ width: 18, height: 8, borderRadius: 2, background: color }} />{metricInfo.legends[index] ?? '미측정'}</div>)}
+      </div>
+    </div>
   </div>;
 }

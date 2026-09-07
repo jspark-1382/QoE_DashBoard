@@ -1,52 +1,41 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Activity, Database, ShieldCheck } from 'lucide-react';
+import { Activity } from 'lucide-react';
 import { ExecutiveFilters } from './executive-filters';
 import { ExecutiveKpiCards } from './executive-kpis';
 import { ExecutiveQoeMap } from './qoe-map';
+import { mapMetrics, type MapMetric } from '@/lib/executive/map-metrics';
+import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
 import { ExecutiveTimeChart } from './qoe-time-chart';
+import { ExecutivePanel } from './executive-panels';
+import { ExecutiveCallTable } from './executive-call-table';
 import {
-  ActionPlan, CustomerExperienceSummary, CustomerJourney, EstimatedCustomerExperience,
-  ExecutivePanel, RootCauseAnalysis, WorstSectionCard, type ActionItem,
-} from './executive-panels';
-import {
-  analyzeRootCause, buildCustomerJourney, buildRuleSummary, calculateQoESummary,
+  analyzeRootCause, calculateQoESummary,
   findPoorEpisodes, findWorstEpisode, getCustomerDaySamples,
-  type ExecutiveDataset, type JourneyEvent,
+  type ExecutiveDataset,
 } from '@/lib/executive';
 
-const actionsFor = (causeKey: string | undefined, pci: number | null): ActionItem[] => {
-  if (!causeKey || pci == null) return [];
-  const first: Record<string, [string, string]> = {
-    interference: [`PCI ${pci} 간섭 조건 재현 점검`, '간섭 여부 확인'],
-    coverage: [`PCI ${pci} 커버리지 음영 점검`, 'Coverage 원인 확인'],
-    indoor: ['선택 사이트 실내 전파 경로 점검', '실내 취약구간 확인'],
-    transport: ['Jitter·Delay 발생 구간 추적', '전송구간 원인 확인'],
-    service: ['MOS 저하 시점 음성 품질 재측정', 'Voice 품질 원인 확인'],
-  };
-  const primary = first[causeKey] ?? [`PCI ${pci} 품질 재측정`, '근본 원인 확인'];
-  return [
-    { priority: 'P1', action: primary[0], owner: '미지정', effect: primary[1] },
-    { priority: 'P2', action: '동일 시간·동일 동선 재측정', owner: '미지정', effect: '재현성 확인' },
-    { priority: 'P3', action: '인접 PCI 측정값 비교', owner: '미지정', effect: '셀 경계 확인' },
-    { priority: 'P4', action: '분석 결과와 조치 이력 연결', owner: '미지정', effect: '후속 검증 가능' },
-  ];
-};
-
 export function ExecutiveDashboard() {
+  const [source, setSource] = useState<'실측' | 'MDT'>(() => typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('source') === 'MDT' ? 'MDT' : '실측');
+  const [mapMetric, setMapMetric] = useState<MapMetric>('qoe');
   const [dataset, setDataset] = useState<ExecutiveDataset | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [customerId, setCustomerId] = useState('');
   const [date, setDate] = useState('');
   const [site, setSite] = useState('ALL');
   const [rat, setRat] = useState('ALL');
+  const [selectedCallId, setSelectedCallId] = useState<string | null>(null);
+  const [showAllCalls, setShowAllCalls] = useState(false);
+  const [overviewRevision, setOverviewRevision] = useState(0);
   const [selectedEpisodeId, setSelectedEpisodeId] = useState<string | null>(null);
   const [selectedSampleIndex, setSelectedSampleIndex] = useState<number | null>(null);
   const [mapKey] = useState(() => (import.meta as ImportMeta & { env: { VITE_VWORLD_API_KEY?: string } }).env.VITE_VWORLD_API_KEY?.trim() ?? '');
 
   useEffect(() => {
-    fetch('/qoe/executive-data.json').then(response => {
+    const controller = new AbortController();
+    setDataset(null); setLoadError(false);
+    fetch(source === 'MDT' ? '/qoe/mdt-data.json' : '/qoe/executive-data.json?schema=call-qoe-v3', { cache: 'no-store', signal: controller.signal }).then(response => {
       if (!response.ok) throw new Error('Executive data not found');
       return response.json() as Promise<ExecutiveDataset>;
     }).then((next: ExecutiveDataset) => {
@@ -60,8 +49,9 @@ export function ExecutiveDashboard() {
       setDate(initialDate);
       setSite(params.get('site') ?? 'ALL');
       setRat(params.get('rat') ?? 'ALL');
-    }).catch(() => setLoadError(true));
-  }, []);
+    }).catch(() => { if (!controller.signal.aborted) setLoadError(true); });
+    return () => controller.abort();
+  }, [source]);
 
   const customer = dataset?.customers.find(item => item.id === customerId);
   const day = dataset?.days.find(item => item.customerId === customerId && item.date === date);
@@ -73,34 +63,31 @@ export function ExecutiveDashboard() {
   useEffect(() => {
     if (!dataset || !customerId || !date) return;
     const params = new URLSearchParams(window.location.search);
+    params.set('source', source);
     params.set('customer', customerId);
     params.set('date', date);
     if (activeSite === 'ALL') params.delete('site'); else params.set('site', activeSite);
     if (activeRat === 'ALL') params.delete('rat'); else params.set('rat', activeRat);
     window.history.replaceState(null, '', `${window.location.pathname}?${params.toString()}`);
-  }, [dataset, customerId, date, activeSite, activeRat]);
+  }, [source, dataset, customerId, date, activeSite, activeRat]);
 
   const samples = useMemo(() => getCustomerDaySamples(day, activeSite, activeRat), [day, activeSite, activeRat]);
   const episodes = useMemo(() => findPoorEpisodes(samples, dataset?.meta.poorQoeThreshold), [samples, dataset?.meta.poorQoeThreshold]);
   const worstEpisode = useMemo(() => findWorstEpisode(episodes), [episodes]);
-  const selectedEpisode = episodes.find(episode => episode.id === selectedEpisodeId) ?? worstEpisode;
-  const activeSampleIndex = selectedSampleIndex ?? selectedEpisode?.minIndex ?? (samples.length ? 0 : null);
+  const selectedEpisode = showAllCalls ? null : episodes.find(episode => episode.id === selectedEpisodeId) ?? worstEpisode;
+  const activeSampleIndex = showAllCalls ? null : selectedSampleIndex ?? selectedEpisode?.minIndex ?? (samples.length ? 0 : null);
   const summary = useMemo(() => calculateQoESummary(samples, episodes, dataset?.meta.poorQoeThreshold), [samples, episodes, dataset?.meta.poorQoeThreshold]);
   const causes = useMemo(() => analyzeRootCause(samples, selectedEpisode), [samples, selectedEpisode]);
   const mainCause = causes.find(cause => cause.evidenceCount > 0) ?? null;
-  const journey = useMemo(() => buildCustomerJourney(samples, selectedEpisode), [samples, selectedEpisode]);
   const episodeCauseLabels = useMemo(() => Object.fromEntries(episodes.map(episode => [episode.id, analyzeRootCause(samples, episode).find(cause => cause.evidenceCount > 0)?.label ?? 'Rule 근거 부족'])), [episodes, samples]);
-  const actions = useMemo(() => actionsFor(mainCause?.key, selectedEpisode?.primaryPci ?? null), [mainCause?.key, selectedEpisode?.primaryPci]);
 
   const chooseEpisode = (id: string) => {
+    setShowAllCalls(false);
     const episode = episodes.find(item => item.id === id);
     if (!episode) return;
+    setSelectedCallId(null);
     setSelectedEpisodeId(id);
     setSelectedSampleIndex(episode.minIndex);
-  };
-  const chooseJourneyEvent = (event: JourneyEvent) => {
-    if (event.episodeId) setSelectedEpisodeId(event.episodeId);
-    setSelectedSampleIndex(event.sampleIndex);
   };
   const changeCustomer = (id: string) => {
     const next = dataset?.customers.find(item => item.id === id);
@@ -109,59 +96,41 @@ export function ExecutiveDashboard() {
     setSite('ALL');
     setRat('ALL');
     setSelectedEpisodeId(null);
-    setSelectedSampleIndex(null);
+    setSelectedSampleIndex(null); setSelectedCallId(null);
   };
 
   if (loadError) return <main className="executive-dashboard loading"><div><AlertCircleIcon /><h1>Executive 데이터를 불러오지 못했습니다.</h1><p><code>npm run data:executive</code> 실행 후 다시 열어 주세요.</p></div></main>;
   if (!dataset) return <main className="executive-dashboard loading"><div><Activity /><h1>고객 일자 데이터를 준비하고 있습니다.</h1></div></main>;
 
-  const ruleSummary = buildRuleSummary(summary, selectedEpisode);
-  const sourceType = day?.areaTypes.includes('indoor') ? '인빌딩 실측' : day ? '실외 실측' : '데이터 없음';
+  const sourceType = source === 'MDT' ? 'MDT · 지정 좌표' : day?.areaTypes.includes('indoor') ? '인빌딩 실측' : day ? '실외 실측' : '데이터 없음';
 
-  return <main className="executive-dashboard">
+  return <main className="executive-dashboard exec-map-focused">
     <header className="exec-hero">
-      <div><h1>통신망 데이터로 보는 고객체감품질 (QoE) 분석 플랫폼</h1><p>한 고객의 하루에서 품질 저하의 위치·시간·원인·조치를 연결합니다.</p></div>
+      <div><h1>통신망 데이터로 보는 고객체감품질 (QoE) 분석 플랫폼</h1><p>고객별 측정 경로와 시간대별 품질, 콜별 측정값을 확인합니다.</p></div>
       <div className="exec-live"><Activity /><span><b>EXECUTIVE DASHBOARD</b><small>{customer?.displayName ?? '고객 미선택'} · {date || '일자 미선택'}</small></span><em>{sourceType}</em></div>
     </header>
 
-    <ExecutiveFilters customers={dataset.customers} customerId={customerId} date={date} dates={dataset.meta.dates} site={activeSite} sites={sites} rat={activeRat} rats={rats} onCustomerChange={changeCustomer} onDateChange={value => { setDate(value); setSite('ALL'); setRat('ALL'); setSelectedEpisodeId(null); setSelectedSampleIndex(null); }} onSiteChange={value => { setSite(value); setSelectedEpisodeId(null); setSelectedSampleIndex(null); }} onRatChange={value => { setRat(value); setSelectedEpisodeId(null); setSelectedSampleIndex(null); }} />
+    <ExecutiveFilters customers={dataset.customers} customerId={customerId} date={date} dates={dataset.meta.dates} site={activeSite} sites={sites} source={source} onSourceChange={value => { setDataset(null); setSource(value); setRat('ALL'); setSite('ALL'); setSelectedCallId(null); setSelectedSampleIndex(null); setSelectedEpisodeId(null); setShowAllCalls(true); }} onCustomerChange={changeCustomer} onDateChange={value => { setDate(value); setSite('ALL'); setRat('ALL'); setSelectedEpisodeId(null); setSelectedSampleIndex(null); setSelectedCallId(null); }} onSiteChange={value => { setSite(value); setSelectedEpisodeId(null); setSelectedSampleIndex(null); setSelectedCallId(null); }} />
     <ExecutiveKpiCards summary={summary} mainCause={mainCause} />
 
     <section className="exec-dashboard-grid">
-      <ExecutivePanel number={1} title="고객체감품질 지도" subtitle="QoE Map" className="exec-map-panel" badge={<span className="exec-data-badge measured"><Database /> 실측 경로</span>}>
-        <ExecutiveQoeMap apiKey={mapKey} samples={samples} episodes={episodes} selectedEpisodeId={selectedEpisode?.id ?? null} selectedSampleIndex={activeSampleIndex} causeLabels={episodeCauseLabels} onEpisodeSelect={chooseEpisode} />
+      <ExecutivePanel number={1} title="고객체감품질 지도" className="exec-map-panel" badge={<div className="exec-map-metrics">
+        <label htmlFor="map-metric">표시 지표</label>
+        <NativeSelect id="map-metric" className="exec-metric-select" value={mapMetric} onChange={event => setMapMetric(event.target.value as MapMetric)}>
+          {(Object.keys(mapMetrics) as MapMetric[]).map(metric => <NativeSelectOption key={metric} value={metric}>{mapMetrics[metric].label} · {metric === 'qoe' ? '콜 단위' : source === 'MDT' ? '이벤트 단위' : '초 단위'}</NativeSelectOption>)}
+        </NativeSelect>
+      </div>}>
+        <ExecutiveQoeMap fixedLocation={source === 'MDT'} overviewRevision={overviewRevision} metric={mapMetric} apiKey={mapKey} samples={samples} episodes={episodes} selectedCallId={selectedCallId} selectedEpisodeId={selectedCallId ? null : selectedEpisode?.id ?? null} selectedSampleIndex={activeSampleIndex} causeLabels={episodeCauseLabels} onEpisodeSelect={chooseEpisode} />
       </ExecutivePanel>
 
-      <ExecutivePanel number={2} title="시간대별 품질 변화" className="exec-chart-panel" badge={<span className="exec-data-badge derived">QoE 계산 · MOS 실측</span>}>
-        <ExecutiveTimeChart samples={samples} episodes={episodes} selectedEpisodeId={selectedEpisode?.id ?? null} selectedSampleIndex={activeSampleIndex} onEpisodeSelect={chooseEpisode} onSampleSelect={setSelectedSampleIndex} />
+      <ExecutivePanel number={2} title="시간대별 품질 변화" className="exec-chart-panel" badge={<span className="exec-data-badge derived">{source === 'MDT' ? 'QoE 무선 추정 · MOS 없음' : 'QoE 계산 · MOS 실측'}</span>}>
+        <ExecutiveTimeChart samples={samples} episodes={episodes} selectedCallId={selectedCallId} selectedEpisodeId={selectedCallId ? null : selectedEpisode?.id ?? null} selectedSampleIndex={activeSampleIndex} onEpisodeSelect={chooseEpisode} onSampleSelect={index => { setShowAllCalls(false); setSelectedSampleIndex(index); }} />
       </ExecutivePanel>
 
-      <ExecutivePanel number={3} title="선택 고객 체감 요약" className="exec-summary-panel" badge={<span className="exec-data-badge derived">계산</span>}>
-        <CustomerExperienceSummary summary={summary} ruleSummary={ruleSummary} />
-      </ExecutivePanel>
-
-      <ExecutivePanel number={4} title="핵심 열악 구간" subtitle="Worst Section" className="exec-worst-panel" badge={<span className="exec-data-badge derived">Episode 계산</span>}>
-        <WorstSectionCard episode={selectedEpisode} samples={samples} cause={mainCause} selected={Boolean(selectedEpisode)} onSelect={() => selectedEpisode && chooseEpisode(selectedEpisode.id)} />
-      </ExecutivePanel>
-
-      <ExecutivePanel number={5} title="고객 Journey" className="exec-journey-panel" badge={<span className="exec-data-badge derived">측정 변화 기반</span>}>
-        <CustomerJourney events={journey} selectedSampleIndex={activeSampleIndex} onSelect={chooseJourneyEvent} />
-      </ExecutivePanel>
-
-      <ExecutivePanel number={6} title="주요 원인 분석" subtitle="Why?" className="exec-cause-panel" badge={<span className="exec-data-badge rule"><ShieldCheck /> Rule 기반</span>}>
-        <RootCauseAnalysis causes={causes} />
-      </ExecutivePanel>
-
-      <ExecutivePanel number={7} title="예상 고객 체감" subtitle="AI 추정" className="exec-ai-panel" badge={<span className="exec-data-badge ai">AI 추정</span>}>
-        <EstimatedCustomerExperience cause={mainCause} episode={selectedEpisode} averageMos={summary.averageMos} />
-      </ExecutivePanel>
-
-      <ExecutivePanel number={8} title="권장 조치" subtitle="Action Plan" className="exec-action-panel" badge={<span className="exec-data-badge rule">Rule 권고</span>}>
-        <ActionPlan actions={actions} />
-      </ExecutivePanel>
+      <ExecutiveCallTable callMeta={dataset.meta.callMeta} samples={samples} selectedSampleIndex={activeSampleIndex} onShowAll={() => { setShowAllCalls(true); setSelectedCallId(null); setSelectedEpisodeId(null); setSelectedSampleIndex(null); setOverviewRevision(value => value + 1); }} onSelect={index => { setShowAllCalls(false); setSelectedCallId(samples[index]?.callId || null); setSelectedEpisodeId(null); setSelectedSampleIndex(index); }} />
     </section>
 
-    <footer className="exec-footer"><span>실제 측정값과 계산·Rule 결과를 구분해 표시합니다.</span><span>고객명 원본 데이터 없음 · 전화번호 마스킹 처리 · Poor 기준 QoE &lt; {dataset.meta.poorQoeThreshold.toFixed(1)}</span></footer>
+    <footer className="exec-footer"><span>{source === 'MDT' ? `MDT: 지정 좌표 사용 · MOS/PCI 미제공 · 무선값 없는 ${dataset.meta.unscoredCalls ?? 0}콜 QoE 집계 제외` : '실제 측정값과 계산·Rule 결과를 구분해 표시합니다.'}</span><span>고객명 원본 데이터 없음 · 전화번호 마스킹 처리 · Poor 기준 QoE &lt; {dataset.meta.poorQoeThreshold.toFixed(1)}</span></footer>
   </main>;
 }
 

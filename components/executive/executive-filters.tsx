@@ -10,12 +10,11 @@ interface Props {
   dates: string[];
   site: string;
   sites: string[];
-  rat: string;
-  rats: string[];
+  source: '실측' | 'MDT';
+  onSourceChange: (source: '실측' | 'MDT') => void;
   onCustomerChange: (id: string) => void;
   onDateChange: (date: string) => void;
   onSiteChange: (site: string) => void;
-  onRatChange: (rat: string) => void;
 }
 
 function FilterField({ label, icon, primary = false, children }: { label: string; icon: React.ReactNode; primary?: boolean; children: React.ReactNode }) {
@@ -26,7 +25,7 @@ function FilterField({ label, icon, primary = false, children }: { label: string
   </label>;
 }
 
-export function ExecutiveFilters({ customers, customerId, date, dates, site, sites, rat, rats, onCustomerChange, onDateChange, onSiteChange, onRatChange }: Props) {
+export function ExecutiveFilters({ customers, customerId, date, dates, site, sites, source, onSourceChange, onCustomerChange, onDateChange, onSiteChange }: Props) {
   const customer = customers.find(item => item.id === customerId);
   return <section className="exec-filter-bar" aria-label="고객 일자 분석 필터">
     <FilterField label="고객 선택" icon={<UserRoundSearch />} primary>
@@ -50,14 +49,13 @@ export function ExecutiveFilters({ customers, customerId, date, dates, site, sit
     </FilterField>
     <FilterField label="서비스" icon={<Waves />}>
       <select aria-label="서비스" value="Voice" disabled><option>Voice</option></select>
-      <b>MOS 실측 서비스</b>
+      <b>{source === 'MDT' ? 'MDT 통화 기록 · MOS 없음' : 'MOS 실측 서비스'}</b>
     </FilterField>
-    <FilterField label="RAT" icon={<Radio />}>
-      <select aria-label="RAT" value={rat} onChange={event => onRatChange(event.target.value)}>
-        <option value="ALL">전체 RAT</option>
-        {rats.map(item => <option value={item} key={item}>{item === 'NR5G' ? '5G' : item}</option>)}
+    <FilterField label="데이터 구분" icon={<Radio />}>
+      <select aria-label="MDT 또는 실측" value={source} onChange={event => onSourceChange(event.target.value as '실측' | 'MDT')}>
+        <option value="실측">실측</option><option value="MDT">MDT</option>
       </select>
-      <b>{rat === 'ALL' ? 'LTE + 5G' : rat === 'NR5G' ? '5G' : rat}</b>
+      <b>{source === 'MDT' ? 'MDT 이벤트 기반' : '단말 실측 데이터'}</b>
     </FilterField>
   </section>;
 }

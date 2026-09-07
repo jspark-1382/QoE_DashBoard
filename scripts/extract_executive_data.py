@@ -128,7 +128,9 @@ records: dict[tuple[str, str], list[dict]] = defaultdict(list)
 customer_phones: dict[str, str] = {}
 source_rows: dict[str, int] = {}
 
-for book in sorted(DATA_DIR.glob("*.xlsx")):
+for book in sorted((DATA_DIR / "실측").glob("*.xlsx")) if (DATA_DIR / "실측").exists() else sorted(DATA_DIR.glob("*.xlsx")):
+    if book.name.startswith("~$"):
+        continue
     row_count = 0
     for values in read_rows(book):
         row_count += 1
@@ -163,6 +165,10 @@ for book in sorted(DATA_DIR.glob("*.xlsx")):
             "lat": lat,
             "lon": lon,
             "site": values.get(5, "") or "장소 정보 없음",
+            "morphology": values.get(4, "") or "정보 없음",
+            "ci": values.get(1, "").strip(),
+            # CI_1 is the source call index; it restarts for each measurement.
+            "callId": hashlib.sha256(f"{book.name}:{measure}:{values.get(1, '')}".encode("utf-8")).hexdigest()[:16] if measure and values.get(1, "").strip() else "",
             "areaType": "indoor" if "인빌딩" in measure or "RTCP" in book.name.upper() else "outdoor",
             "floorCode": values.get(6, ""),
             "floorName": values.get(7, ""),
@@ -185,6 +191,15 @@ customer_dates: dict[str, set[str]] = defaultdict(set)
 customer_samples: Counter[str] = Counter()
 for (customer_id, date), samples in sorted(records.items()):
     samples.sort(key=lambda item: item["second"])
+    calls: dict[str, list[dict]] = defaultdict(list)
+    for sample in samples:
+        if sample["callId"]:
+            calls[sample["callId"]].append(sample)
+    for call in calls.values():
+        score = qoe_score(*(average([sample[field] for sample in call]) for field in
+            ("rsrp", "rsrq", "sinr", "mos", "jitter", "delay")))
+        for sample in call:
+            sample["qoe"] = score
     customer_dates[customer_id].add(date)
     customer_samples[customer_id] += len(samples)
     sites = Counter(sample["site"] for sample in samples)
@@ -195,7 +210,7 @@ for (customer_id, date), samples in sorted(records.items()):
         round(sample["second"], 3), sample["time"], round(sample["lat"], 7), round(sample["lon"], 7),
         sample["site"], sample["areaType"], sample["floorCode"], sample["floorName"], sample["rat"], sample["pci"],
         sample["rsrp"], sample["rsrq"], sample["sinr"], sample["mos"], sample["jitter"], sample["delay"],
-        sample["qoe"], sample["cause"],
+        sample["qoe"], sample["cause"], sample["morphology"], sample["callId"], sample["ci"],
     ] for sample in samples]
     days.append({
         "key": f"{customer_id}:{date}",
@@ -224,7 +239,8 @@ output = {
         "sourceRows": source_rows,
         "dates": sorted({date for _, date in records}),
         "poorQoeThreshold": 2.5,
-        "sampleFields": ["second", "time", "lat", "lon", "site", "areaType", "floorCode", "floorName", "rat", "pci", "rsrp", "rsrq", "sinr", "mos", "jitter", "delay", "qoe", "cause"],
+        "qoeBasis": "call",
+        "sampleFields": ["second", "time", "lat", "lon", "site", "areaType", "floorCode", "floorName", "rat", "pci", "rsrp", "rsrq", "sinr", "mos", "jitter", "delay", "qoe", "cause", "morphology", "callId", "ci"],
         "classification": {
             "measured": ["time", "latitude", "longitude", "site", "floor", "RAT", "PCI", "RSRP", "RSRQ", "SINR", "MOS", "jitter", "delay"],
             "derived": ["QoE", "Poor Episode", "Journey Event", "Rule 기반 원인", "Rule 기반 권장 조치"],
