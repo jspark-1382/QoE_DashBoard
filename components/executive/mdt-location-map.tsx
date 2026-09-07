@@ -23,8 +23,8 @@ export function MdtLocationMap({ samples, baseStations, selectedSampleIndex, onS
   const selectRef = useRef(onSampleSelect);
   const [ready,setReady]=useState(false);
   const [mapError,setMapError]=useState('');
-  const [options]=useState<EstimationOptions>({...DEFAULT_OPTIONS});
-  const [windowSize]=useState(HISTORY_WINDOW);
+  const [options,setOptions]=useState<EstimationOptions>({...DEFAULT_OPTIONS});
+  const [windowSize,setWindowSize]=useState(HISTORY_WINDOW);
   const detailsOpen=false;
   const events=useMemo<MdtSample[]>(()=>samples.flatMap((sample,index)=>sample.mdt ? [{
     ...sample.mdt, timestamp:Date.parse(sample.mdt.timestamp), rsrp:sample.rsrp, rsrq:sample.rsrq, sinr:sample.sinr, sampleIndex:index,
@@ -124,6 +124,22 @@ export function MdtLocationMap({ samples, baseStations, selectedSampleIndex, onS
     return ()=>{active=false;};
   },[ready,estimate,estimates,join,metric,samples,overviewRevision,detailsOpen]);
   return <div className="location-poc">
+    <details className="location-settings">
+      <summary>추정 설정 <span>주파수 {options.frequencyEncoding === 'unknown' ? '미확인' : options.frequencyEncoding === 'mhz' ? 'MHz' : 'LTE EARFCN'} · {options.movementMode === 'walking' ? '보행' : options.movementMode === 'vehicle' ? '차량' : '이동 미확인'} · 최근 {windowSize}개</span></summary>
+      <div className="location-controls">
+        <label>주파수 형식<select aria-label="추정 주파수 형식" value={options.frequencyEncoding} onChange={event=>setOptions({...options,frequencyEncoding:event.target.value as EstimationOptions['frequencyEncoding']})}>
+          <option value="unknown">미확인 · 보정 없음</option><option value="mhz">MHz (확인된 경우)</option><option value="lte-earfcn">LTE EARFCN (확인된 경우)</option>
+        </select></label>
+        <label>이동 모드<select aria-label="이동 모드" value={options.movementMode} onChange={event=>setOptions({...options,movementMode:event.target.value as EstimationOptions['movementMode']})}>
+          <option value="unknown">미확인 · 상한 40 m/s</option><option value="walking">보행 · 상한 2 m/s</option><option value="vehicle">차량 · 상한 30 m/s</option>
+        </select></label>
+        <label>분석 이력<select aria-label="이력 Sample 수" value={windowSize} onChange={event=>setWindowSize(Number(event.target.value))}>
+          <option value={1}>선택 1개</option><option value={5}>최근 5개</option><option value={8}>최근 8개</option>
+        </select></label>
+        <button type="button" onClick={()=>{setOptions({...DEFAULT_OPTIONS});setWindowSize(HISTORY_WINDOW);}}>기본값 복원</button>
+      </div>
+      <p>주파수 형식을 확인한 경우에만 보정을 선택하세요. 설정에 따라 POC 후보 영역이 달라지며 실제 GPS 위치를 의미하지 않습니다.</p>
+    </details>
     <div ref={host} className="location-map" aria-label="MDT 기지국 기반 추정 위치 지도" />
     <div className="location-legend"><b>고객 추정 위치 · POC</b>
       {estimate ? <span>{samples[estimate.sample.sampleIndex]?.time} · 신뢰도 {confidenceLabel[estimate.confidence]}</span> : <span>기지국 연결 또는 무선 정보가 부족하여 위치를 추정할 수 없습니다.</span>}

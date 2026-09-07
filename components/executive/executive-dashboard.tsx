@@ -11,6 +11,7 @@ import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select'
 import { ExecutiveTimeChart } from './qoe-time-chart';
 import { ExecutivePanel } from './executive-panels';
 import { ExecutiveCallTable } from './executive-call-table';
+import { MapCallContext } from './map-call-context';
 import {
   analyzeRootCause, calculateQoESummary,
   findPoorEpisodes, findWorstEpisode, getCustomerDaySamples,
@@ -138,8 +139,10 @@ export function ExecutiveDashboard() {
           {(Object.keys(mapMetrics) as MapMetric[]).map(metric => <NativeSelectOption key={metric} value={metric}>{mapMetrics[metric].label} · {metric === 'qoe' ? '콜 단위' : source === 'MDT' ? '이벤트 단위' : '초 단위'}</NativeSelectOption>)}
         </NativeSelect>
       </div>}>
+        <MapCallContext samples={samples} selectedSampleIndex={activeSampleIndex} expanded={mapExpanded} callMeta={dataset.meta.callMeta} onSelect={index => { setShowAllCalls(false); setSelectedCallId(samples[index]?.callId || null); setSelectedEpisodeId(null); setSelectedSampleIndex(index); }} onShowAll={() => { setShowAllCalls(true); setSelectedCallId(null); setSelectedEpisodeId(null); setSelectedSampleIndex(null); setOverviewRevision(value => value + 1); }}>
         {source === 'MDT' && showLocationEstimation ? <MdtLocationMap samples={samples} baseStations={dataset.meta.baseStations ?? []} selectedSampleIndex={activeSampleIndex} apiKey={mapKey} metric={mapMetric} overviewRevision={overviewRevision} onSampleSelect={index=>{setShowAllCalls(false);setSelectedSampleIndex(index);setSelectedCallId(samples[index]?.callId??null);setSelectedEpisodeId(null);}} />
           : <ExecutiveQoeMap overviewRevision={overviewRevision} metric={mapMetric} apiKey={mapKey} samples={samples} episodes={episodes} selectedCallId={selectedCallId} selectedEpisodeId={selectedCallId ? null : selectedEpisode?.id ?? null} selectedSampleIndex={activeSampleIndex} causeLabels={episodeCauseLabels} onEpisodeSelect={chooseEpisode} />}
+        </MapCallContext>
       </ExecutivePanel>
 
       <ExecutivePanel number={2} title="시간대별 품질 변화" className="exec-chart-panel" badge={<span className="exec-data-badge derived">{source === 'MDT' ? 'QoE 무선 추정 · MOS 없음' : 'QoE 계산 · MOS 실측'}</span>}>
