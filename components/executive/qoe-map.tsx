@@ -44,6 +44,9 @@ export function ExecutiveQoeMap({ fixedLocation = false, overviewRevision, metri
       const map = L.map(hostRef.current, { zoomControl: false, attributionControl: true, preferCanvas: true }).setView([37.5, 127], 12);
       L.control.zoom({ position: 'bottomright' }).addTo(map);
       mapRef.current = map;
+      const resizeObserver = new ResizeObserver(() => map.invalidateSize());
+      resizeObserver.observe(hostRef.current);
+      map.on('unload', () => resizeObserver.disconnect());
       layerRef.current = L.layerGroup().addTo(map);
       setReady(true);
     }).catch(() => setReady(false));

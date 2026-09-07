@@ -1,5 +1,6 @@
 """Adapt MDT event reports without inventing GPS tracks, PCI or MOS."""
 import hashlib
+import csv
 import json
 import math
 from collections import defaultdict
@@ -62,6 +63,22 @@ for path in sorted(Path("data/MDT").glob("*.xlsx")):
 days = defaultdict(list)
 unscored = 0
 call_meta = {}
+base_stations = []
+master_errors = []
+master_path = Path("data/BaseStation/virtual_base_station.csv")
+if master_path.exists():
+    with master_path.open(encoding="utf-8-sig", newline="") as stream:
+        for line, row in enumerate(csv.DictReader(stream), 2):
+            lat, lon = numeric(row.get("latitude")), numeric(row.get("longitude"))
+            if lat is None or lon is None or not (-90 <= lat <= 90 and -180 <= lon <= 180) or not row.get("cell_id"):
+                master_errors.append(f"Master {line}행: 좌표 또는 Cell ID 누락")
+                continue
+            base_stations.append({"baseStationId": row.get("base_station_id", "").strip(), "cellId": row["cell_id"].strip(),
+                "frequency": numeric(row.get("frequency")), "latitude": lat, "longitude": lon,
+                "txPowerDbm": numeric(row.get("tx_power_dbm")), "txPowerType": row.get("tx_power_type", "").upper(),
+                "isVirtual": row.get("is_virtual", "").strip().lower() in ("true", "1", "yes")})
+else:
+    master_errors.append("기지국 Master 없음")
 for index, ((date_raw, key), records) in enumerate(sorted(groups.items()), 1):
     qoe = score(records)
     if qoe is None:
@@ -82,7 +99,12 @@ for index, ((date_raw, key), records) in enumerate(sorted(groups.items()), 1):
             continue
         second = at.hour * 3600 + at.minute * 60 + at.second + at.microsecond / 1e6
         days[date].append([second, at.strftime("%H:%M:%S"), 35.2123, 126.8647, SITE, "indoor", "", "", "UNKNOWN", None,
-            rsrp, rsrq, sinr, None, None, None, qoe, "healthy", "주거지역", call_id, ci])
+            rsrp, rsrq, sinr, None, None, None, qoe, "healthy", "주거지역", call_id, ci,
+            {"timestamp": at.isoformat(timespec="milliseconds") + "+09:00",
+             "baseStationId": row.get("기지국ID(MDT)", "").strip().replace("_", ""),
+             "cellId": row.get("Cell_ID(MDT)", "").strip().replace("_", ""),
+             "frequency": numeric(row.get("주파수(MDT)")),
+             "streamId": hashlib.sha256((row.get("서비스계약") if row.get("서비스계약") not in (None, "", "_") else key).encode()).hexdigest()[:16]}])
 
 output_days = [{"key": "mdt-site:" + date, "customerId": "mdt-site", "date": date, "service": "Voice",
     "sampleCount": len(samples), "sites": [SITE], "rats": [], "areaTypes": ["indoor"],
@@ -90,7 +112,8 @@ output_days = [{"key": "mdt-site:" + date, "customerId": "mdt-site", "date": dat
 output = {"meta": {"sourceFiles": list(source_rows), "sourceRows": source_rows, "dates": sorted(days),
     "poorQoeThreshold": 2.5, "qoeBasis": "call-radio-estimate", "source": "MDT",
     "fixedLocation": True, "unscoredCalls": unscored, "callMeta": call_meta,
-    "sampleFields": ["second","time","lat","lon","site","areaType","floorCode","floorName","rat","pci","rsrp","rsrq","sinr","mos","jitter","delay","qoe","cause","morphology","callId","ci"],
+    "baseStations": base_stations, "masterErrors": master_errors, "frequencyEncoding": "unknown",
+    "sampleFields": ["second","time","lat","lon","site","areaType","floorCode","floorName","rat","pci","rsrp","rsrq","sinr","mos","jitter","delay","qoe","cause","morphology","callId","ci","mdt"],
     "classification": {"measured": ["rsrp","rsrq","sinr"], "derived": ["QoE"], "estimated": ["location"]}},
     "customers": [{"id": "mdt-site", "displayName": "MDT 사이트 전체", "maskedPhone": "사이트 단위 조회", "dates": sorted(days),
         "sampleCount": sum(len(s) for s in days.values()), "hasName": False}] if days else [], "days": output_days}

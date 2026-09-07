@@ -1,10 +1,11 @@
 export type ExecutiveRat = 'LTE' | 'NR5G' | 'UNKNOWN';
 export type AreaType = 'outdoor' | 'indoor';
+export type MdtMetadata = { timestamp: string; baseStationId: string; cellId: string; frequency: number | null; streamId: string };
 
 export type ExecutiveRawSample = [
   number, string, number, number, string, AreaType, string, string,
   ExecutiveRat, number | null, number | null, number | null, number | null,
-  number | null, number | null, number | null, number, string, string?, string?, string?,
+  number | null, number | null, number | null, number, string, string?, string?, string?, MdtMetadata?,
 ];
 
 export interface ExecutiveCustomer {
@@ -30,6 +31,8 @@ export interface ExecutiveDay {
 
 export interface ExecutiveDataset {
   meta: {
+    baseStations?: import('../location-estimation/types').BaseStation[];
+    masterErrors?: string[];
     callMeta?: Record<string, { start: string; end: string }>;
     unscoredCalls?: number;
     sourceFiles: string[];
@@ -48,6 +51,7 @@ export interface ExecutiveDataset {
 }
 
 export interface ExecutiveSample {
+  mdt?: MdtMetadata;
   morphology: string;
   callId: string;
   ci: string;

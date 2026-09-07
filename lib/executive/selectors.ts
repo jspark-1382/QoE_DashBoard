@@ -23,7 +23,7 @@ const mode = <T extends string | number>(input: (T | null)[]): T | null => {
 
 export function decodeSample(raw: ExecutiveRawSample): ExecutiveSample {
   return {
-    morphology: raw[18] ?? '정보 없음', callId: raw[19] ?? '', ci: raw[20] ?? '',
+    morphology: raw[18] ?? '정보 없음', callId: raw[19] ?? '', ci: raw[20] ?? '', mdt: raw[21],
     second: raw[0], time: raw[1], lat: raw[2], lon: raw[3], site: raw[4], areaType: raw[5],
     floorCode: raw[6], floorName: raw[7], rat: raw[8], pci: raw[9], rsrp: raw[10], rsrq: raw[11],
     sinr: raw[12], mos: raw[13], jitter: raw[14], delay: raw[15], qoe: raw[16], sourceCause: raw[17],

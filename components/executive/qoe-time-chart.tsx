@@ -109,7 +109,12 @@ export function ExecutiveTimeChart({ samples, episodes, selectedCallId, selected
         <button type="button" className={showSignal ? 'on' : ''} onClick={() => setShowSignal(value => !value)}>RSRP/SINR {showSignal ? '숨김' : '보기'}</button>
       </div>
     </div>
-    <svg className="exec-time-chart" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" aria-label="선택 고객 시간대별 QoE, MOS">
+    <svg className="exec-time-chart" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" aria-label="선택 고객 시간대별 QoE, MOS" onClick={event=>{
+      const bounds=event.currentTarget.getBoundingClientRect();
+      const at=start+clamp(((event.clientX-bounds.left)/bounds.width*width-left)/(right-left),0,1)*(end-start);
+      const index=samples.reduce((best,sample,i)=>Math.abs(sample.second-at)<Math.abs(samples[best].second-at)?i:best,0);
+      onSampleSelect(index);
+    }}>
       {[1, 2, 3, 4, 5].map(value => <g key={value}><line className="grid" x1={left} y1={y(value)} x2={right} y2={y(value)} /><text x="15" y={y(value) + 4}>{value}</text></g>)}
       {callSamples.length > 0 && <rect x={x(callSamples[0].second)} y={top} width={Math.max(4, x(callSamples[callSamples.length - 1].second) - x(callSamples[0].second))} height={bottom - top} fill="#38c5ff" fillOpacity={.16} stroke="#38c5ff" strokeWidth={1}><title>선택 콜 CI {callSamples[0].ci}</title></rect>}
       {displayEpisodes.map(episode => <rect
@@ -121,7 +126,7 @@ export function ExecutiveTimeChart({ samples, episodes, selectedCallId, selected
         height={bottom - top}
         fill="var(--exec-red)"
         fillOpacity={episode.id === selectedEpisodeId ? 0.18 : 0.08}
-        onClick={() => onEpisodeSelect(episode.id)}
+        onClick={event => { event.stopPropagation(); onEpisodeSelect(episode.id); }}
       ><title>{episode.startTime}~{episode.endTime} · 최저 QoE {episode.minQoe.toFixed(2)}</title></rect>)}
       {showSignal && <path className="signal-path" d={path(bin => bin.signal)} />}
       <path className="mos-path" d={path(bin => bin.mos)} />
@@ -133,7 +138,7 @@ export function ExecutiveTimeChart({ samples, episodes, selectedCallId, selected
       {displayEpisodes.map(episode => {
         const sample = minimumByEpisode[episode.id];
         const active = episode.id === selectedEpisodeId;
-        return <g key={episode.id} style={{ cursor: 'pointer' }} onClick={() => { onEpisodeSelect(episode.id); onSampleSelect(episode.minIndex); }}>
+        return <g key={episode.id} style={{ cursor: 'pointer' }} onClick={event => { event.stopPropagation(); onEpisodeSelect(episode.id); onSampleSelect(episode.minIndex); }}>
           <line x1={x(sample.second)} y1={top} x2={x(sample.second)} y2={y(sample.qoe)} stroke={active ? '#ff8ba2' : '#b3455f'} strokeWidth={active ? 1.2 : 0.8} strokeDasharray="3 2" />
           <circle cx={x(sample.second)} cy={y(sample.qoe)} r={active ? 6 : 4.5} fill="var(--exec-red)" stroke="#fff" strokeWidth={active ? 2.4 : 1.4} />
           <text x={x(sample.second)} y={y(sample.qoe) - 9} textAnchor="middle" fill="#ff8ba2" fontWeight={700}>{sample.qoe.toFixed(2)}</text>
