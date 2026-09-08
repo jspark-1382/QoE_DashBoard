@@ -1,6 +1,7 @@
 """Adapt MDT event reports without inventing GPS tracks, PCI or MOS."""
 import hashlib
 import csv
+from base_station_master import load_master
 import json
 import math
 from collections import defaultdict
@@ -63,22 +64,7 @@ for path in sorted(Path("data/MDT").glob("*.xlsx")):
 days = defaultdict(list)
 unscored = 0
 call_meta = {}
-base_stations = []
-master_errors = []
-master_path = Path("data/BaseStation/virtual_base_station.csv")
-if master_path.exists():
-    with master_path.open(encoding="utf-8-sig", newline="") as stream:
-        for line, row in enumerate(csv.DictReader(stream), 2):
-            lat, lon = numeric(row.get("latitude")), numeric(row.get("longitude"))
-            if lat is None or lon is None or not (-90 <= lat <= 90 and -180 <= lon <= 180) or not row.get("cell_id"):
-                master_errors.append(f"Master {line}행: 좌표 또는 Cell ID 누락")
-                continue
-            base_stations.append({"baseStationId": row.get("base_station_id", "").strip(), "cellId": row["cell_id"].strip(),
-                "frequency": numeric(row.get("frequency")), "latitude": lat, "longitude": lon,
-                "txPowerDbm": numeric(row.get("tx_power_dbm")), "txPowerType": row.get("tx_power_type", "").upper(),
-                "isVirtual": row.get("is_virtual", "").strip().lower() in ("true", "1", "yes")})
-else:
-    master_errors.append("기지국 Master 없음")
+base_stations, master_errors = load_master(Path("data/BaseStation/virtual_base_station.csv"))
 for index, ((date_raw, key), records) in enumerate(sorted(groups.items()), 1):
     qoe = score(records)
     if qoe is None:

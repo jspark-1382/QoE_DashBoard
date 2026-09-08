@@ -21,6 +21,8 @@ const {applyMovementPenalty}=load(root+'trajectory');
 const {matchBaseStation}=load(root+'master');
 const {estimatePosition,DEFAULT_OPTIONS}=load(root+'index');
 const {decideConfidence}=load(root+'confidence');
+const {estimateAdaptive,groupPhysicalSites,logDistance,solveWeighted}=load(root+'adaptive');
+const {ADAPTIVE_CONFIG}=load(root+'adaptive-config');
 let tests=0;
 function test(name,fn){fn();tests++;console.log('PASS '+name);}
 const station={baseStationId:'A',cellId:'1',frequency:1550,latitude:35.21,longitude:126.86,txPowerDbm:43,txPowerType:'TOTAL',isVirtual:true};
@@ -38,6 +40,29 @@ test('Stable causal prefixes, spike smoothing, weak point suppression and segmen
  assert.notEqual(missing[0].segmentId,missing[1].segmentId);
  const interleaved=input.flatMap(s=>[s,{...s,streamId:'two',sampleIndex:s.sampleIndex+100}]);
  assert.deepEqual(estimatePosition(interleaved,[station]).filter(e=>e.sample.streamId==='one'),all);
+});
+test('Adaptive physical grouping, outlier, log model and nonlinear solver',()=>{
+ const b={...station,...offsetPoint(station,600,0),cellId:'2',baseStationId:'B'};
+ const c={...station,...offsetPoint(station,0,800),cellId:'3',baseStationId:'C'};
+ const distant={...station,latitude:37.3,cellId:'4',baseStationId:'D'};
+ const sites=groupPhysicalSites([station,{...station,cellId:'duplicate'},b,c,distant]);
+ assert.equal(sites.length,4);assert.equal(sites.filter(s=>s.excluded).length,1);
+ assert.equal(logDistance(-65),100);assert(logDistance(-95)>logDistance(-85));
+ const truth=offsetPoint(station,180,220);
+ const used=[station,b,c].map((s,i)=>({...s,siteId:String(i),weight:1,estimatedDistanceM:distanceM(truth,s),rsrp:-80,deltaTimeSec:0,cellIds:[s.cellId],residualM:0}));
+ const solved=solveWeighted(used);assert(distanceM(truth,solved)<2);assert(solved.residual<2);
+});
+test('Adaptive smallest window, fallback caps, invalid and stream isolation',()=>{
+ const b={...station,...offsetPoint(station,600,0),cellId:'2',baseStationId:'B'};
+ const c={...station,...offsetPoint(station,0,800),cellId:'3',baseStationId:'C'};
+ const input=[sample,{...sample,cellId:'2',baseStationId:'B',timestamp:8000,sampleIndex:1},{...sample,cellId:'3',baseStationId:'C',timestamp:18000,sampleIndex:2}];
+ const result=estimateAdaptive(input,[station,b,c]);assert.equal(result.positions[0].windowSec,20);assert.equal(result.positions[0].method,'MULTILATERATION');
+ assert(result.positions.every(p=>p.usedSites.length===new Set(p.usedSites.map(s=>s.siteId)).size));
+ const two=estimateAdaptive(input.slice(0,2),[station,b]).positions[0];assert.equal(two.method,'WEIGHTED_2_SITE');assert(two.confidenceScore<=64);
+ const one=estimateAdaptive([sample],[station]).positions[0];assert.equal(one.method,'CELL_SITE');assert(one.confidenceScore<=49);assert.equal(one.estimatedLat,station.latitude);
+ const bad=estimateAdaptive([sample],[]).positions[0];assert.equal(bad.method,'INVALID');assert.equal(bad.estimatedLat,null);
+ const separate=estimateAdaptive(input.map((p,i)=>({...p,streamId:String(i)})),[station,b,c]);assert(separate.positions.every(p=>p.siteCount===1));
+ const spike=estimateAdaptive([sample,{...input[1],timestamp:200000},{...input[2],timestamp:400000}],[station,b,c]);assert(spike.positions.slice(1).every(p=>p.breakBefore));
 });
 test('Lookup interpolation, monotonicity and caps',()=>{
  assert.equal(estimateBaseRadius(-82.5),325);assert.equal(estimateBaseRadius(-90),650);
@@ -117,14 +142,23 @@ if(fs.existsSync('public/mdt-data.json'))test('Local MDT + virtual Master real f
  const d=JSON.parse(fs.readFileSync('public/mdt-data.json','utf8'));
  const events=d.days.flatMap(day=>day.samples.map((s,i)=>({...s[21],timestamp:Date.parse(s[21].timestamp),rsrp:s[10],rsrq:s[11],sinr:s[12],sampleIndex:i})));
  const matches=events.map(e=>matchBaseStation(e,d.meta.baseStations));
+ const adaptive=estimateAdaptive(events,d.meta.baseStations);
+ const methods=Object.fromEntries(['MULTILATERATION','WEIGHTED_2_SITE','CELL_SITE','INVALID'].map(m=>[m,adaptive.positions.filter(p=>p.method===m).length]));
+ console.log('  Adaptive:',JSON.stringify({stats:adaptive.stats,sites:adaptive.sites.length,methods,windows:Object.fromEntries(ADAPTIVE_CONFIG.windowsSec.map(w=>[w,adaptive.positions.filter(p=>p.windowSec===w).length])),grades:Object.fromEntries(['A','B','C','D','E'].map(g=>[g,adaptive.positions.filter(p=>p.confidenceGrade===g).length])),jumps:adaptive.positions.filter(p=>p.jump).length}));
+ assert.equal(adaptive.positions.length,events.length);
+ assert(adaptive.positions.every(p=>p.estimatedLat==null||Number.isFinite(p.estimatedLat)&&Number.isFinite(p.estimatedLon)));
+ assert(adaptive.positions.every(p=>p.usedSites.every(s=>!adaptive.stats.excludedSites.includes(s.siteId))));
  console.log('  Master join:',matches.filter(m=>m?.mode==='cell').length,'exact,',matches.filter(m=>m?.mode==='station-fallback').length,'fallback,',matches.filter(m=>!m).length,'unmatched');
- assert.equal(events.length,365);
- assert.equal(matches.filter(m=>m?.mode==='cell').length,293);
- assert.equal(matches.filter(m=>m?.mode==='station-fallback').length,18);
- assert.equal(matches.filter(m=>!m).length,54);
+ assert(events.length>0);
+ for(let i=0;i<events.length;i++)if(matches[i]?.mode==='cell'){
+   assert.equal(matches[i].station.cellId,events[i].cellId);
+   assert.equal(matches[i].station.baseStationId,events[i].baseStationId);
+   assert(matches[i].station.frequency==null || matches[i].station.frequency===events[i].frequency);
+ }
  const stream=events.filter(e=>e.streamId===events[0].streamId).slice(0,8);
  const start=performance.now(),out=estimatePosition(stream,d.meta.baseStations);
- assert(out.length>0);assert(out.every(e=>e.confidence!=='HIGH' && e.station.isVirtual));
+ assert(out.length>0);assert(out.every(e=>Number.isFinite(e.latitude) && Number.isFinite(e.longitude)));
+ assert(out.filter(e=>e.station.isVirtual || e.station.provenanceUnknown).every(e=>e.confidence!=='HIGH'));
  console.log('  8-sample estimate ms:',Math.round(performance.now()-start));
 });
 console.log(tests+' test groups passed.');

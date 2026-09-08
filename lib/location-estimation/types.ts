@@ -4,6 +4,7 @@ export type Point = { latitude: number; longitude: number };
 export type BaseStation = Point & {
   baseStationId: string; cellId: string; frequency: number | null;
   txPowerDbm?: number | null; txPowerType?: string; isVirtual: boolean;
+  pci?: number | null; provenanceUnknown?: boolean;
 };
 export type MdtSample = {
   timestamp: number; cellId: string; baseStationId: string; frequency: number | null;

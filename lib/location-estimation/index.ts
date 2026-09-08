@@ -68,7 +68,7 @@ export function estimatePosition(samples: MdtSample[], stations: BaseStation[], 
     const evidenceConsistent=max>=CONFIG.consistencyFloor;
     const quality=decideConfidence({cells:new Set(history.map(e=>e.station.latitude+','+e.station.longitude)).size,history:history.length,areaKm2:candidateArea,
       transition:!!transition,trend:transition?.trend??false,sinr:sample.sinr??null,consistent:evidenceConsistent,
-      virtual:history.some(e=>e.station.isVirtual),exact:history.every(e=>matchBaseStation(e.sample,stations)?.mode==='cell'),
+      virtual:history.some(e=>e.station.isVirtual || e.station.provenanceUnknown),exact:history.every(e=>matchBaseStation(e.sample,stations)?.mode==='cell'),
       knownFrequency:radius.frequencyMhz!=null,score:max});
     const transitionCandidates=transition ? candidates.filter(p=> {
       const a=history.find(e=>e.station.cellId===transition.from.cellId);

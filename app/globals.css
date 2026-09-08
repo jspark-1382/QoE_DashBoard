@@ -428,6 +428,15 @@ footer{height:45px;display:flex;align-items:center;justify-content:space-between
 .exec-location-toggle[aria-pressed="true"] .exec-location-state{background:#68e1c8;color:#07352f}
 .location-poc{position:relative;height:100%;display:flex;flex-direction:column;min-height:0;background:#102534}
 .location-map{flex:1;min-height:200px;z-index:0;background:#112b36}
+.adaptive-filters{flex-wrap:wrap;max-height:220px;overflow:auto}
+.adaptive-filters input{width:125px;padding:5px;border:1px solid #38566a;border-radius:5px;background:#102c3e;color:#e9f5fb}
+.location-controls .adaptive-check{flex-direction:row;align-items:center;gap:5px}
+.adaptive-settings .location-controls{flex-wrap:wrap}
+.adaptive-playbar{display:flex;align-items:center;gap:8px;padding:6px 12px;background:#0b2131;color:#cfe6f2;flex:none;font-size:12px}
+.adaptive-playbar button{padding:5px 8px;border:1px solid #426579;border-radius:5px;background:#153044;color:#e8f5fc;cursor:pointer}
+.adaptive-playbar button:disabled{opacity:.4;cursor:default}
+.adaptive-playbar input{flex:1;min-width:60px;accent-color:#56d8cb}
+.location-legend.adaptive-summary{bottom:16px;max-width:480px;font-size:12px;max-height:220px;overflow:auto;pointer-events:auto}
 .location-settings{flex:none;background:#0b2131;border-bottom:1px solid #29485b;color:#deeff7}
 .location-settings summary{padding:10px 14px;cursor:pointer;font-size:13px;font-weight:650}
 .location-settings summary span{margin-left:12px;font-size:11px;font-weight:400;color:#9bb9ca}
