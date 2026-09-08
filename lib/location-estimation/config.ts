@@ -21,6 +21,7 @@ export const MAX_MOVEMENT_SPEED = { walking: 2, vehicle: 30, unknown: 40 };
 export const GRID_RESOLUTION = 100;
 export const HISTORY_WINDOW = 8;
 export const CONFIG = {
+  smoothingWindow: 3, smoothingMaxGapSeconds: 30, representativeMinMovementSupport: .5,
   historyDecay: .8, maxHistoryGapSeconds: 120, maxGridPoints: 24000,
   candidateFraction: .8, currentRingFloor: .08, movementFloor: .08,
   movementWeight: .45, representativeContinuityWeight: .6, movementSoftScaleM: 100, beamSize: 96, transitionBonus: .2, transitionTrendBonus: .15,

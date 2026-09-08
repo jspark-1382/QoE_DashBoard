@@ -12,16 +12,29 @@ export { DEFAULT_OPTIONS } from './config';
 
 export function estimatePosition(samples: MdtSample[], stations: BaseStation[], options: EstimationOptions = DEFAULT_OPTIONS): PositionEstimate[] {
   const results:PositionEstimate[]=[];
+  const streams = [...new Set(samples.map(s=>s.streamId))];
+  if(streams.length>1) return streams.flatMap(id=>estimatePosition(samples.filter(s=>s.streamId===id),stations,options)).sort((a,b)=>a.sample.timestamp-b.sample.timestamp || a.sample.sampleIndex-b.sample.sampleIndex);
+  let segmentId=0;
+  const windowSize=Math.max(1,Math.min(HISTORY_WINDOW,options.historyWindow??HISTORY_WINDOW));
   let history:Evidence[]=[], previous:PositionEstimate|null=null;
   const ordered=[...samples].filter(s=>Number.isFinite(s.timestamp)).sort((a,b)=>a.timestamp-b.timestamp);
   for(const sample of ordered) {
     const last=history.at(-1)?.sample;
-    if(last && (sample.streamId!==last.streamId || sample.timestamp-last.timestamp>CONFIG.maxHistoryGapSeconds*1000)) {history=[];previous=null;}
+    if(last && (sample.streamId!==last.streamId || sample.timestamp-last.timestamp>CONFIG.maxHistoryGapSeconds*1000)) {history=[];previous=null;segmentId++;}
     const match=matchBaseStation(sample,stations);
-    const radius=match && calculateRadius(sample,match.station,options);
-    if(!match || !radius) {history=[];previous=null;continue;}
+    // Causal median of raw observations only; never smooth across cell changes or gaps.
+    const recent: number[]=[];
+    for(let i=history.length-1;i>=0 && recent.length<CONFIG.smoothingWindow-1;i--) {
+      const prior=history[i].sample;
+      if(prior.cellId!==sample.cellId || prior.baseStationId!==sample.baseStationId || prior.frequency!==sample.frequency || sample.timestamp-prior.timestamp>CONFIG.smoothingMaxGapSeconds*1000)break;
+      if(prior.rsrp!=null)recent.push(prior.rsrp);
+    }
+    const values=sample.rsrp==null?[]:[sample.rsrp,...recent].sort((a,b)=>a-b);
+    const smoothedRsrp=values.length>=CONFIG.smoothingWindow?values[Math.floor(values.length/2)]:sample.rsrp;
+    const radius=match && calculateRadius({...sample,rsrp:smoothedRsrp},match.station,options);
+    if(!match || !radius) {history=[];previous=null;segmentId++;continue;}
     const current={sample,station:match.station,radius};
-    history=[...history,current].slice(-HISTORY_WINDOW);
+    history=[...history,current].slice(-windowSize);
     const transition=findCellTransition(history);
     const grid=generateCandidateGrid(match.station,radius);
     const scores=grid.candidates.map(point=>{
@@ -61,7 +74,9 @@ export function estimatePosition(samples: MdtSample[], stations: BaseStation[], 
       const a=history.find(e=>e.station.cellId===transition.from.cellId);
       return a && scoreCandidatePoint(p,a.station,a.radius,(sample.timestamp-a.sample.timestamp)/1000*MAX_MOVEMENT_SPEED[options.movementMode])>=CONFIG.candidateFraction;
     }):[];
-    const result:PositionEstimate={...center,sample,station:match.station,radius,candidates,...quality,candidateArea,confidenceRadiusM,
+    const plausibleMove=!previous || applyMovementPenalty(previous,center,(sample.timestamp-previous.sample.timestamp)/1000,options.movementMode)>=CONFIG.representativeMinMovementSupport;
+    const showRepresentative=quality.confidence!=='LOW' && evidenceConsistent && plausibleMove;
+    const result:PositionEstimate={...center,sample,station:match.station,radius,candidates,...quality,candidateArea,confidenceRadiusM,segmentId,showRepresentative,smoothedRsrp,
       transition,transitionCandidates,historyCount:history.length,evidenceConsistent,gridResolutionM:grid.resolution,
       warnings:[...radius.warnings,...(match.mode==='station-fallback'?['Cell 미일치 · 단일 기지국 좌표 대체']:[])]};
     results.push(result);previous=result;

@@ -22,9 +22,11 @@ export type PositionEstimate = Point & {
   confidence: Confidence; reasons: string[]; candidateArea: number; confidenceRadiusM: number;
   transition: Transition | null; transitionCandidates: Candidate[]; historyCount: number;
   warnings: string[]; gridResolutionM: number; evidenceConsistent: boolean;
+  segmentId: number; showRepresentative: boolean; smoothedRsrp: number | null;
 };
 export type EstimationOptions = {
   frequencyEncoding: FrequencyEncoding; movementMode: 'unknown' | 'walking' | 'vehicle';
   calibrationMode: 'default' | 'site-specific'; siteKey?: string;
+  historyWindow?: number;
 };
 export type Match = { station: BaseStation; mode: 'cell' | 'station-fallback' };

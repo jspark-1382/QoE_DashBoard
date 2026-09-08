@@ -25,6 +25,20 @@ let tests=0;
 function test(name,fn){fn();tests++;console.log('PASS '+name);}
 const station={baseStationId:'A',cellId:'1',frequency:1550,latitude:35.21,longitude:126.86,txPowerDbm:43,txPowerType:'TOTAL',isVirtual:true};
 const sample={timestamp:0,baseStationId:'A',cellId:'1',frequency:1550,rsrp:-90,rsrq:null,sinr:null,streamId:'one',sampleIndex:0};
+test('Stable causal prefixes, spike smoothing, weak point suppression and segment breaks',()=>{
+ const input=Array.from({length:10},(_,i)=>({...sample,timestamp:i*1000,sampleIndex:i,rsrp:i===4?-110:-90}));
+ const all=estimatePosition(input,[station]);
+ assert.equal(all[4].smoothedRsrp,-90);
+ assert.equal(all[4].sample.rsrp,-110);
+ assert(all.every(e=>!e.showRepresentative));
+ for(let i=1;i<=input.length;i++)assert.deepEqual(estimatePosition(input.slice(0,i),[station]).at(-1),all[i-1]);
+ const gap=estimatePosition([...input,{...sample,timestamp:200000,sampleIndex:10}],[station]);
+ assert.notEqual(gap.at(-1).segmentId,gap.at(-2).segmentId);
+ const missing=estimatePosition([input[0],{...input[1],cellId:'missing',baseStationId:'missing'},input[2]],[station]);
+ assert.notEqual(missing[0].segmentId,missing[1].segmentId);
+ const interleaved=input.flatMap(s=>[s,{...s,streamId:'two',sampleIndex:s.sampleIndex+100}]);
+ assert.deepEqual(estimatePosition(interleaved,[station]).filter(e=>e.sample.streamId==='one'),all);
+});
 test('Lookup interpolation, monotonicity and caps',()=>{
  assert.equal(estimateBaseRadius(-82.5),325);assert.equal(estimateBaseRadius(-90),650);
  assert.equal(estimateBaseRadius(-60),100);assert.equal(estimateBaseRadius(-125),4000);

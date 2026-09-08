@@ -30,11 +30,10 @@ export function MdtLocationMap({ samples, baseStations, selectedSampleIndex, onS
     ...sample.mdt, timestamp:Date.parse(sample.mdt.timestamp), rsrp:sample.rsrp, rsrq:sample.rsrq, sinr:sample.sinr, sampleIndex:index,
   }]:[]),[samples]);
   const selected=events.find(event=>event.sampleIndex===selectedSampleIndex)??events[0];
-  const history=useMemo(()=>selected ? events.filter(e=>e.streamId===selected.streamId && (e.timestamp<selected.timestamp || e.timestamp===selected.timestamp && e.sampleIndex<=selected.sampleIndex))
-    .filter((e,index,all)=>all.findLastIndex(other=>other.timestamp===e.timestamp && other.cellId===e.cellId && other.rsrp===e.rsrp)===index)
-    .slice(-windowSize):[],[events,selected,windowSize]);
-  const estimates=useMemo(()=>estimatePosition(history,baseStations,options),[history,baseStations,options]);
-  const estimate=selected ? estimates.findLast(e=>e.sample.sampleIndex===selected.sampleIndex) : undefined;
+  // Compute a causal trajectory once per dataset/settings, not from a new seed on each selection.
+  const allEstimates=useMemo(()=>estimatePosition(events,baseStations,{...options,historyWindow:windowSize}),[events,baseStations,options,windowSize]);
+  const estimate=selected ? allEstimates.find(e=>e.sample.sampleIndex===selected.sampleIndex) : undefined;
+  const estimates=useMemo(()=>estimate ? allEstimates.filter(e=>e.sample.streamId===estimate.sample.streamId && e.segmentId===estimate.segmentId && e.sample.sampleIndex<=estimate.sample.sampleIndex).slice(-windowSize):[],[allEstimates,estimate,windowSize]);
   const transitions=useMemo(()=>events.filter((event,index)=>{
     const previous=events.slice(0,index).findLast(e=>e.streamId===event.streamId);
     return previous && previous.cellId!==event.cellId && event.timestamp-previous.timestamp<=CONFIG.maxHistoryGapSeconds*1000;
@@ -109,15 +108,19 @@ export function MdtLocationMap({ samples, baseStations, selectedSampleIndex, onS
       });
       // A dashed path links candidate representatives, not a GPS trajectory.
       const linked=estimates.filter(e=>e.sample.streamId===estimate.sample.streamId);
-      if(linked.length>1)L.polyline(linked.map(p=>[p.latitude,p.longitude] as [number,number]),{renderer,color:'#ba9cff',weight:2,dashArray:'3 8',opacity:.6})
-        .bindTooltip('추정 후보 중심 이력 · GPS 이동 경로 아님').addTo(target);
+      linked.forEach((e,index)=>{
+        const before=linked[index-1];
+        if(before?.showRepresentative && e.showRepresentative)L.polyline([[before.latitude,before.longitude],[e.latitude,e.longitude]],{renderer,color:'#ba9cff',weight:2,dashArray:'3 8',opacity:.6})
+          .bindTooltip('추정 후보 중심 이력 · GPS 이동 경로 아님').addTo(target);
+      });
       linked.forEach(e=>{
+        if(!e.showRepresentative)return;
         L.circleMarker([e.latitude,e.longitude],{renderer,radius:e===estimate?13:5,color:'#fff',weight:2,fillColor:e===estimate?color:'#bda2f5',fillOpacity:1})
           .bindTooltip(`추정 중심점 · ${new Date(e.sample.timestamp).toLocaleTimeString('ko-KR',{timeZone:'Asia/Seoul'})} · ${confidenceLabel[e.confidence]}`,{permanent:e===estimate,direction:'top',offset:[0,-14]})
           .on('click',()=>selectRef.current(e.sample.sampleIndex)).addTo(target);
       });
       const bounds=L.latLngBounds(ring(station,radius.outerRadiusM));
-      estimates.forEach(e=>bounds.extend([e.latitude,e.longitude]));
+      estimates.filter(e=>e.showRepresentative).forEach(e=>bounds.extend([e.latitude,e.longitude]));
       if(estimate.transition)bounds.extend([estimate.transition.from.latitude,estimate.transition.from.longitude]);
       if(bounds.isValid())instance.fitBounds(bounds,{padding:[65,75],maxZoom:16,animate:false});
     }).catch(()=>setMapError('추정 영역 표시 중 오류가 발생했습니다.'));
@@ -144,6 +147,8 @@ export function MdtLocationMap({ samples, baseStations, selectedSampleIndex, onS
     <div className="location-legend"><b>고객 추정 위치 · POC</b>
       {estimate ? <span>{samples[estimate.sample.sampleIndex]?.time} · 신뢰도 {confidenceLabel[estimate.confidence]}</span> : <span>기지국 연결 또는 무선 정보가 부족하여 위치를 추정할 수 없습니다.</span>}
       <span>청록: 추정 후보 영역 · 파랑 고리: 추정 반경 범위</span>
+      {estimate && !estimate.showRepresentative && <span>방향 또는 이동 근거 부족 · 추정점 대신 후보 영역만 표시</span>}
+      {estimate && estimate.smoothedRsrp!==estimate.sample.rsrp && <span>일시적 RSRP 변동 완화 적용 · 원본 측정값은 유지</span>}
       <span>노랑: Cell 변경 경계 후보 · 점선: 추정 이력</span>
       <span>콜 또는 시간 차트를 선택해 위치를 확인하세요.</span>
       <span>점은 후보 영역의 대표 위치이며 실제 GPS 위치가 아닙니다.</span>
