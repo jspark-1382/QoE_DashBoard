@@ -13,6 +13,7 @@ function positionDetails(p:AdaptivePosition){return `<b>추정 단말 위치 · 
 
 export function AdaptivePositionLayer({map,events,stations,selectedIndex,onSelect,overviewRevision}:{map:LeafletMap|null;events:MdtSample[];stations:BaseStation[];selectedIndex:number|null;onSelect:(i:number)=>void;overviewRevision:number}){
   const [mode,setMode]=useState<'max'|'median'|'mean'>('max');
+  const [infoOpen,setInfoOpen]=useState(false);
   const [method,setMethod]=useState('ALL'),[grade,setGrade]=useState('ALL'),[site,setSite]=useState('ALL');
   const [cell,setCell]=useState(''),[frequency,setFrequency]=useState('ALL'),[pci,setPci]=useState('');
   const [minRsrp,setMinRsrp]=useState(''),[from,setFrom]=useState(''),[to,setTo]=useState('');
@@ -89,11 +90,12 @@ export function AdaptivePositionLayer({map,events,stations,selectedIndex,onSelec
       <p>기준 100m / −65dBm / n=3 · 미보정 모델 · 시간창은 전후 관측을 포함합니다. 신뢰도는 정확도 백분율이 아닙니다.</p>
     </details>
     <div className="adaptive-playbar"><button disabled={activeIndex<=0} onClick={()=>onSelect(list[activeIndex-1].sample.sampleIndex)}>이전</button><button disabled={!list.length} onClick={()=>setPlaying(v=>!v)}>{playing?'일시정지':'재생'}</button><button disabled={activeIndex>=list.length-1||!list.length} onClick={()=>onSelect(list[activeIndex+1].sample.sampleIndex)}>다음</button><input type="range" aria-label="위치 추정 시간" min={0} max={Math.max(0,list.length-1)} value={Math.max(0,activeIndex)} disabled={!list.length} onChange={e=>{setPlaying(false);onSelect(list[Number(e.target.value)].sample.sampleIndex);}}/><span>{selected?time(selected.timestamp):'관측 없음'}</span></div>
-    <div className="location-legend adaptive-summary" aria-label="Adaptive 위치 상세">
+    <button type="button" className="adaptive-info-toggle" aria-expanded={infoOpen} onClick={()=>setInfoOpen(v=>!v)}>{infoOpen?'위치 상세 닫기':'위치 상세'}</button>
+    {infoOpen && <div className="location-legend adaptive-summary" aria-label="Adaptive 위치 상세">
       <b>추정 단말 위치 · {visible?.method??'표시 결과 없음'}</b>
       {visible&&<><span>{format(visible.estimatedLat,6)}, {format(visible.estimatedLon,6)} · {visible.siteCount} Site</span><span>신뢰도 {visible.confidenceScore}/100 · {visible.confidenceGrade} · Window ±{visible.windowSec}초</span><span>평균 / 최대 RSRP {format(visible.avgRsrp,1)} / {format(visible.strongestRsrp,1)} dBm</span><span>예상 위치 불확실성 약 ±{format(visible.estimatedAccuracyM)}m · Residual {format(visible.residualErrorM)}m</span><span>Site {visible.usedSites.map(s=>s.siteId).join(', ')||'없음'} · Cell {visible.usedCellIds.join(', ')||'없음'}</span><span>{visible.warnings.join(' · ')}</span></>}
       {!visible&&<span>필터에 해당하는 관측을 시간 선택에서 고르세요.</span>}
       <span>미매칭 {data.stats.unmatched}개 · 좌표 이상 제외 {data.stats.excludedSamples}개 관측 · 경로 최대 {ADAPTIVE_CONFIG.displayLimit}개 표시</span>
-    </div>
+    </div>}
   </>;
 }

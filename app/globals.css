@@ -436,7 +436,8 @@ footer{height:45px;display:flex;align-items:center;justify-content:space-between
 .adaptive-playbar button{padding:5px 8px;border:1px solid #426579;border-radius:5px;background:#153044;color:#e8f5fc;cursor:pointer}
 .adaptive-playbar button:disabled{opacity:.4;cursor:default}
 .adaptive-playbar input{flex:1;min-width:60px;accent-color:#56d8cb}
-.location-legend.adaptive-summary{bottom:16px;max-width:480px;font-size:12px;max-height:220px;overflow:auto;pointer-events:auto}
+.location-legend.adaptive-summary{top:52px;right:10px;bottom:auto;left:auto;max-width:340px;font-size:12px;max-height:280px;overflow:auto;pointer-events:auto}
+.adaptive-info-toggle{position:absolute;top:8px;right:10px;z-index:441;padding:5px 10px;border:1px solid #426579;border-radius:6px;background:#071925ee;color:#cfe6f2;font-size:12px;cursor:pointer;pointer-events:auto}.adaptive-info-toggle:hover{background:#0d2a3d}
 .location-settings{flex:none;background:#0b2131;border-bottom:1px solid #29485b;color:#deeff7}
 .location-settings summary{padding:10px 14px;cursor:pointer;font-size:13px;font-weight:650}
 .location-settings summary span{margin-left:12px;font-size:11px;font-weight:400;color:#9bb9ca}
