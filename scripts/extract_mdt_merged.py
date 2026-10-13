@@ -21,6 +21,9 @@ from mdt_merged_source import parse_timestamp, read_merged_rows, second_of_day
 POOR_QOE_THRESHOLD = 2.5
 SITE = "개포4동"
 FALLBACK_COORD = (37.5, 127.05)
+MAX_JSON_BYTES = 80_000_000
+MIN_SAMPLES_PER_CONTRACT = 100
+ESTIMATED_BYTES_PER_SAMPLE = 260
 
 SAMPLE_FIELDS = ["second", "time", "lat", "lon", "site", "areaType", "floorCode", "floorName",
                  "rat", "pci", "rsrp", "rsrq", "sinr", "mos", "jitter", "delay", "qoe",
@@ -214,6 +217,8 @@ def main(argv=None):
     parser.add_argument("--src", default=None, help="workbook to ingest (defaults to data/*lte+mdt*.xlsx)")
     parser.add_argument("--out", default="public/mdt-data.json")
     parser.add_argument("--master", default="data/BaseStation/virtual_base_station.csv")
+    parser.add_argument("--min-samples", type=int, default=None,
+                        help="contract sample threshold; defaults to size-estimate guard")
     args = parser.parse_args(argv)
 
     src = Path(args.src) if args.src else next(p for p in Path("data").glob("*lte+mdt*.xlsx")
@@ -224,14 +229,26 @@ def main(argv=None):
     total_rows = 0
     projected = []
     meta_by_cell = {}
+    contracts = Counter()
     for row in read_merged_rows(src.open("rb")):
         total_rows += 1
+        contracts[row.get("svc_cont_id") or ""] += 1
         cell = (row.get("mdt_cell_id") or "").strip()
         x, y = _row_xy(row)
-        if x is None or not cell:
-            continue
-        gnss_valid += 1
-        projected_xy = to_latlon(x, y, CHOSEN) if CHOSEN else None
+        if x is not None:
+            gnss_valid += 1
+        if CHOSEN:
+            if x is None or not cell:
+                continue
+            projected_xy = to_latlon(x, y, CHOSEN)
+        else:
+            # Degraded mode: every MDT cell gets a virtual station at the site
+            # representative coordinate so the estimation layer (and its
+            # harness contract over public/mdt-data.json) keeps working,
+            # mirroring the legacy fixed-location MDT behaviour.
+            if not cell:
+                continue
+            projected_xy = FALLBACK_COORD
         if projected_xy is None:
             continue
         projected.append((cell, projected_xy[0], projected_xy[1]))
@@ -240,6 +257,11 @@ def main(argv=None):
                                   "frequency": numeric(row.get("dlearfcn")),
                                   "pci": numeric(row.get("pci"))}
 
+    # Size guard: tiny contracts (mostly test/noise rows) blow the single JSON up.
+    estimate = total_rows * ESTIMATED_BYTES_PER_SAMPLE
+    guarded = estimate > MAX_JSON_BYTES
+    threshold = args.min_samples if args.min_samples is not None else (MIN_SAMPLES_PER_CONTRACT if guarded else 0)
+
     centroids = cell_centroids(projected)
     master_errors = []
     base_stations = []
@@ -247,6 +269,8 @@ def main(argv=None):
         write_master_csv(centroids, meta_by_cell, master)
         from base_station_master import load_master
         base_stations, master_errors = load_master(master)
+        if not CHOSEN:
+            master_errors.append("좌표계 미결정 — 가상 기지국 위치는 사이트 대표 좌표(개포4동) 사용")
     else:
         master_errors.append("좌표계 미결정 또는 GNSS 유효 행 부족 — 위치추정 및 기지국 Master 부트스트랩 비활")
 
@@ -255,17 +279,23 @@ def main(argv=None):
         Direct per-row GNSS use stays gated on CHOSEN inside the projection pass above."""
         return centroids.get((row.get("mdt_cell_id") or "").strip())
 
-    dataset = build_dataset(read_merged_rows(src.open("rb")), coords,
-                            site_name=SITE, source_stats={src.name: total_rows})
+    kept = (row for row in read_merged_rows(src.open("rb"))
+            if not threshold or contracts.get(row.get("svc_cont_id") or "", 0) >= threshold)
+    filtered_contracts = sum(1 for name, count in contracts.items() if name and count < threshold) if threshold else 0
+    dataset = build_dataset(kept, coords, site_name=SITE, source_stats={src.name: total_rows})
     dataset["meta"]["baseStations"] = base_stations
     dataset["meta"]["masterErrors"] = master_errors
+    dataset["meta"]["filteredContracts"] = filtered_contracts
 
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(dataset, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    size = out.stat().st_size
     print(json.dumps({"rows": total_rows, "events": sum(d["sampleCount"] for d in dataset["days"]),
                       "source_calls": len(dataset["meta"]["callMeta"]),
                       "unscored_calls": dataset["meta"]["unscoredCalls"],
                       "gnss_valid_rows": gnss_valid, "stations": len(base_stations),
+                      "filtered_contracts": filtered_contracts,
+                      "threshold": threshold, "json_bytes": size,
                       "projection": CHOSEN or "unresolved"}, ensure_ascii=False))
     return dataset
 

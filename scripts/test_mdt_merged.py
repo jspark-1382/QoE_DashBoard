@@ -156,8 +156,51 @@ class TestMainDegraded(unittest.TestCase):
         ds = json.loads(out.read_text(encoding="utf-8"))
         self.assertEqual(len(ds["days"]), 1)
         self.assertEqual(len(ds["days"][0]["samples"]), 3)
-        self.assertTrue(ds["meta"]["masterErrors"])   # degraded: coordinate system unresolved
-        self.assertFalse(master.exists())             # no bootstrap without coordinates
+        # Degraded mode still ships a site-representative virtual master so the
+        # estimation layer and its harness contract keep working.
+        self.assertTrue(ds["meta"]["baseStations"])
+        self.assertTrue(ds["meta"]["masterErrors"])   # degraded disclosure present
+        self.assertTrue(master.exists())
+        self.assertTrue(ds["meta"]["baseStations"][0]["isVirtual"])
+
+
+class TestSizeGuard(unittest.TestCase):
+    def test_estimate_switch_and_min_samples_override(self):
+        import json
+        import tempfile
+        from pathlib import Path
+
+        import extract_mdt_merged
+
+        tmp = Path(tempfile.mkdtemp())
+        headers = list(sample_row().keys())
+        one_row = [sample_row()[h] for h in headers]
+        src = tmp / "src.xlsx"
+        src.write_bytes(make_xlsx([headers] + [one_row] * 3))
+        out = tmp / "out.json"
+        master = tmp / "base.csv"
+
+        # Force the size estimate to trip the guard with tiny constants.
+        saved_max, saved_min = extract_mdt_merged.MAX_JSON_BYTES, extract_mdt_merged.MIN_SAMPLES_PER_CONTRACT
+        extract_mdt_merged.MAX_JSON_BYTES = 100
+        extract_mdt_merged.MIN_SAMPLES_PER_CONTRACT = 4
+        try:
+            main(["--src", str(src), "--out", str(out), "--master", str(master)])
+            ds = json.loads(out.read_text(encoding="utf-8"))
+            self.assertEqual(ds["days"], [])          # 3-row contract below threshold 4
+            self.assertEqual(ds["meta"]["filteredContracts"], 1)
+        finally:
+            extract_mdt_merged.MAX_JSON_BYTES, extract_mdt_merged.MIN_SAMPLES_PER_CONTRACT = saved_max, saved_min
+
+        # Explicit override applies regardless of the estimate.
+        main(["--src", str(src), "--out", str(out), "--master", str(master), "--min-samples", "4"])
+        ds = json.loads(out.read_text(encoding="utf-8"))
+        self.assertEqual(ds["days"], [])
+
+        # Default small files are untouched.
+        main(["--src", str(src), "--out", str(out), "--master", str(master)])
+        ds = json.loads(out.read_text(encoding="utf-8"))
+        self.assertEqual(len(ds["days"]), 1)
 
 
 if __name__ == "__main__":
