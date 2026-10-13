@@ -143,7 +143,7 @@ node scripts/test-location-estimation.cjs
 
 - `data` 폴더 최상위에 `lte+mdt`가 이름에 포함된 Excel 원본을 둡니다(계약번호 컬럼 포함 영어 스키마).
 - `py -3 scripts/extract_mdt_merged.py`를 실행하면 계약·콜 단위로 집계해 `public/mdt-data.json`을 다시 만들고, `data/BaseStation/BaseStation_new.txt`(형식: `기지국ID,위도,경도`, 1행 1기지국)를 실기지국 마스터로 화면에 주입합니다. 가상 기지국은 생성하지 않습니다. 화면 갱신은 브라우저 새로고침입니다.
-- 화면에서 고객 측정점(고객체감품질 지도의 품질색 점선)과 기지국(`SITE_xxx` 마커)는 별도로 표시됩니다. GNSS 좌표가 없는 구간은 RSRP 기반 위치추정(Adaptive · 다중 Site)이 보간합니다.
+- 화면에서 고객 측정점(고객체감품질 지도의 품질색 점선)과 기지국(`SITE_xxx` 마커)는 별도로 표시됩니다. 지도에는 선택한 고객이 관측한 기지국만 표시되어 마스터 전체(999국)가 그려지지 않습니다. 좌표가 없는 구간은 RSRP 기반 위치추정(Adaptive · 다중 Site)이 보간합니다.
 - 원본의 `gnss_utmkx/utmky` 좌표계는 아직 확인되지 않아, 위치는 사이트(개포4동) 대표 좌표를 사용합니다. 좌표계(EPSG)가 확인되면 `scripts/gnss_utm.py`의 `CHOSEN`만 갱신하면 실제 경로 표시가 켜집니다.
 - 원본 Excel과 생성된 JSON·CSV는 Git에 포함되지 않습니다.
 

@@ -32,15 +32,21 @@ export function MdtLocationMap({ samples, baseStations, selectedSampleIndex, onS
     ...sample.mdt, timestamp:Date.parse(sample.mdt.timestamp), rsrp:sample.rsrp, rsrq:sample.rsrq, sinr:sample.sinr, sampleIndex:index,
   }]:[]),[samples]);
   const selected=events.find(event=>event.sampleIndex===selectedSampleIndex)??events[0];
+  // Only stations actually referenced by the visible samples: keeps the map readable
+  // when the master covers a whole city while a customer talks to a handful of sites.
+  const relevantStations=useMemo(()=>{
+    const ids=new Set(events.map(event=>event.baseStationId).filter(Boolean) as string[]);
+    return ids.size ? baseStations.filter(station=>ids.has(station.baseStationId)) : baseStations;
+  },[events,baseStations]);
   // Compute a causal trajectory once per dataset/settings, not from a new seed on each selection.
-  const allEstimates=useMemo(()=>algorithm==='legacy'?estimatePosition(events,baseStations,{...options,historyWindow:windowSize}):[],[events,baseStations,options,windowSize,algorithm]);
+  const allEstimates=useMemo(()=>algorithm==='legacy'?estimatePosition(events,relevantStations,{...options,historyWindow:windowSize}):[],[events,relevantStations,options,windowSize,algorithm]);
   const estimate=selected ? allEstimates.find(e=>e.sample.sampleIndex===selected.sampleIndex) : undefined;
   const estimates=useMemo(()=>estimate ? allEstimates.filter(e=>e.sample.streamId===estimate.sample.streamId && e.segmentId===estimate.segmentId && e.sample.sampleIndex<=estimate.sample.sampleIndex).slice(-windowSize):[],[allEstimates,estimate,windowSize]);
   const transitions=useMemo(()=>events.filter((event,index)=>{
     const previous=events.slice(0,index).findLast(e=>e.streamId===event.streamId);
     return previous && previous.cellId!==event.cellId && event.timestamp-previous.timestamp<=CONFIG.maxHistoryGapSeconds*1000;
   }),[events]);
-  const join=selected ? matchBaseStation(selected,baseStations):null;
+  const join=selected ? matchBaseStation(selected,relevantStations):null;
   useEffect(()=>{selectRef.current=onSampleSelect;},[onSampleSelect]);
   useEffect(()=>{
     let active=true;
@@ -103,7 +109,7 @@ export function MdtLocationMap({ samples, baseStations, selectedSampleIndex, onS
         if(oldEvent)L.polygon([ring(from,oldEvent.radius.outerRadiusM),ring(from,oldEvent.radius.innerRadiusM).reverse()],
           {renderer,color:'#ffd66b',weight:1,dashArray:'5 5',fillOpacity:.07}).addTo(target);
       }
-      const stations=baseStations.filter((s,i,all)=>all.findIndex(t=>t.baseStationId===s.baseStationId && t.latitude===s.latitude && t.longitude===s.longitude)===i);
+      const stations=relevantStations.filter((s,i,all)=>all.findIndex(t=>t.baseStationId===s.baseStationId && t.latitude===s.latitude && t.longitude===s.longitude)===i);
       stations.forEach(s=>{
         const virtual=s.isVirtual?'가상 기지국':s.provenanceUnknown?'기지국 · 출처 미확인':'기지국 Master';
         L.marker([s.latitude,s.longitude],{icon:L.divIcon({className:'location-station-marker',html:`<span>📡</span><b>${virtual}</b>`,iconSize:[92,46],iconAnchor:[46,24]})})
@@ -128,7 +134,7 @@ export function MdtLocationMap({ samples, baseStations, selectedSampleIndex, onS
       if(bounds.isValid())instance.fitBounds(bounds,{padding:[65,75],maxZoom:16,animate:false});
     }).catch(()=>setMapError('추정 영역 표시 중 오류가 발생했습니다.'));
     return ()=>{active=false;};
-  },[ready,estimate,estimates,join,metric,samples,overviewRevision,detailsOpen,algorithm]);
+  },[ready,estimate,estimates,join,metric,samples,overviewRevision,detailsOpen,algorithm,relevantStations]);
   return <div className="location-poc">
     <div className="location-controls"><label>위치추정 알고리즘<select aria-label="위치추정 알고리즘" value={algorithm} onChange={e=>setAlgorithm(e.target.value as typeof algorithm)}><option value="adaptive">Adaptive · 다중 Site</option><option value="legacy">기존 · 경험적 후보 영역</option></select></label></div>
     {algorithm==='legacy' && <details className="location-settings">
@@ -147,7 +153,7 @@ export function MdtLocationMap({ samples, baseStations, selectedSampleIndex, onS
       </div>
       <p>주파수 형식을 확인한 경우에만 보정을 선택하세요. 설정에 따라 POC 후보 영역이 달라지며 실제 GPS 위치를 의미하지 않습니다.</p>
     </details>}
-    {algorithm==='adaptive' && <AdaptivePositionLayer map={ready?map.current:null} events={events} stations={baseStations} selectedIndex={selectedSampleIndex} onSelect={onSampleSelect} overviewRevision={overviewRevision}/>}
+    {algorithm==='adaptive' && <AdaptivePositionLayer map={ready?map.current:null} events={events} stations={relevantStations} selectedIndex={selectedSampleIndex} onSelect={onSampleSelect} overviewRevision={overviewRevision}/>}
     <div ref={host} className="location-map" aria-label="MDT 기지국 기반 추정 위치 지도" />
     {algorithm==='legacy' && <div className="location-legend"><b>고객 추정 위치 · POC</b>
       {estimate ? <span>{samples[estimate.sample.sampleIndex]?.time} · 신뢰도 {confidenceLabel[estimate.confidence]}</span> : <span>기지국 연결 또는 무선 정보가 부족하여 위치를 추정할 수 없습니다.</span>}
