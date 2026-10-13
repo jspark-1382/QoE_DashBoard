@@ -23,7 +23,24 @@ CANDIDATES = {
     "utm53-wgs84-fe2e6-fn500k": {**WGS84, "k0": 0.9996, "lon0": 128.5, "fe": 2_000_000, "fn": 500_000},
 }
 
-CHOSEN = ""  # gate result: no candidate passes; confirm EPSG with data owner
+CHOSEN = ""  # gate result: no candidate passes; see CALIB below
+
+# Calibrated affine for the gnss_utmkx/utmky plane, fitted over 364 equip
+# clusters joined to the real BaseStation_new master (_analysis/
+# calibrate_master.py): median residual 210m (dominated by device-cluster vs
+# sector distance). The plane behaves like a TM zone with an unknown origin;
+# this local affine absorbs it across the Gaepo measurement area.
+CALIB_LAT = (19.8533933943, 1.26398621925e-07, 9.01226233049e-06)
+CALIB_LON = (116.607595271, 1.12854958511e-05, -2.03198795865e-07)
+
+
+def calib_latlon(x, y):
+    """Plane (gnss_utmkx, gnss_utmky) -> (lat, lon) via the fitted affine."""
+    if x is None or y is None or x <= 0 or y <= 0:
+        return None
+    a, b, c = CALIB_LAT
+    d, e, f = CALIB_LON
+    return a + b * x + c * y, d + e * x + f * y
 
 
 def _ellipsoid(cfg):

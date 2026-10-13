@@ -54,6 +54,7 @@ data/
     VT_VOLTEMDT_20260907172438.xlsx
   BaseStation/
     virtual_base_station.csv
+    BaseStation_new.txt
   lte+mdt(개포4동_계약번호 추가).xlsx
 ```
 
@@ -85,7 +86,7 @@ py -3 scripts/extract_mdt_merged.py
 
 MDT 화면만 사용할 경우 `py -3 scripts/extract_mdt_data.py`만 실행해도 됩니다. 이 경우 실측/Engineering 화면의 데이터는 별도로 준비해야 합니다. MDT 추정 기능에는 기지국 Master도 필요합니다.
 
-통합 MDT 원본(`data/lte+mdt*.xlsx`)은 `py -3 scripts/extract_mdt_merged.py`(별명 `npm.cmd run data:mdt-merged`)로 변환하며, 결과가 같은 `public/mdt-data.json`에 쓰이므로 기존 MDT 파이프라인과 번갈아 쓰입니다. 샘플 100개 미만 계약은 자동 제외되며(`--min-samples`로 조정), 원본 GNSS 좌표계가 확정되기 전에는 개포4동 사이트 대표 좌표를 쓰는 강등 모드(지도에 사이트 대표 표시)로 동작합니다.
+통합 MDT 원본(`data/lte+mdt*.xlsx`)은 `py -3 scripts/extract_mdt_merged.py`(별명 `npm.cmd run data:mdt-merged`)로 변환하며, 결과가 같은 `public/mdt-data.json`에 쓰이므로 기존 MDT 파이프라인 대신 사용할 수 있습니다. 크기 추정(원본 행×260B)이 80MB를 넘으면(이 파일이 해당) 원본 행 100개 미만 계약이 자동 제외되며 `--min-samples`로 조정합니다. 원본 GNSS 좌표(`gnss_utmkx/utmky`)는 `BaseStation_new.txt` 실기지국 마스터로 캘리브레이션한 affine 변환(중위 오프셋 약 210m)으로 고객 실좌표로 사용하고, 좌표가 없는 측정 행은 그 행이 첨부한 기지국의 좌표를 사용합니다.
 
 ### 6. 서버 실행 및 접속
 
@@ -141,7 +142,8 @@ node scripts/test-location-estimation.cjs
 ### 통합 MDT 데이터
 
 - `data` 폴더 최상위에 `lte+mdt`가 이름에 포함된 Excel 원본을 둡니다(계약번호 컬럼 포함 영어 스키마).
-- `py -3 scripts/extract_mdt_merged.py`를 실행하면 계약·콜 단위로 집계해 `public/mdt-data.json`과 가상 기지국 Master(`data/BaseStation/virtual_base_station.csv`)를 다시 만듭니다. 화면 갱신은 브라우저 새로고침입니다.
+- `py -3 scripts/extract_mdt_merged.py`를 실행하면 계약·콜 단위로 집계해 `public/mdt-data.json`을 다시 만들고, `data/BaseStation/BaseStation_new.txt`(형식: `기지국ID,위도,경도`, 1행 1기지국)를 실기지국 마스터로 화면에 주입합니다. 가상 기지국은 생성하지 않습니다. 화면 갱신은 브라우저 새로고침입니다.
+- 화면에서 고객 측정점(고객체감품질 지도의 품질색 점선)과 기지국(`SITE_xxx` 마커)는 별도로 표시됩니다. GNSS 좌표가 없는 구간은 RSRP 기반 위치추정(Adaptive · 다중 Site)이 보간합니다.
 - 원본의 `gnss_utmkx/utmky` 좌표계는 아직 확인되지 않아, 위치는 사이트(개포4동) 대표 좌표를 사용합니다. 좌표계(EPSG)가 확인되면 `scripts/gnss_utm.py`의 `CHOSEN`만 갱신하면 실제 경로 표시가 켜집니다.
 - 원본 Excel과 생성된 JSON·CSV는 Git에 포함되지 않습니다.
 

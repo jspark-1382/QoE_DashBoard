@@ -23,25 +23,26 @@ def read_merged_rows(path):
     with zipfile.ZipFile(path) as zf:
         shared = _shared_strings(zf)
         headers = {}
-        for _, row in ET.iterparse(zf.open("xl/worksheets/sheet1.xml"), events=("end",)):
-            if row.tag != NS + "row":
-                continue
-            values = {}
-            for cell in row:
-                col = "".join(c for c in cell.attrib.get("r", "") if c.isalpha())
-                node = cell.find(NS + "v")
-                raw = node.text if node is not None else ""
-                if cell.get("t") == "s" and raw:
-                    raw = shared[int(raw)]
-                elif cell.get("t") == "inlineStr":
-                    raw = "".join(t.text or "" for t in cell.iter(NS + "t"))
-                values[col] = raw
-            row.clear()
-            if not headers:
-                headers = values
-                continue
-            record = {headers.get(col, col): value for col, value in values.items()}
-            yield {key: (None if value in (None, "", "NULL") else value) for key, value in record.items()}
+        with zf.open("xl/worksheets/sheet1.xml") as sheet:
+            for _, row in ET.iterparse(sheet, events=("end",)):
+                if row.tag != NS + "row":
+                    continue
+                values = {}
+                for cell in row:
+                    col = "".join(c for c in cell.attrib.get("r", "") if c.isalpha())
+                    node = cell.find(NS + "v")
+                    raw = node.text if node is not None else ""
+                    if cell.get("t") == "s" and raw:
+                        raw = shared[int(raw)]
+                    elif cell.get("t") == "inlineStr":
+                        raw = "".join(t.text or "" for t in cell.iter(NS + "t"))
+                    values[col] = raw
+                row.clear()
+                if not headers:
+                    headers = values
+                    continue
+                record = {headers.get(col, col): value for col, value in values.items()}
+                yield {key: (None if value in (None, "", "NULL") else value) for key, value in record.items()}
 
 
 def parse_timestamp(stamp):

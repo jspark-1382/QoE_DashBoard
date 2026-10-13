@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-# -*- coding: utf-8 -*-
 """Tests for the merged lte+mdt ingestion pipeline.
 
 Run from the repo root:
@@ -38,12 +37,7 @@ def make_xlsx(rows):
 
 
 from mdt_merged_source import parse_timestamp, read_merged_rows, second_of_day  # noqa: E402
-from extract_mdt_merged import (  # noqa: E402
-    build_dataset,
-    cell_centroids,
-    main,
-    write_master_csv,
-)
+from extract_mdt_merged import build_dataset, cell_centroids, main  # noqa: E402
 
 
 class TestReader(unittest.TestCase):
@@ -65,7 +59,7 @@ class TestReader(unittest.TestCase):
         self.assertEqual(second_of_day(parse_timestamp("20260915235959")), 23 * 3600 + 59 * 60 + 59)
         self.assertIsNone(parse_timestamp("202609151630"))   # incomplete stamp -> None
         self.assertIsNone(parse_timestamp(None))
-        # a 24h-style stamp stays inside the day via %86400, never rolling into tomorrow
+        # a midnight stamp stays inside its own day via %86400, never rolling over
         self.assertEqual(second_of_day(parse_timestamp("20260916000000")), 0.0)
 
 
@@ -113,6 +107,13 @@ class TestBuildDataset(unittest.TestCase):
                 self.assertTrue(sample[19] and sample[20])
         self.assertTrue(all(c["maskedPhone"].startswith("계약 ") for c in ds["customers"]))
 
+    def test_day_samples_sorted_across_calls(self):
+        rows = ([sample_row(svc_ctgry_st_hhmiss="163051", rqt_timestamp="20260915110000")] * 3 +
+                [sample_row(svc_ctgry_st_hhmiss="164051", rqt_timestamp="20260915100000")] * 3)
+        ds = build_dataset(rows, self.coords)
+        secs = [s[0] for d in ds["days"] for s in d["samples"]]
+        self.assertEqual(secs, sorted(secs))
+
 
 class TestBootstrap(unittest.TestCase):
     def test_median_and_min_count(self):
@@ -124,44 +125,66 @@ class TestBootstrap(unittest.TestCase):
         self.assertAlmostEqual(lat, 37.51, delta=1e-9)
         self.assertAlmostEqual(lon, 127.05, delta=1e-9)
 
-    def test_generated_csv_loads_with_legacy_loader(self):
-        import tempfile
-        from pathlib import Path
 
-        from base_station_master import load_master
-        centroids = {"C1": (37.51, 127.05)}
-        meta = {"C1": {"baseStationId": "E1", "frequency": 1550, "pci": 447}}
-        out = Path(tempfile.mkdtemp()) / "m.csv"
-        write_master_csv(centroids, meta, out)
-        stations, errors = load_master(out)
-        self.assertEqual(errors, [])
-        self.assertEqual(stations[0]["cellId"], "C1")
-        self.assertTrue(stations[0]["isVirtual"])
+class TestChosenCoords(unittest.TestCase):
+    def test_row_gnss_used_when_projection_chosen(self):
+        import extract_mdt_merged
+        from gnss_utm import to_latlon
+        row = sample_row(gnss_utmkx="960230.0278558573", gnss_utmky="1941498.7794222839")
+        expected = to_latlon(960230.0278558573, 1941498.7794222839, "utm52-fe1e6-fn0")
+        saved = extract_mdt_merged.CHOSEN
+        extract_mdt_merged.CHOSEN = "utm52-fe1e6-fn0"
+        try:
+            self.assertEqual(extract_mdt_merged.resolve_coords(row, {"C1": (37.5, 127.05)}), expected)
+        finally:
+            extract_mdt_merged.CHOSEN = saved
 
 
-class TestMainDegraded(unittest.TestCase):
-    def test_main_writes_dataset_without_master(self):
+    def test_calibration_used_before_centroid(self):
+        import extract_mdt_merged
+        from gnss_utm import calib_latlon
+        row = sample_row(gnss_utmkx="960230.0278558573", gnss_utmky="1941498.7794222839")
+        expected = calib_latlon(960230.0278558573, 1941498.7794222839)
+        self.assertIsNotNone(expected)
+        self.assertEqual(extract_mdt_merged.resolve_coords(row, {"C1": (37.5, 127.05)}), expected)
+
+    def test_station_fallback_for_rows_without_gnss(self):
+        import extract_mdt_merged
+        stations = {"E1": (37.477, 127.044)}
+        self.assertEqual(extract_mdt_merged.resolve_coords(sample_row(), {}, stations), (37.477, 127.044))
+
+    def test_cell_centroid_when_no_station_match(self):
+        import extract_mdt_merged
+        self.assertEqual(extract_mdt_merged.resolve_coords(sample_row(), {"C1": (37.5, 127.05)}, {}),
+                         (37.5, 127.05))
+        self.assertIsNone(extract_mdt_merged.resolve_coords(sample_row(), {}, {}))
+
+
+class TestMainRealMaster(unittest.TestCase):
+    def test_main_uses_real_stations_and_station_fallback(self):
         import json
         import tempfile
         from pathlib import Path
 
         tmp = Path(tempfile.mkdtemp())
         headers = list(sample_row().keys())
+        one_row = [sample_row()[h] for h in headers]
         src = tmp / "src.xlsx"
-        src.write_bytes(make_xlsx([headers, [sample_row()[h] for h in headers]] * 1 +
-                                  [[sample_row()[h] for h in headers]] * 2))
+        src.write_bytes(make_xlsx([headers] + [one_row] * 3))
+        stations_file = tmp / "BaseStation_new.txt"
+        stations_file.write_text("E1,37.4770,127.0440\n", encoding="utf-8")
         out = tmp / "out.json"
-        master = tmp / "base.csv"
-        main(["--src", str(src), "--out", str(out), "--master", str(master)])
+        main(["--src", str(src), "--out", str(out), "--stations", str(stations_file)])
         ds = json.loads(out.read_text(encoding="utf-8"))
         self.assertEqual(len(ds["days"]), 1)
         self.assertEqual(len(ds["days"][0]["samples"]), 3)
-        # Degraded mode still ships a site-representative virtual master so the
-        # estimation layer and its harness contract keep working.
-        self.assertTrue(ds["meta"]["baseStations"])
-        self.assertTrue(ds["meta"]["masterErrors"])   # degraded disclosure present
-        self.assertTrue(master.exists())
-        self.assertTrue(ds["meta"]["baseStations"][0]["isVirtual"])
+        stations = ds["meta"]["baseStations"]
+        self.assertEqual([s["baseStationId"] for s in stations], ["E1"])
+        self.assertFalse(stations[0]["isVirtual"])
+        sample = ds["days"][0]["samples"][0]
+        self.assertAlmostEqual(sample[2], 37.477, places=3)
+        self.assertAlmostEqual(sample[3], 127.044, places=3)
+        self.assertTrue(ds["meta"]["masterErrors"])   # station-coordinate disclosure present
 
 
 class TestSizeGuard(unittest.TestCase):
@@ -177,28 +200,27 @@ class TestSizeGuard(unittest.TestCase):
         one_row = [sample_row()[h] for h in headers]
         src = tmp / "src.xlsx"
         src.write_bytes(make_xlsx([headers] + [one_row] * 3))
+        stations_file = tmp / "BaseStation_new.txt"
+        stations_file.write_text("E1,37.5,127.05\n", encoding="utf-8")
         out = tmp / "out.json"
-        master = tmp / "base.csv"
+        base_args = ["--src", str(src), "--out", str(out), "--stations", str(stations_file)]
 
-        # Force the size estimate to trip the guard with tiny constants.
         saved_max, saved_min = extract_mdt_merged.MAX_JSON_BYTES, extract_mdt_merged.MIN_SAMPLES_PER_CONTRACT
         extract_mdt_merged.MAX_JSON_BYTES = 100
         extract_mdt_merged.MIN_SAMPLES_PER_CONTRACT = 4
         try:
-            main(["--src", str(src), "--out", str(out), "--master", str(master)])
+            main(base_args)
             ds = json.loads(out.read_text(encoding="utf-8"))
             self.assertEqual(ds["days"], [])          # 3-row contract below threshold 4
             self.assertEqual(ds["meta"]["filteredContracts"], 1)
         finally:
             extract_mdt_merged.MAX_JSON_BYTES, extract_mdt_merged.MIN_SAMPLES_PER_CONTRACT = saved_max, saved_min
 
-        # Explicit override applies regardless of the estimate.
-        main(["--src", str(src), "--out", str(out), "--master", str(master), "--min-samples", "4"])
+        main(base_args + ["--min-samples", "4"])
         ds = json.loads(out.read_text(encoding="utf-8"))
         self.assertEqual(ds["days"], [])
 
-        # Default small files are untouched.
-        main(["--src", str(src), "--out", str(out), "--master", str(master)])
+        main(base_args)
         ds = json.loads(out.read_text(encoding="utf-8"))
         self.assertEqual(len(ds["days"]), 1)
 
