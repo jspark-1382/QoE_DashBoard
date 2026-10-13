@@ -37,6 +37,7 @@ def make_xlsx(rows):
 
 
 from mdt_merged_source import parse_timestamp, read_merged_rows, second_of_day  # noqa: E402
+from extract_mdt_merged import build_dataset  # noqa: E402
 
 
 class TestReader(unittest.TestCase):
@@ -60,6 +61,46 @@ class TestReader(unittest.TestCase):
         self.assertIsNone(parse_timestamp(None))
         # a 24h-style stamp stays inside the day via %86400, never rolling into tomorrow
         self.assertEqual(second_of_day(parse_timestamp("20260916000000")), 0.0)
+
+
+def sample_row(**over):
+    base = {"base_date": "20260915", "svc_cont_id": "111", "rqt_timestamp": "20260915100000",
+            "mdt_cell_id": "C1", "mdt_equip_cd": "E1", "dlearfcn": "1550", "pci": "447",
+            "rsrp": "-80.0", "rsrq": "-10.0", "nsinr": "7.0", "out_in_div_cd": "0",
+            "svc_ctgry_st_hhmiss": "163051", "svc_ctgry_fns_hhmiss": "163353"}
+    return {**base, **over}
+
+
+class TestBuildDataset(unittest.TestCase):
+    coords = staticmethod(lambda row: (37.5, 127.05))
+
+    def test_good_and_bad_contract(self):
+        rows = ([sample_row()] * 5 +
+                [sample_row(svc_cont_id="222", rsrp="-118.0", rsrq="-19.0", nsinr="-4.0")] * 5)
+        ds = build_dataset(rows, self.coords)
+        call_qoe = {s[19]: s[16] for d in ds["days"] for s in d["samples"]}
+        self.assertTrue(any(v >= 3.0 for v in call_qoe.values()))
+        self.assertTrue(any(v < 2.5 for v in call_qoe.values()))
+        for d in ds["days"]:
+            for s in d["samples"]:
+                self.assertEqual(len(s), 22)
+                self.assertEqual(s[4], "개포4동")
+                self.assertEqual(s[8], "LTE")
+                self.assertIn(s[5], ("indoor", "outdoor"))
+                self.assertTrue(s[19] and s[20])
+
+    def test_same_second_rows_stable_order(self):
+        rows = [sample_row() for _ in range(50)]
+        ds = build_dataset(rows, self.coords)
+        secs = [s[0] for d in ds["days"] for s in d["samples"]]
+        self.assertEqual(secs, sorted(secs))
+        self.assertEqual(len(secs), 50)
+
+    def test_frequency_passthrough(self):
+        rows = [sample_row(dlearfcn="475")]
+        ds = build_dataset(rows, self.coords)
+        self.assertEqual(ds["days"][0]["samples"][0][21]["frequency"], 475.0)
+        self.assertEqual(ds["meta"]["frequencyEncoding"], "lte-earfcn")
 
 
 if __name__ == "__main__":
