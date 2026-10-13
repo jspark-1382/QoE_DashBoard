@@ -54,7 +54,10 @@ data/
     VT_VOLTEMDT_20260907172438.xlsx
   BaseStation/
     virtual_base_station.csv
+  lte+mdt(개포4동_계약번호 추가).xlsx
 ```
+
+`data` 최상위의 `lte+mdt` 파일은 선택 항목으로, 계약번호가 포함된 통합 MDT 원본(영어 스키마)을 `extract_mdt_merged.py`가 화면 데이터로 변환합니다. 통합 원본이 있으면 `data:mdt`의 기존 MDT 파이프라인 대신 통합 파이프라인을 사용합니다.
 
 Excel 파일명은 예시입니다. 실외 데이터는 파일명에 `행정동`, 인빌딩 데이터는 `RTCP`가 포함되어야 합니다. MDT는 `data/MDT`의 `.xlsx` 파일을 읽습니다. 파일 내용은 기존 추출 스크립트가 지원하는 컬럼 형식이어야 합니다. 기지국 Master 경로와 파일명은 위와 동일하게 사용합니다.
 
@@ -77,9 +80,12 @@ py -3 scripts/extract_qoe_data.py
 py -3 scripts/extract_indoor_data.py
 py -3 scripts/extract_executive_data.py
 py -3 scripts/extract_mdt_data.py
+py -3 scripts/extract_mdt_merged.py
 ```
 
 MDT 화면만 사용할 경우 `py -3 scripts/extract_mdt_data.py`만 실행해도 됩니다. 이 경우 실측/Engineering 화면의 데이터는 별도로 준비해야 합니다. MDT 추정 기능에는 기지국 Master도 필요합니다.
+
+통합 MDT 원본(`data/lte+mdt*.xlsx`)은 `py -3 scripts/extract_mdt_merged.py`(별명 `npm.cmd run data:mdt-merged`)로 변환하며, 결과가 같은 `public/mdt-data.json`에 쓰이므로 기존 MDT 파이프라인과 번갈아 쓰입니다. 샘플 100개 미만 계약은 자동 제외되며(`--min-samples`로 조정), 원본 GNSS 좌표계가 확정되기 전에는 개포4동 사이트 대표 좌표를 쓰는 강등 모드(지도에 사이트 대표 표시)로 동작합니다.
 
 ### 6. 서버 실행 및 접속
 
@@ -131,6 +137,13 @@ node scripts/test-location-estimation.cjs
 - 인빌딩 원본: `data` 폴더의 파일명에 `RTCP`가 포함된 Excel
 - `npm run local` 실행 시 두 원본을 자동으로 읽어 화면용 분석 데이터를 다시 생성합니다.
 - 실행 중 원본을 교체했다면 서버를 다시 시작합니다.
+
+### 통합 MDT 데이터
+
+- `data` 폴더 최상위에 `lte+mdt`가 이름에 포함된 Excel 원본을 둡니다(계약번호 컬럼 포함 영어 스키마).
+- `py -3 scripts/extract_mdt_merged.py`를 실행하면 계약·콜 단위로 집계해 `public/mdt-data.json`과 가상 기지국 Master(`data/BaseStation/virtual_base_station.csv`)를 다시 만듭니다. 화면 갱신은 브라우저 새로고침입니다.
+- 원본의 `gnss_utmkx/utmky` 좌표계는 아직 확인되지 않아, 위치는 사이트(개포4동) 대표 좌표를 사용합니다. 좌표계(EPSG)가 확인되면 `scripts/gnss_utm.py`의 `CHOSEN`만 갱신하면 실제 경로 표시가 켜집니다.
+- 원본 Excel과 생성된 JSON·CSV는 Git에 포함되지 않습니다.
 
 ### Executive Dashboard
 
