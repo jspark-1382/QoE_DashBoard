@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 """Tests for the merged lte+mdt ingestion pipeline.
 
 Run from the repo root:
@@ -13,7 +14,7 @@ def make_xlsx(rows):
     """Build a minimal xlsx (inline strings, single sheet1) from a list of row lists."""
 
     def esc(text):
-        return (str(text).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
+        return str(text).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
 
     xml = ['<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
            '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
@@ -37,7 +38,12 @@ def make_xlsx(rows):
 
 
 from mdt_merged_source import parse_timestamp, read_merged_rows, second_of_day  # noqa: E402
-from extract_mdt_merged import build_dataset  # noqa: E402
+from extract_mdt_merged import (  # noqa: E402
+    build_dataset,
+    cell_centroids,
+    main,
+    write_master_csv,
+)
 
 
 class TestReader(unittest.TestCase):
@@ -81,13 +87,6 @@ class TestBuildDataset(unittest.TestCase):
         call_qoe = {s[19]: s[16] for d in ds["days"] for s in d["samples"]}
         self.assertTrue(any(v >= 3.0 for v in call_qoe.values()))
         self.assertTrue(any(v < 2.5 for v in call_qoe.values()))
-        for d in ds["days"]:
-            for s in d["samples"]:
-                self.assertEqual(len(s), 22)
-                self.assertEqual(s[4], "개포4동")
-                self.assertEqual(s[8], "LTE")
-                self.assertIn(s[5], ("indoor", "outdoor"))
-                self.assertTrue(s[19] and s[20])
 
     def test_same_second_rows_stable_order(self):
         rows = [sample_row() for _ in range(50)]
@@ -101,6 +100,64 @@ class TestBuildDataset(unittest.TestCase):
         ds = build_dataset(rows, self.coords)
         self.assertEqual(ds["days"][0]["samples"][0][21]["frequency"], 475.0)
         self.assertEqual(ds["meta"]["frequencyEncoding"], "lte-earfcn")
+
+    def test_tuple_shape_and_masks(self):
+        rows = [sample_row(), sample_row(svc_ctgry_st_hhmiss="170000")]
+        ds = build_dataset(rows, self.coords)
+        for day in ds["days"]:
+            for sample in day["samples"]:
+                self.assertEqual(len(sample), 22)
+                self.assertEqual(sample[4], "개포4동")
+                self.assertEqual(sample[8], "LTE")
+                self.assertIn(sample[5], ("indoor", "outdoor"))
+                self.assertTrue(sample[19] and sample[20])
+        self.assertTrue(all(c["maskedPhone"].startswith("계약 ") for c in ds["customers"]))
+
+
+class TestBootstrap(unittest.TestCase):
+    def test_median_and_min_count(self):
+        rows = [("C1", 37.50, 127.05), ("C1", 37.51, 127.05), ("C1", 37.52, 127.06),
+                ("C2", 37.40, 127.10), ("C2", 37.41, 127.10)]   # C2 has only 2 rows -> excluded
+        centroids = cell_centroids(rows)
+        self.assertEqual(set(centroids), {"C1"})
+        lat, lon = centroids["C1"]
+        self.assertAlmostEqual(lat, 37.51, delta=1e-9)
+        self.assertAlmostEqual(lon, 127.05, delta=1e-9)
+
+    def test_generated_csv_loads_with_legacy_loader(self):
+        import tempfile
+        from pathlib import Path
+
+        from base_station_master import load_master
+        centroids = {"C1": (37.51, 127.05)}
+        meta = {"C1": {"baseStationId": "E1", "frequency": 1550, "pci": 447}}
+        out = Path(tempfile.mkdtemp()) / "m.csv"
+        write_master_csv(centroids, meta, out)
+        stations, errors = load_master(out)
+        self.assertEqual(errors, [])
+        self.assertEqual(stations[0]["cellId"], "C1")
+        self.assertTrue(stations[0]["isVirtual"])
+
+
+class TestMainDegraded(unittest.TestCase):
+    def test_main_writes_dataset_without_master(self):
+        import json
+        import tempfile
+        from pathlib import Path
+
+        tmp = Path(tempfile.mkdtemp())
+        headers = list(sample_row().keys())
+        src = tmp / "src.xlsx"
+        src.write_bytes(make_xlsx([headers, [sample_row()[h] for h in headers]] * 1 +
+                                  [[sample_row()[h] for h in headers]] * 2))
+        out = tmp / "out.json"
+        master = tmp / "base.csv"
+        main(["--src", str(src), "--out", str(out), "--master", str(master)])
+        ds = json.loads(out.read_text(encoding="utf-8"))
+        self.assertEqual(len(ds["days"]), 1)
+        self.assertEqual(len(ds["days"][0]["samples"]), 3)
+        self.assertTrue(ds["meta"]["masterErrors"])   # degraded: coordinate system unresolved
+        self.assertFalse(master.exists())             # no bootstrap without coordinates
 
 
 if __name__ == "__main__":

@@ -1,15 +1,22 @@
 """Convert the merged LTE+MDT workbook (English schema) into the ExecutiveDataset
 shape consumed by the existing /qoe/?source=MDT dashboard.
 
-Import-safe: pure conversion here; the CLI entry point lands later. Follows
-the tuple schema of extract_mdt_data.py (see sampleFields).
+Import-safe: pure conversion here; main() is the CLI entry point. Follows the
+tuple schema of extract_mdt_data.py (see sampleFields). The virtual base
+station master is bootstrapped from GNSS cell centroids when the projection
+gate resolved a coordinate system (see gnss_utm.CHOSEN); otherwise the
+pipeline runs in degraded mode with site representative coordinates.
 """
+import argparse
 import hashlib
+import json
 import math
-from collections import defaultdict
+from collections import Counter, defaultdict
 from datetime import datetime
+from pathlib import Path
 
-from mdt_merged_source import parse_timestamp, second_of_day
+from gnss_utm import CHOSEN, to_latlon
+from mdt_merged_source import parse_timestamp, read_merged_rows, second_of_day
 
 POOR_QOE_THRESHOLD = 2.5
 SITE = "개포4동"
@@ -53,6 +60,50 @@ def _hhmmss(hhmiss):
     if len(digits) != 6 or not digits.isdigit():
         return ""
     return digits[:2] + ":" + digits[2:4] + ":" + digits[4:]
+
+
+def _row_xy(row):
+    try:
+        x, y = float(row.get("gnss_utmkx") or 0), float(row.get("gnss_utmky") or 0)
+    except (TypeError, ValueError):
+        return None, None
+    if x <= 0 or y <= 0:
+        return None, None
+    return x, y
+
+
+def cell_centroids(pairs):
+    """Median lat/lon per cellId from valid GNSS projected pairs; cells with <3 rows drop out."""
+    groups = defaultdict(list)
+    for cell_id, lat, lon in pairs:
+        groups[cell_id].append((lat, lon))
+    centroids = {}
+    for cell_id, values in groups.items():
+        if len(values) < 3:
+            continue
+        lats = sorted(v[0] for v in values)
+        lons = sorted(v[1] for v in values)
+        mid = len(values) // 2
+        lat = lats[mid] if len(values) % 2 else (lats[mid - 1] + lats[mid]) / 2
+        lon = lons[mid] if len(values) % 2 else (lons[mid - 1] + lons[mid]) / 2
+        centroids[cell_id] = (lat, lon)
+    return centroids
+
+
+def write_master_csv(centroids, meta_by_cell, path):
+    """Legacy-header master (load_master legacy branch): base_station_id first, is_virtual true."""
+    lines = ["base_station_id,cell_id,frequency,pci,latitude,longitude,is_virtual"]
+    for cell_id in sorted(centroids):
+        lat, lon = centroids[cell_id]
+        meta = meta_by_cell.get(cell_id, {})
+        frequency = meta.get("frequency")
+        pci = meta.get("pci")
+        lines.append("%s,%s,%s,%s,%.6f,%.6f,true" % (
+            meta.get("baseStationId") or cell_id, cell_id,
+            "" if frequency is None else int(frequency),
+            "" if pci is None else int(pci), lat, lon))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def build_dataset(rows, coords, site_name=SITE, source_stats=None):
@@ -156,3 +207,68 @@ def build_dataset(rows, coords, site_name=SITE, source_stats=None):
         "classification": {"measured": ["rsrp", "rsrq", "sinr"], "derived": ["QoE"], "estimated": ["location"]},
     }
     return {"meta": meta, "customers": customers_list, "days": output_days}
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--src", default=None, help="workbook to ingest (defaults to data/*lte+mdt*.xlsx)")
+    parser.add_argument("--out", default="public/mdt-data.json")
+    parser.add_argument("--master", default="data/BaseStation/virtual_base_station.csv")
+    args = parser.parse_args(argv)
+
+    src = Path(args.src) if args.src else next(p for p in Path("data").glob("*lte+mdt*.xlsx")
+                                               if not p.name.startswith("~$"))
+    out, master = Path(args.out), Path(args.master)
+
+    gnss_valid = 0
+    total_rows = 0
+    projected = []
+    meta_by_cell = {}
+    for row in read_merged_rows(src.open("rb")):
+        total_rows += 1
+        cell = (row.get("mdt_cell_id") or "").strip()
+        x, y = _row_xy(row)
+        if x is None or not cell:
+            continue
+        gnss_valid += 1
+        projected_xy = to_latlon(x, y, CHOSEN) if CHOSEN else None
+        if projected_xy is None:
+            continue
+        projected.append((cell, projected_xy[0], projected_xy[1]))
+        if cell not in meta_by_cell:
+            meta_by_cell[cell] = {"baseStationId": (row.get("mdt_equip_cd") or "").strip(),
+                                  "frequency": numeric(row.get("dlearfcn")),
+                                  "pci": numeric(row.get("pci"))}
+
+    centroids = cell_centroids(projected)
+    master_errors = []
+    base_stations = []
+    if centroids:
+        write_master_csv(centroids, meta_by_cell, master)
+        from base_station_master import load_master
+        base_stations, master_errors = load_master(master)
+    else:
+        master_errors.append("좌표계 미결정 또는 GNSS 유효 행 부족 — 위치추정 및 기지국 Master 부트스트랩 비활")
+
+    def coords(row):
+        """Cell centroid when bootstrapped, else None so build_dataset applies the site fallback.
+        Direct per-row GNSS use stays gated on CHOSEN inside the projection pass above."""
+        return centroids.get((row.get("mdt_cell_id") or "").strip())
+
+    dataset = build_dataset(read_merged_rows(src.open("rb")), coords,
+                            site_name=SITE, source_stats={src.name: total_rows})
+    dataset["meta"]["baseStations"] = base_stations
+    dataset["meta"]["masterErrors"] = master_errors
+
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(dataset, ensure_ascii=False, separators=(",", ":")), encoding="utf-8")
+    print(json.dumps({"rows": total_rows, "events": sum(d["sampleCount"] for d in dataset["days"]),
+                      "source_calls": len(dataset["meta"]["callMeta"]),
+                      "unscored_calls": dataset["meta"]["unscoredCalls"],
+                      "gnss_valid_rows": gnss_valid, "stations": len(base_stations),
+                      "projection": CHOSEN or "unresolved"}, ensure_ascii=False))
+    return dataset
+
+
+if __name__ == "__main__":
+    main()
