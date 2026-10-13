@@ -10,6 +10,8 @@ export type MdtSample = {
   timestamp: number; cellId: string; baseStationId: string; frequency: number | null;
   rsrp: number | null; rsrq?: number | null; sinr?: number | null;
   streamId: string; sampleIndex: number;
+  // Calibrated customer GNSS position of this row when measured (ground truth).
+  measuredLat?: number | null; measuredLon?: number | null;
 };
 export type RadiusEstimate = {
   estimatedRadiusM: number; innerRadiusM: number; outerRadiusM: number;

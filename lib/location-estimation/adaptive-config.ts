@@ -13,5 +13,7 @@ export const ADAPTIVE_CONFIG = {
   gradeThresholds: [80,65,50,30], displayLimit: 150,
   confidenceWeights: {siteCount:.25,window:.15,rsrp:.15,residual:.25,geometry:.2},
   confidenceRsrpFloorDbm:-120, confidenceRsrpSpanDb:50,
+  // Calibration median offset of the master-fitted affine (BaseStation_new join): ground-truth accuracy tier.
+  measuredAccuracyM: 250,
 };
 export type AdaptiveConfig = typeof ADAPTIVE_CONFIG;

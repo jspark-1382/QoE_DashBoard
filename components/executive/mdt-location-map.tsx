@@ -30,6 +30,7 @@ export function MdtLocationMap({ samples, baseStations, selectedSampleIndex, onS
   const detailsOpen=false;
   const events=useMemo<MdtSample[]>(()=>samples.flatMap((sample,index)=>sample.mdt ? [{
     ...sample.mdt, timestamp:Date.parse(sample.mdt.timestamp), rsrp:sample.rsrp, rsrq:sample.rsrq, sinr:sample.sinr, sampleIndex:index,
+    measuredLat:sample.mdt.gnss?sample.lat:null, measuredLon:sample.mdt.gnss?sample.lon:null,
   }]:[]),[samples]);
   const selected=events.find(event=>event.sampleIndex===selectedSampleIndex)??events[0];
   // Only stations actually referenced by the visible samples: keeps the map readable

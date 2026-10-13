@@ -9,7 +9,7 @@ import { ring } from '@/lib/location-estimation/geo';
 const esc=(s:string)=>s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]!));
 const time=(t:number)=>new Date(t).toLocaleTimeString('ko-KR',{hour12:false,timeZone:'Asia/Seoul'});
 const format=(v:number|null,d=0)=>v==null?'—':v.toFixed(d);
-function positionDetails(p:AdaptivePosition){return `<b>추정 단말 위치 · ${time(p.timestamp)}</b><br/>${format(p.estimatedLat,6)}, ${format(p.estimatedLon,6)}<br/>${p.method} · ${p.siteCount} Site / ${p.usedCellCount} Cell<br/>평균 / 최대 RSRP: ${format(p.avgRsrp,1)} / ${format(p.strongestRsrp,1)} dBm<br/>신뢰도 ${p.confidenceScore}/100 · ${p.confidenceGrade} (정확도 아님)<br/>예상 위치 불확실성 약 ±${format(p.estimatedAccuracyM)} m<br/>Residual ${format(p.residualErrorM)} m · Window ±${p.windowSec}초<br/>Site: ${p.usedSites.map(s=>esc(s.siteId)).join(', ')}<br/>Cell: ${p.usedCellIds.map(esc).join(', ')}<br/>${p.warnings.map(esc).join(' · ')}`;}
+function positionDetails(p:AdaptivePosition){return `<b>${p.method==='MEASURED'?'측정 단말 위치':'추정 단말 위치'} · ${time(p.timestamp)}</b><br/>${format(p.estimatedLat,6)}, ${format(p.estimatedLon,6)}<br/>${p.method} · ${p.siteCount} Site / ${p.usedCellCount} Cell<br/>평균 / 최대 RSRP: ${format(p.avgRsrp,1)} / ${format(p.strongestRsrp,1)} dBm<br/>신뢰도 ${p.confidenceScore}/100 · ${p.confidenceGrade} (정확도 아님)<br/>예상 위치 불확실성 약 ±${format(p.estimatedAccuracyM)} m<br/>Residual ${format(p.residualErrorM)} m · Window ±${p.windowSec}초<br/>Site: ${p.usedSites.map(s=>esc(s.siteId)).join(', ')}<br/>Cell: ${p.usedCellIds.map(esc).join(', ')}<br/>${p.warnings.map(esc).join(' · ')}`;}
 
 export function AdaptivePositionLayer({map,events,stations,selectedIndex,onSelect,overviewRevision}:{map:LeafletMap|null;events:MdtSample[];stations:BaseStation[];selectedIndex:number|null;onSelect:(i:number)=>void;overviewRevision:number}){
   const [mode,setMode]=useState<'max'|'median'|'mean'>('max');
@@ -52,9 +52,9 @@ export function AdaptivePositionLayer({map,events,stations,selectedIndex,onSelec
         L.polyline([[prev.estimatedLat,prev.estimatedLon],[p.estimatedLat,p.estimatedLon]],{color:'#ba9cff',weight:2,dashArray:'4 7',opacity:.65}).addTo(group!);});
       if(layers.positions)for(const p of displayed){if(p.estimatedLat==null||p.estimatedLon==null)continue;
         const marker=L.circleMarker([p.estimatedLat,p.estimatedLon],{renderer:svg,radius:p===visible?11:5,color:color(p),weight:3,fillColor:color(p),fillOpacity:['D','E'].includes(p.confidenceGrade)?.18:.9})
-          .bindTooltip(`추정 UE · ${time(p.timestamp)} · ${p.confidenceGrade}`,{permanent:p===visible,direction:'top'})
+          .bindTooltip(`${p.method==='MEASURED'?'측정 UE':'추정 UE'} · ${time(p.timestamp)} · ${p.confidenceGrade}`,{permanent:p===visible,direction:'top'})
           .bindPopup(positionDetails(p)).on('click',()=>{if(p!==visible)onSelect(p.sample.sampleIndex);}).addTo(group);
-        marker.getElement()?.setAttribute('aria-label',`추정 UE ${p.sample.sampleIndex}`);
+        marker.getElement()?.setAttribute('aria-label',`${p.method==='MEASURED'?'측정 UE':'추정 UE'} ${p.sample.sampleIndex}`);
       }
       if(visible?.estimatedLat!=null&&visible.estimatedLon!=null){
         const point:[number,number]=[visible.estimatedLat,visible.estimatedLon];
@@ -77,7 +77,7 @@ export function AdaptivePositionLayer({map,events,stations,selectedIndex,onSelec
       <summary>추정 설정 · Adaptive <span>{list.length}개 관측 · ±5~60초 · 제외 Site {data.stats.excludedSites.length}개</span></summary>
       <div className="location-controls adaptive-filters">
         <label>Site 대표 RSRP<select aria-label="Site 대표 RSRP" value={mode} onChange={e=>setMode(e.target.value as typeof mode)}><option value="max">최대</option><option value="median">중앙값</option><option value="mean">평균</option></select></label>
-        <label>추정 방식<select aria-label="추정 방식 필터" value={method} onChange={e=>setMethod(e.target.value)}>{['ALL','MULTILATERATION','WEIGHTED_2_SITE','CELL_SITE','INVALID'].map(v=><option key={v}>{v}</option>)}</select></label>
+        <label>추정 방식<select aria-label="추정 방식 필터" value={method} onChange={e=>setMethod(e.target.value)}>{['ALL','MEASURED','MULTILATERATION','WEIGHTED_2_SITE','CELL_SITE','INVALID'].map(v=><option key={v}>{v}</option>)}</select></label>
         <label>신뢰도<select aria-label="신뢰도 필터" value={grade} onChange={e=>setGrade(e.target.value)}>{['ALL','AB','A','B','C','D','E'].map(v=><option key={v}>{v}</option>)}</select></label>
         <label>Site<select aria-label="Site 필터" value={site} onChange={e=>setSite(e.target.value)}><option>ALL</option>{data.sites.filter(s=>!s.excluded).map(s=><option key={s.siteId}>{s.siteId}</option>)}</select></label>
         <label>Cell ID<input aria-label="Cell ID 필터" value={cell} onChange={e=>setCell(e.target.value)} placeholder="전체" /></label>
@@ -87,7 +87,7 @@ export function AdaptivePositionLayer({map,events,stations,selectedIndex,onSelec
         <label>시작<input type="time" aria-label="추정 시작 시간" value={from} onChange={e=>setFrom(e.target.value)} /></label><label>종료<input type="time" aria-label="추정 종료 시간" value={to} onChange={e=>setTo(e.target.value)} /></label>
       </div>
       <div className="location-controls">{Object.entries(layers).map(([key,value])=><label className="adaptive-check" key={key}><input type="checkbox" checked={value} onChange={e=>setLayers({...layers,[key]:e.target.checked})}/>{{stations:'기지국',positions:'추정 위치',path:'추정 경로',accuracy:'불확실성 반경',debug:'Debug'}[key]}</label>)}</div>
-      <p>기준 100m / −65dBm / n=3 · 미보정 모델 · 시간창은 전후 관측을 포함합니다. 신뢰도는 정확도 백분율이 아닙니다.</p>
+      <p>기준 100m / −65dBm / n=3 · 미보정 모델 · 시간창은 전후 관측을 포함합니다. 신뢰도는 정확도 백분율이 아닙니다. MEASURED는 고객 GNSS 실측정 좌표를 우선 사용하며, 인접한 실측정 점이 없는 구간만 RSRP 거리모델로 추정합니다(근접 측정점의 이동 한계를 함께 적용).</p>
     </details>
     <div className="adaptive-playbar"><button disabled={activeIndex<=0} onClick={()=>onSelect(list[activeIndex-1].sample.sampleIndex)}>이전</button><button disabled={!list.length} onClick={()=>setPlaying(v=>!v)}>{playing?'일시정지':'재생'}</button><button disabled={activeIndex>=list.length-1||!list.length} onClick={()=>onSelect(list[activeIndex+1].sample.sampleIndex)}>다음</button><input type="range" aria-label="위치 추정 시간" min={0} max={Math.max(0,list.length-1)} value={Math.max(0,activeIndex)} disabled={!list.length} onChange={e=>{setPlaying(false);onSelect(list[Number(e.target.value)].sample.sampleIndex);}}/><span>{selected?time(selected.timestamp):'관측 없음'}</span></div>
     <button type="button" className="adaptive-info-toggle" aria-expanded={infoOpen} onClick={()=>setInfoOpen(v=>!v)}>{infoOpen?'위치 상세 닫기':'위치 상세'}</button>

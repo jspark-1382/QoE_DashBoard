@@ -95,6 +95,13 @@ class TestBuildDataset(unittest.TestCase):
         self.assertEqual(ds["days"][0]["samples"][0][21]["frequency"], 475.0)
         self.assertEqual(ds["meta"]["frequencyEncoding"], "lte-earfcn")
 
+    def test_mdt_gnss_flag(self):
+        row_g = sample_row(gnss_utmkx="960230.0", gnss_utmky="1941498.0")
+        row_n = sample_row(rqt_timestamp="20260915100001", svc_ctgry_st_hhmiss="163052")
+        ds = build_dataset([row_g, row_n], self.coords)
+        flags = sorted(s[21]["gnss"] for d in ds["days"] for s in d["samples"])
+        self.assertEqual(flags, [False, True])
+
     def test_tuple_shape_and_masks(self):
         rows = [sample_row(), sample_row(svc_ctgry_st_hhmiss="170000")]
         ds = build_dataset(rows, self.coords)

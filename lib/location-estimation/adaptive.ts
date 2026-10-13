@@ -6,7 +6,7 @@ export type PhysicalSite = Point & {siteId:string; cells:BaseStation[]; excluded
 export type SiteObservation = Point & {siteId:string; rsrp:number; deltaTimeSec:number; weight:number; estimatedDistanceM:number; cellIds:string[]; residualM:number};
 export type AdaptivePosition = {
   sample:MdtSample; timestamp:number; estimatedLat:number|null; estimatedLon:number|null;
-  method:'MULTILATERATION'|'WEIGHTED_2_SITE'|'CELL_SITE'|'INVALID';
+  method:'MEASURED'|'MULTILATERATION'|'WEIGHTED_2_SITE'|'CELL_SITE'|'INVALID';
   siteCount:number; usedCellIds:string[]; usedCellCount:number; avgRsrp:number|null; strongestRsrp:number|null;
   residualErrorM:number|null; estimatedAccuracyM:number|null; confidenceScore:number; confidenceGrade:string;
   windowSec:number; geometry:number; usedSites:SiteObservation[]; jump:boolean; breakBefore:boolean; speedKmh:number|null; warnings:string[];
@@ -62,6 +62,8 @@ export function estimateAdaptive(samples:MdtSample[],stations:BaseStation[],conf
     let previous:AdaptivePosition|undefined;
     for(const current of stream){
       const sample=current.sample;let windowSec=config.windowsSec.at(-1)!,observations:SiteObservation[]=[];
+      const measured=sample.measuredLat!=null&&sample.measuredLon!=null&&Number.isFinite(sample.measuredLat)&&Number.isFinite(sample.measuredLon)?{latitude:sample.measuredLat,longitude:sample.measuredLon}:null;
+      let anchor:{latitude:number;longitude:number;allowance:number;dt:number}|null=null;
       for(const window of config.windowsSec){
         const groups=new Map<string,typeof matched>();
         for(const entry of stream){if(Math.abs(entry.sample.timestamp-sample.timestamp)>window*1000||!entry.site||entry.site.excluded||entry.sample.rsrp==null||!Number.isFinite(entry.sample.rsrp))continue;
@@ -72,7 +74,10 @@ export function estimateAdaptive(samples:MdtSample[],stations:BaseStation[],conf
           const site=representative.site!;
           return {siteId,latitude:site.latitude,longitude:site.longitude,rsrp,deltaTimeSec:(representative.sample.timestamp-sample.timestamp)/1000,weight:0,estimatedDistanceM:logDistance(rsrp,config),cellIds:[...new Set(group.map(e=>e.sample.cellId))],residualM:0};
         });
-        windowSec=window;if(observations.length>=3)break;
+        if(!measured){anchor=null;let bestDt=Number.POSITIVE_INFINITY;
+          for(const entry of stream){if(entry===current)continue;const m=entry.sample.measuredLat,l=entry.sample.measuredLon;if(m==null||l==null||!Number.isFinite(m)||!Number.isFinite(l))continue;const dt=Math.abs(entry.sample.timestamp-sample.timestamp)/1000;if(dt>window)continue;if(dt<bestDt){bestDt=dt;anchor={latitude:m,longitude:l,dt,allowance:Math.round(config.maxSpeedKmh/3.6*dt)+config.measuredAccuracyM};}}
+        }
+        windowSec=window;if(observations.length+(anchor?1:0)>=3)break;
       }
       const strongest=observations.length?Math.max(...observations.map(o=>o.rsrp)):null;
       observations.forEach(o=>o.weight=Math.exp(-Math.abs(o.deltaTimeSec)/config.timeDecayTauSec)*clamp(10**((o.rsrp-strongest!)/config.rsrpWeightDivisor),config.minRsrpWeight,1));
@@ -90,6 +95,7 @@ export function estimateAdaptive(samples:MdtSample[],stations:BaseStation[],conf
           if(result.jump){result.breakBefore=true;result.warnings.push('이동속도 상한 초과');
             if(config.jumpAction==='smooth'&&seconds>0){const ratio=Math.min(1,config.maxSpeedKmh/3.6*seconds/dist);const delta=local({latitude:previous.estimatedLat,longitude:previous.estimatedLon},point);point=offsetPoint({latitude:previous.estimatedLat,longitude:previous.estimatedLon},delta.x*ratio,delta.y*ratio);}}
         }
+        if(anchor&&!measured){const dist=distanceM(point,anchor);if(dist>anchor.allowance){const delta=local(anchor,point),ratio=anchor.allowance/dist;point=offsetPoint(anchor,delta.x*ratio,delta.y*ratio);result.warnings.push(`측정 앵커 이동 한계 적용 · 허용 ±${anchor.allowance}m · 이탈 ${Math.round(dist)}m`);}}
         observations.forEach(o=>o.residualM=distanceM(point,o)-o.estimatedDistanceM);
         const sum=observations.reduce((s,o)=>s+o.weight,0),residual=Math.sqrt(observations.reduce((s,o)=>s+o.weight*o.residualM**2,0)/sum);
         result.residualErrorM=residual;result.geometry=solved.geometry;
@@ -106,11 +112,12 @@ export function estimateAdaptive(samples:MdtSample[],stations:BaseStation[],conf
         if(!(result.jump&&config.jumpAction==='exclude')){result.estimatedLat=point.latitude;result.estimatedLon=point.longitude;}
         else result.warnings.push('점프 위치 표시 제외');
         if(count===1)result.warnings.push('단일 Site 좌표를 임시 위치로 사용 · 방향 미식별');
-        result.warnings.push('±시간창 비동시 관측 기반 · 미보정 거리모델');
+        if(!measured)result.warnings.push('±시간창 비동시 관측 기반 · 미보정 거리모델');
       }
+      if(measured){result.method='MEASURED';result.estimatedLat=measured.latitude;result.estimatedLon=measured.longitude;result.confidenceScore=100;result.confidenceGrade=confidenceGrade(100,config);result.estimatedAccuracyM=config.measuredAccuracyM;result.jump=false;result.warnings.push(`측정(GNSS) 좌표 우선 · 보정 오프셋 약 ±${config.measuredAccuracyM}m`);if(!count)result.warnings.push('기지국 미매칭 · 측정 좌표만 사용');}
       positions.push(result);previous=result.estimatedLat==null?undefined:result;
     }
   }
   positions.sort((a,b)=>a.timestamp-b.timestamp||a.sample.sampleIndex-b.sample.sampleIndex);
-  return {positions,sites,stats:{samples:samples.length,matched:matched.filter(e=>e.match).length,unmatched:matched.filter(e=>!e.match).length,excludedSamples:matched.filter(e=>e.site?.excluded).length,excludedSites:sites.filter(s=>s.excluded).map(s=>s.siteId)}};
+  return {positions,sites,stats:{samples:samples.length,matched:matched.filter(e=>e.match).length,unmatched:matched.filter(e=>!e.match).length,measured:ordered.filter(s=>s.measuredLat!=null&&s.measuredLon!=null).length,excludedSamples:matched.filter(e=>e.site?.excluded).length,excludedSites:sites.filter(s=>s.excluded).map(s=>s.siteId)}};
 }

@@ -1,6 +1,6 @@
 export type ExecutiveRat = 'LTE' | 'NR5G' | 'UNKNOWN';
 export type AreaType = 'outdoor' | 'indoor';
-export type MdtMetadata = { timestamp: string; baseStationId: string; cellId: string; frequency: number | null; streamId: string };
+export type MdtMetadata = { timestamp: string; baseStationId: string; cellId: string; frequency: number | null; gnss?: boolean; streamId: string };
 
 export type ExecutiveRawSample = [
   number, string, number, number, string, AreaType, string, string,

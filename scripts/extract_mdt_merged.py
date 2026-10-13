@@ -194,6 +194,7 @@ def build_dataset(rows, coords, site_name=SITE, source_stats=None):
             if rsrp is None and rsrq is None and sinr is None:
                 continue
             coord = coords(row) or FALLBACK_COORD
+            gnss_x, gnss_y = _row_xy(row)
             samples.append([
                 second_of_day(at), at.strftime("%H:%M:%S"), coord[0], coord[1],
                 site_name, "indoor" if row.get("out_in_div_cd") == "1" else "outdoor",
@@ -203,6 +204,7 @@ def build_dataset(rows, coords, site_name=SITE, source_stats=None):
                  "baseStationId": (row.get("mdt_equip_cd") or "").strip(),
                  "cellId": (row.get("mdt_cell_id") or "").strip(),
                  "frequency": numeric(row.get("dlearfcn")),
+                 "gnss": gnss_x is not None,
                  "streamId": customer_id},
             ])
         if not samples:

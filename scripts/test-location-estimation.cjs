@@ -64,6 +64,19 @@ test('Adaptive smallest window, fallback caps, invalid and stream isolation',()=
  const separate=estimateAdaptive(input.map((p,i)=>({...p,streamId:String(i)})),[station,b,c]);assert(separate.positions.every(p=>p.siteCount===1));
  const spike=estimateAdaptive([sample,{...input[1],timestamp:200000},{...input[2],timestamp:400000}],[station,b,c]);assert(spike.positions.slice(1).every(p=>p.breakBefore));
 });
+test('Adaptive measured ground truth wins and anchors neighbours',()=>{
+ const b={...station,...offsetPoint(station,600,0),cellId:'2',baseStationId:'B'};
+ const c={...station,...offsetPoint(station,0,800),cellId:'3',baseStationId:'C'};
+ const measured={...sample,measuredLat:station.latitude+0.005,measuredLon:station.longitude+0.04};
+ const out=estimateAdaptive([measured,{...sample,cellId:'2',baseStationId:'B',timestamp:8000,sampleIndex:1}],[station,b,c]);
+ const first=out.positions.find(p=>p.sample.sampleIndex===0);
+ assert.equal(first.method,'MEASURED');assert.equal(first.confidenceGrade,'A');
+ assert(Math.abs(first.estimatedLat-measured.measuredLat)<1e-9&&Math.abs(first.estimatedLon-measured.measuredLon)<1e-9);
+ assert.equal(out.stats.measured,1);
+ const neighbour=out.positions.find(p=>p.sample.sampleIndex===1);
+ assert(neighbour.warnings.some(w=>w.includes('측정 앵커')));
+ const allowance=200/3.6*8+250;assert(distanceM({latitude:neighbour.estimatedLat,longitude:neighbour.estimatedLon},{latitude:measured.measuredLat,longitude:measured.measuredLon})<=allowance+1);
+});
 test('Lookup interpolation, monotonicity and caps',()=>{
  assert.equal(estimateBaseRadius(-82.5),325);assert.equal(estimateBaseRadius(-90),650);
  assert.equal(estimateBaseRadius(-60),100);assert.equal(estimateBaseRadius(-125),4000);
