@@ -46,9 +46,18 @@ export default defineConfig(async () => {
 
   return {
     css: { postcss: { plugins: [tailwindcss()] } },
-    server: isCodexSeatbeltSandbox
-      ? { watch: { useFsEvents: false, usePolling: true } }
-      : undefined,
+    server: {
+      watch: {
+        // Windows: Excel keeps raw workbooks in data/ exclusively locked, and
+        // editors write ._*.tmpdir swap files mid-rename. Watching either path
+        // throws EBUSY and takes the whole dev server down. Source extraction
+        // is script-driven (npm run data:*), so HMR does not need these trees.
+        ignored: ['**/data/**', '**/__pycache__/**', '**/._*.tmpdir/**'],
+        ...(isCodexSeatbeltSandbox
+          ? { useFsEvents: false, usePolling: true }
+          : undefined),
+      },
+    },
     plugins: [
       vinext(),
       sites(),

@@ -50,3 +50,6 @@ next-env.d.ts
 /.wrangler/
 /outputs/
 /work/
+
+# python bytecode from extract/test scripts
+__pycache__/
