@@ -17,7 +17,7 @@ export function AdaptivePositionLayer({map,events,stations,selectedIndex,onSelec
   const [method,setMethod]=useState('ALL'),[grade,setGrade]=useState('ALL'),[site,setSite]=useState('ALL');
   const [cell,setCell]=useState(''),[frequency,setFrequency]=useState('ALL'),[pci,setPci]=useState('');
   const [minRsrp,setMinRsrp]=useState(''),[from,setFrom]=useState(''),[to,setTo]=useState('');
-  const [layers,setLayers]=useState({stations:true,positions:true,path:true,accuracy:true,debug:false});
+  const [layers,setLayers]=useState({stations:false,positions:true,path:true,accuracy:true,debug:false});
   const [playing,setPlaying]=useState(false);
   const data=useMemo(()=>estimateAdaptive(events,stations,{...ADAPTIVE_CONFIG,siteRsrpMode:mode}),[events,stations,mode]);
   const selected=data.positions.find(p=>p.sample.sampleIndex===selectedIndex)??(selectedIndex==null?data.positions[0]:undefined);
@@ -90,7 +90,10 @@ export function AdaptivePositionLayer({map,events,stations,selectedIndex,onSelec
       <p>기준 {ADAPTIVE_CONFIG.referenceDistanceM}m / {ADAPTIVE_CONFIG.referenceRsrpDbm}dBm / n={ADAPTIVE_CONFIG.pathlossExponent} · {ADAPTIVE_CONFIG.calibrationLabel??'미보정 모델'} · 시간창은 전후 관측을 포함합니다. 신뢰도는 정확도 백분율이 아닙니다. MEASURED는 고객 GNSS 실측정 좌표를 우선 사용하며, 인접한 실측정 점이 없는 구간만 RSRP 거리모델로 추정합니다(근접 측정점의 이동 한계를 함께 적용).</p>
     </details>
     <div className="adaptive-playbar"><button disabled={activeIndex<=0} onClick={()=>onSelect(list[activeIndex-1].sample.sampleIndex)}>이전</button><button disabled={!list.length} onClick={()=>setPlaying(v=>!v)}>{playing?'일시정지':'재생'}</button><button disabled={activeIndex>=list.length-1||!list.length} onClick={()=>onSelect(list[activeIndex+1].sample.sampleIndex)}>다음</button><input type="range" aria-label="위치 추정 시간" min={0} max={Math.max(0,list.length-1)} value={Math.max(0,activeIndex)} disabled={!list.length} onChange={e=>{setPlaying(false);onSelect(list[Number(e.target.value)].sample.sampleIndex);}}/><span>{selected?time(selected.timestamp):'관측 없음'}</span></div>
-    <button type="button" className="adaptive-info-toggle" aria-expanded={infoOpen} onClick={()=>setInfoOpen(v=>!v)}>{infoOpen?'위치 상세 닫기':'위치 상세'}</button>
+    <div className="adaptive-topbar">
+      <button type="button" className="adaptive-info-toggle" aria-pressed={layers.stations} onClick={()=>setLayers({...layers,stations:!layers.stations})}>기지국 {layers.stations?'ON':'OFF'}</button>
+      <button type="button" className="adaptive-info-toggle" aria-expanded={infoOpen} onClick={()=>setInfoOpen(v=>!v)}>{infoOpen?'위치 상세 닫기':'위치 상세'}</button>
+    </div>
     {infoOpen && <div className="location-legend adaptive-summary" aria-label="Adaptive 위치 상세">
       <b>추정 단말 위치 · {visible?.method??'표시 결과 없음'}</b>
       {visible&&<><span>{format(visible.estimatedLat,6)}, {format(visible.estimatedLon,6)} · {visible.siteCount} Site</span><span>신뢰도 {visible.confidenceScore}/100 · {visible.confidenceGrade} · Window ±{visible.windowSec}초</span><span>평균 / 최대 RSRP {format(visible.avgRsrp,1)} / {format(visible.strongestRsrp,1)} dBm</span><span>예상 위치 불확실성 약 ±{format(visible.estimatedAccuracyM)}m · Residual {format(visible.residualErrorM)}m</span><span>Site {visible.usedSites.map(s=>s.siteId).join(', ')||'없음'} · Cell {visible.usedCellIds.join(', ')||'없음'}</span><span>{visible.warnings.join(' · ')}</span></>}
