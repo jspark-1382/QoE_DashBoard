@@ -97,13 +97,17 @@ export function ExecutiveQoeMap({ fixedLocation = false, overviewRevision, metri
         // One score, path and tooltip per CI call; GPS points only define its geometry.
         groupMapCalls(samples).forEach(call => {
           const first = call[0], last = call[call.length - 1];
-          const tooltip = `CI ${escapeHtml(first.ci)} · ${first.time} ~ ${last.time} · ${valueLabel(first)} (콜 단위)`;
+          const tooltip = `CI ${escapeHtml(first.ci)} · ${first.time} ~ ${last.time} · ${valueLabel(first)} (콜 단위)<br/>측정 점 시간순 연결 · GNSS 외 구간은 기지국 좌표 근사 · 120초 또는 3km 초과 시 끊음`;
           const segments: [number, number][][] = [];
           call.forEach((sample, index) => {
-            if (!index || sample.second - call[index - 1].second > 120) segments.push([]);
+            if (!index) { segments.push([]); return; }
+            const gap = sample.second - call[index - 1].second;
+            const dlat = (sample.lat - call[index - 1].lat) * 111_320;
+            const dlon = (sample.lon - call[index - 1].lon) * 111_320 * Math.cos(sample.lat * Math.PI / 180);
+            if (gap > 120 || Math.hypot(dlat, dlon) > 3000) segments.push([]);
             segments[segments.length - 1].push([sample.lat, sample.lon]);
           });
-          L.polyline(segments, { renderer, color: colorFor(first), weight: 4, opacity: .9 })
+          L.polyline(segments, { renderer, color: colorFor(first), weight: 2, opacity: .55 })
             .bindTooltip(tooltip).addTo(layerRef.current!);
           const anchor = call[Math.floor(call.length / 2)];
           L.circleMarker([anchor.lat, anchor.lon], { renderer, radius: first.callId === selectedCallId ? 8 : 5, color: '#fff', weight: 1, fillColor: colorFor(first), fillOpacity: 1 })
