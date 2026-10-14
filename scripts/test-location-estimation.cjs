@@ -47,7 +47,7 @@ test('Adaptive physical grouping, outlier, log model and nonlinear solver',()=>{
  const distant={...station,latitude:37.3,cellId:'4',baseStationId:'D'};
  const sites=groupPhysicalSites([station,{...station,cellId:'duplicate'},b,c,distant]);
  assert.equal(sites.length,4);assert.equal(sites.filter(s=>s.excluded).length,1);
- assert.equal(logDistance(-65),100);assert(logDistance(-95)>logDistance(-85));
+ assert.equal(logDistance(ADAPTIVE_CONFIG.referenceRsrpDbm),ADAPTIVE_CONFIG.referenceDistanceM);assert(logDistance(-90)>logDistance(-87));
  const truth=offsetPoint(station,180,220);
  const used=[station,b,c].map((s,i)=>({...s,siteId:String(i),weight:1,estimatedDistanceM:distanceM(truth,s),rsrp:-80,deltaTimeSec:0,cellIds:[s.cellId],residualM:0}));
  const solved=solveWeighted(used);assert(distanceM(truth,solved)<2);assert(solved.residual<2);

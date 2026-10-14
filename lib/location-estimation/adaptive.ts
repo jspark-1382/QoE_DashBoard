@@ -112,7 +112,7 @@ export function estimateAdaptive(samples:MdtSample[],stations:BaseStation[],conf
         if(!(result.jump&&config.jumpAction==='exclude')){result.estimatedLat=point.latitude;result.estimatedLon=point.longitude;}
         else result.warnings.push('점프 위치 표시 제외');
         if(count===1)result.warnings.push('단일 Site 좌표를 임시 위치로 사용 · 방향 미식별');
-        if(!measured)result.warnings.push('±시간창 비동시 관측 기반 · 미보정 거리모델');
+        if(!measured)result.warnings.push(`±시간창 비동시 관측 기반 · ${config.calibrationLabel||'미보정 거리모델'}`);
       }
       if(measured){result.method='MEASURED';result.estimatedLat=measured.latitude;result.estimatedLon=measured.longitude;result.confidenceScore=100;result.confidenceGrade=confidenceGrade(100,config);result.estimatedAccuracyM=config.measuredAccuracyM;result.jump=false;result.warnings.push(`측정(GNSS) 좌표 우선 · 보정 오프셋 약 ±${config.measuredAccuracyM}m`);if(!count)result.warnings.push('기지국 미매칭 · 측정 좌표만 사용');}
       positions.push(result);previous=result.estimatedLat==null?undefined:result;

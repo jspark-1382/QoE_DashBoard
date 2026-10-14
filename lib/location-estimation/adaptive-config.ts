@@ -1,8 +1,12 @@
-// Explicit, uncalibrated POC parameters. P0 is reference RSRP, NOT TOTAL Tx power.
+// POC parameters. P0 is reference RSRP, NOT TOTAL Tx power.
 export const ADAPTIVE_CONFIG = {
   windowsSec: [5, 10, 20, 30, 60], siteClusterDistanceM: 20, maxSiteDistanceKm: 30,
-  referenceDistanceM: 100, referenceRsrpDbm: -65, pathlossExponent: 3,
-  minDistanceM: 20, maxDistanceM: 5000, timeDecayTauSec: 10,
+  // Fitted 2026-10-14 on 23,742 GNSS-measured (customer <-> serving station) pairs of this dataset:
+  // n=0.75 (very flat, distributed-antenna traces; RMSE 9.5dB), P0=-83.7dBm@100m, and RSRP turns
+  // non-monotonic beyond 1.5km so ring distance is capped there.
+  referenceDistanceM: 100, referenceRsrpDbm: -83.7, pathlossExponent: 0.75,
+  calibrationLabel: 'LTE+MDT GNSS 23.7k쌍 캘리브레이션(2026-10-14) · 거리 정보 약함',
+  minDistanceM: 20, maxDistanceM: 1500, timeDecayTauSec: 10,
   siteRsrpMode: 'max' as 'max'|'median'|'mean', rsrpWeightDivisor: 20, minRsrpWeight: .1,
   maxSpeedKmh: 200, jumpAction: 'reduce-confidence' as 'reduce-confidence'|'exclude'|'smooth',
   pathGapSec: 120, jumpConfidenceFactor: .5, maxIterations: 80,
