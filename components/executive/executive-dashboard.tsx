@@ -43,6 +43,8 @@ export function ExecutiveDashboard() {
   const [site, setSite] = useState('ALL');
   const [rat, setRat] = useState('ALL');
   const [selectedCallId, setSelectedCallId] = useState<string | null>(null);
+  // Display-scope focus for the estimation map: set only by explicit call-card selection, never by slider/marker moves.
+  const [callFocusId, setCallFocusId] = useState<string | null>(null);
   const [showAllCalls, setShowAllCalls] = useState(false);
   const [overviewRevision, setOverviewRevision] = useState(0);
   const [selectedEpisodeId, setSelectedEpisodeId] = useState<string | null>(null);
@@ -113,7 +115,7 @@ export function ExecutiveDashboard() {
     setSite('ALL');
     setRat('ALL');
     setSelectedEpisodeId(null);
-    setSelectedSampleIndex(null); setSelectedCallId(null);
+    setSelectedSampleIndex(null); setSelectedCallId(null); setCallFocusId(null);
   };
 
   if (loadError) return <main className="executive-dashboard loading"><div><AlertCircleIcon /><h1>Executive 데이터를 불러오지 못했습니다.</h1><p><code>npm run data:executive</code> 실행 후 다시 열어 주세요.</p></div></main>;
@@ -127,7 +129,7 @@ export function ExecutiveDashboard() {
       <div className="exec-live"><Activity /><span><b>EXECUTIVE DASHBOARD</b><small>{customer?.displayName ?? '고객 미선택'} · {date || '일자 미선택'}</small></span><em>{sourceType}</em></div>
     </header>
 
-    <ExecutiveFilters customers={dataset.customers} customerId={customerId} date={date} dates={dataset.meta.dates} site={activeSite} sites={sites} source={source} onSourceChange={value => { setDataset(null); setSource(value); setRat('ALL'); setSite('ALL'); setSelectedCallId(null); setSelectedSampleIndex(null); setSelectedEpisodeId(null); setShowAllCalls(true); }} onCustomerChange={changeCustomer} onDateChange={value => { setDate(value); setSite('ALL'); setRat('ALL'); setSelectedEpisodeId(null); setSelectedSampleIndex(null); setSelectedCallId(null); }} onSiteChange={value => { setSite(value); setSelectedEpisodeId(null); setSelectedSampleIndex(null); setSelectedCallId(null); }} />
+    <ExecutiveFilters customers={dataset.customers} customerId={customerId} date={date} dates={dataset.meta.dates} site={activeSite} sites={sites} source={source} onSourceChange={value => { setDataset(null); setSource(value); setRat('ALL'); setSite('ALL'); setSelectedCallId(null); setSelectedSampleIndex(null); setSelectedEpisodeId(null); setShowAllCalls(true); setCallFocusId(null); }} onCustomerChange={changeCustomer} onDateChange={value => { setDate(value); setSite('ALL'); setRat('ALL'); setSelectedEpisodeId(null); setSelectedSampleIndex(null); setSelectedCallId(null); setCallFocusId(null); }} onSiteChange={value => { setSite(value); setSelectedEpisodeId(null); setSelectedSampleIndex(null); setSelectedCallId(null); setCallFocusId(null); }} />
     <ExecutiveKpiCards summary={summary} mainCause={mainCause} />
 
     <section className="exec-dashboard-grid">
@@ -139,8 +141,8 @@ export function ExecutiveDashboard() {
           {(Object.keys(mapMetrics) as MapMetric[]).map(metric => <NativeSelectOption key={metric} value={metric}>{mapMetrics[metric].label} · {metric === 'qoe' ? '콜 단위' : source === 'MDT' ? '이벤트 단위' : '초 단위'}</NativeSelectOption>)}
         </NativeSelect>
       </div>}>
-        <MapCallContext samples={samples} selectedSampleIndex={activeSampleIndex} expanded={mapExpanded} callMeta={dataset.meta.callMeta} onSelect={index => { setShowAllCalls(false); setSelectedCallId(samples[index]?.callId || null); setSelectedEpisodeId(null); setSelectedSampleIndex(index); }} onShowAll={() => { setShowAllCalls(true); setSelectedCallId(null); setSelectedEpisodeId(null); setSelectedSampleIndex(null); setOverviewRevision(value => value + 1); }}>
-        {source === 'MDT' && showLocationEstimation ? <MdtLocationMap samples={samples} baseStations={dataset.meta.baseStations ?? []} selectedSampleIndex={activeSampleIndex} apiKey={mapKey} metric={mapMetric} overviewRevision={overviewRevision} callId={showAllCalls ? null : selectedCallId} onShowAllCalls={() => { setShowAllCalls(true); setSelectedCallId(null); setSelectedEpisodeId(null); setSelectedSampleIndex(null); setOverviewRevision(value => value + 1); }} onSampleSelect={index=>{setShowAllCalls(false);setSelectedSampleIndex(index);setSelectedCallId(samples[index]?.callId??null);setSelectedEpisodeId(null);}} />
+        <MapCallContext samples={samples} selectedSampleIndex={activeSampleIndex} expanded={mapExpanded} callMeta={dataset.meta.callMeta} onSelect={index => { setShowAllCalls(false); setSelectedCallId(samples[index]?.callId || null); setCallFocusId(samples[index]?.callId || null); setSelectedEpisodeId(null); setSelectedSampleIndex(index); }} onShowAll={() => { setShowAllCalls(true); setSelectedCallId(null); setCallFocusId(null); setSelectedEpisodeId(null); setSelectedSampleIndex(null); setOverviewRevision(value => value + 1); }}>
+        {source === 'MDT' && showLocationEstimation ? <MdtLocationMap samples={samples} baseStations={dataset.meta.baseStations ?? []} selectedSampleIndex={activeSampleIndex} apiKey={mapKey} metric={mapMetric} overviewRevision={overviewRevision} callId={callFocusId} onShowAllCalls={() => { setShowAllCalls(true); setSelectedCallId(null); setCallFocusId(null); setSelectedEpisodeId(null); setSelectedSampleIndex(null); setOverviewRevision(value => value + 1); }} onSampleSelect={index=>{setShowAllCalls(false);setSelectedSampleIndex(index);setSelectedCallId(samples[index]?.callId??null);setSelectedEpisodeId(null);}} />
           : <ExecutiveQoeMap overviewRevision={overviewRevision} metric={mapMetric} apiKey={mapKey} samples={samples} episodes={episodes} selectedCallId={selectedCallId} selectedEpisodeId={selectedCallId ? null : selectedEpisode?.id ?? null} selectedSampleIndex={activeSampleIndex} causeLabels={episodeCauseLabels} onEpisodeSelect={chooseEpisode} />}
         </MapCallContext>
       </ExecutivePanel>
@@ -149,7 +151,7 @@ export function ExecutiveDashboard() {
         <ExecutiveTimeChart samples={samples} episodes={episodes} selectedCallId={selectedCallId} selectedEpisodeId={selectedCallId ? null : selectedEpisode?.id ?? null} selectedSampleIndex={activeSampleIndex} onEpisodeSelect={chooseEpisode} onSampleSelect={index => { setShowAllCalls(false); setSelectedSampleIndex(index); }} />
       </ExecutivePanel>
 
-      <ExecutiveCallTable callMeta={dataset.meta.callMeta} samples={samples} selectedSampleIndex={activeSampleIndex} onShowAll={() => { setShowAllCalls(true); setSelectedCallId(null); setSelectedEpisodeId(null); setSelectedSampleIndex(null); setOverviewRevision(value => value + 1); }} onSelect={index => { setShowAllCalls(false); setSelectedCallId(samples[index]?.callId || null); setSelectedEpisodeId(null); setSelectedSampleIndex(index); }} />
+      <ExecutiveCallTable callMeta={dataset.meta.callMeta} samples={samples} selectedSampleIndex={activeSampleIndex} onShowAll={() => { setShowAllCalls(true); setSelectedCallId(null); setCallFocusId(null); setSelectedEpisodeId(null); setSelectedSampleIndex(null); setOverviewRevision(value => value + 1); }} onSelect={index => { setShowAllCalls(false); setSelectedCallId(samples[index]?.callId || null); setCallFocusId(samples[index]?.callId || null); setSelectedEpisodeId(null); setSelectedSampleIndex(index); }} />
     </section>
 
     <footer className="exec-footer"><span>{source === 'MDT' ? `기지국 좌표와 위치 추정 결과는 POC용 가상 데이터가 포함될 수 있습니다. · 무선값 없는 ${dataset.meta.unscoredCalls ?? 0}콜 QoE 집계 제외` : '실제 측정값과 계산·Rule 결과를 구분해 표시합니다.'}</span><span>고객명 원본 데이터 없음 · 전화번호 마스킹 처리 · Poor 기준 QoE &lt; {dataset.meta.poorQoeThreshold.toFixed(1)}</span></footer>
