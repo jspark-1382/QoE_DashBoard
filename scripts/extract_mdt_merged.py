@@ -180,6 +180,7 @@ def build_dataset(rows, coords, site_name=SITE, source_stats=None):
                 "displayName": "측정 계약 %d" % (len(customers) + 1),
                 "dates": set(),
                 "sampleCount": 0,
+                "gnssSampleCount": 0,
                 "hasName": False,
             }
 
@@ -214,6 +215,7 @@ def build_dataset(rows, coords, site_name=SITE, source_stats=None):
         per_day[(customer_id, date)].extend(samples)
         customer["dates"].add(date)
         customer["sampleCount"] += len(samples)
+        customer["gnssSampleCount"] += sum(1 for s in samples if s[21]["gnss"])
 
     output_days = []
     for (customer_id, date), samples in sorted(per_day.items(), key=lambda item: (item[0][1], item[0][0])):

@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { CalendarDays, ChevronDown, MapPin, Radio, UserRoundSearch, Waves } from 'lucide-react';
 import type { ExecutiveCustomer } from '@/lib/executive';
 
@@ -27,12 +28,16 @@ function FilterField({ label, icon, primary = false, children }: { label: string
 
 export function ExecutiveFilters({ customers, customerId, date, dates, site, sites, source, onSourceChange, onCustomerChange, onDateChange, onSiteChange }: Props) {
   const customer = customers.find(item => item.id === customerId);
+  const [gnssFirst, setGnssFirst] = useState(false);
+  const hasGnss = customers.some(item => item.gnssSampleCount != null);
+  const noCoord = (item: ExecutiveCustomer) => item.gnssSampleCount == null ? null : Math.round(100 * (1 - item.gnssSampleCount / Math.max(1, item.sampleCount)));
+  const ordered = gnssFirst ? [...customers].sort((a, b) => (noCoord(a) ?? 101) - (noCoord(b) ?? 101)) : customers;
   return <section className="exec-filter-bar" aria-label="고객 일자 분석 필터">
     <FilterField label="고객 선택" icon={<UserRoundSearch />} primary>
       <select aria-label="고객 선택" value={customerId} onChange={event => onCustomerChange(event.target.value)}>
-        {customers.map(item => <option value={item.id} key={item.id}>{item.displayName}</option>)}
+        {ordered.map(item => <option value={item.id} key={item.id}>{item.displayName}{noCoord(item) == null ? '' : ` · 좌표 없음 ${noCoord(item)}%`}</option>)}
       </select>
-      <b>{customer ? `${customer.displayName} · ${customer.maskedPhone}` : '데이터 없음'}</b>
+      <b>{customer ? `${customer.displayName} · ${customer.maskedPhone}${noCoord(customer) == null ? '' : ` · 좌표 없음 ${noCoord(customer)}%`}` : '데이터 없음'}{hasGnss && <button type="button" onMouseDown={event => event.preventDefault()} onClick={event => { event.preventDefault(); setGnssFirst(value => !value); }} style={{ marginLeft: 6, border: '1px solid #2f76c8', borderRadius: 4, background: gnssFirst ? '#276ebd' : 'transparent', color: gnssFirst ? '#fff' : '#79aef9', fontSize: 6, padding: '1px 4px' }}>좌표 많은 순</button>}</b>
     </FilterField>
     <FilterField label="일자 선택" icon={<CalendarDays />} primary>
       <select aria-label="일자 선택" value={date} onChange={event => onDateChange(event.target.value)}>

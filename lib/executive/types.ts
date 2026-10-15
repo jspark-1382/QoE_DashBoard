@@ -14,6 +14,7 @@ export interface ExecutiveCustomer {
   displayName: string;
   dates: string[];
   sampleCount: number;
+  gnssSampleCount?: number;
   hasName: boolean;
 }
 

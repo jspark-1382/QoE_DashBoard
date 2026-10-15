@@ -17,7 +17,7 @@ export function AdaptivePositionLayer({map,events,stations,selectedIndex,onSelec
   const [method,setMethod]=useState('ALL'),[grade,setGrade]=useState('ALL'),[site,setSite]=useState('ALL');
   const [cell,setCell]=useState(''),[frequency,setFrequency]=useState('ALL'),[pci,setPci]=useState('');
   const [minRsrp,setMinRsrp]=useState(''),[from,setFrom]=useState(''),[to,setTo]=useState('');
-  const [layers,setLayers]=useState({stations:false,positions:true,path:true,accuracy:true,debug:false});
+  const [layers,setLayers]=useState({stations:false,positions:true,path:true,accuracy:true,debug:false,track:true});
   const [playing,setPlaying]=useState(false);
   const data=useMemo(()=>estimateAdaptive(events,stations,{...ADAPTIVE_CONFIG,siteRsrpMode:mode}),[events,stations,mode]);
   const selected=data.positions.find(p=>p.sample.sampleIndex===selectedIndex)??(selectedIndex==null?data.positions[0]:undefined);
@@ -41,6 +41,18 @@ export function AdaptivePositionLayer({map,events,stations,selectedIndex,onSelec
       const tokens=getComputedStyle(map.getContainer());
       const svg=L.svg();
       const color=(p:AdaptivePosition)=>tokens.getPropertyValue(['A','B'].includes(p.confidenceGrade)?'--exec-green':p.confidenceGrade==='C'?'--exec-amber':'--exec-red').trim()||'#56d8cb';
+      if(layers.track){
+        const lastMeasured=new Map<string,MdtSample>();
+        for(const event of events){
+          if(event.measuredLat==null||event.measuredLon==null)continue;
+          const before=lastMeasured.get(event.streamId);lastMeasured.set(event.streamId,event);
+          if(!before||before.measuredLat==null||before.measuredLon==null)continue;
+          const dlat=(event.measuredLat-before.measuredLat)*111_320,dlon=(event.measuredLon-before.measuredLon)*111_320*Math.cos(event.measuredLat*Math.PI/180);
+          if((event.timestamp-before.timestamp)/1000>120||Math.hypot(dlat,dlon)>3000)continue;
+          L.polyline([[before.measuredLat,before.measuredLon],[event.measuredLat,event.measuredLon]],{color:'#56d8cb',weight:2,opacity:.8})
+            .bindTooltip('MDT GNSS 실측정 트랙 · 고객 단말 좌표').addTo(group!);
+        }
+      }
       if(layers.stations)for(const s of data.sites.filter(s=>!s.excluded)){
         const used=visible?.usedSites.find(o=>o.siteId===s.siteId),virtual=s.cells.some(c=>c.isVirtual),unknown=s.cells.some(c=>c.provenanceUnknown);
         L.marker([s.latitude,s.longitude],{icon:L.divIcon({className:'location-station-marker',html:`<span>📡</span><b>${esc(s.siteId)}${used?' · 사용':''}</b>`,iconSize:[110,46],iconAnchor:[55,24]})})
@@ -86,7 +98,7 @@ export function AdaptivePositionLayer({map,events,stations,selectedIndex,onSelec
         <label>최대 RSRP 하한<input type="number" aria-label="RSRP 하한" value={minRsrp} onChange={e=>setMinRsrp(e.target.value)} placeholder="dBm" /></label>
         <label>시작<input type="time" aria-label="추정 시작 시간" value={from} onChange={e=>setFrom(e.target.value)} /></label><label>종료<input type="time" aria-label="추정 종료 시간" value={to} onChange={e=>setTo(e.target.value)} /></label>
       </div>
-      <div className="location-controls">{Object.entries(layers).map(([key,value])=><label className="adaptive-check" key={key}><input type="checkbox" checked={value} onChange={e=>setLayers({...layers,[key]:e.target.checked})}/>{{stations:'기지국',positions:'추정 위치',path:'추정 경로',accuracy:'불확실성 반경',debug:'Debug'}[key]}</label>)}</div>
+      <div className="location-controls">{Object.entries(layers).map(([key,value])=><label className="adaptive-check" key={key}><input type="checkbox" checked={value} onChange={e=>setLayers({...layers,[key]:e.target.checked})}/>{{stations:'기지국',positions:'추정 위치',path:'추정 경로',accuracy:'불확실성 반경',debug:'Debug',track:'측정 트랙'}[key]}</label>)}</div>
       <p>기준 {ADAPTIVE_CONFIG.referenceDistanceM}m / {ADAPTIVE_CONFIG.referenceRsrpDbm}dBm / n={ADAPTIVE_CONFIG.pathlossExponent} · {ADAPTIVE_CONFIG.calibrationLabel??'미보정 모델'} · 시간창은 전후 관측을 포함합니다. 신뢰도는 정확도 백분율이 아닙니다. MEASURED는 고객 GNSS 실측정 좌표를 우선 사용하며, 인접한 실측정 점이 없는 구간만 RSRP 거리모델로 추정합니다(근접 측정점의 이동 한계를 함께 적용).</p>
     </details>
     <div className="adaptive-playbar"><button disabled={activeIndex<=0} onClick={()=>onSelect(list[activeIndex-1].sample.sampleIndex)}>이전</button><button disabled={!list.length} onClick={()=>setPlaying(v=>!v)}>{playing?'일시정지':'재생'}</button><button disabled={activeIndex>=list.length-1||!list.length} onClick={()=>onSelect(list[activeIndex+1].sample.sampleIndex)}>다음</button><input type="range" aria-label="위치 추정 시간" min={0} max={Math.max(0,list.length-1)} value={Math.max(0,activeIndex)} disabled={!list.length} onChange={e=>{setPlaying(false);onSelect(list[Number(e.target.value)].sample.sampleIndex);}}/><span>{selected?time(selected.timestamp):'관측 없음'}</span></div>

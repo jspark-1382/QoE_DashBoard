@@ -101,6 +101,8 @@ class TestBuildDataset(unittest.TestCase):
         ds = build_dataset([row_g, row_n], self.coords)
         flags = sorted(s[21]["gnss"] for d in ds["days"] for s in d["samples"])
         self.assertEqual(flags, [False, True])
+        self.assertEqual(ds["customers"][0]["gnssSampleCount"], 1)
+        self.assertEqual(ds["customers"][0]["sampleCount"], 2)
 
     def test_tuple_shape_and_masks(self):
         rows = [sample_row(), sample_row(svc_ctgry_st_hhmiss="170000")]
