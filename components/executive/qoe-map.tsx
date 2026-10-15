@@ -34,6 +34,7 @@ export function ExecutiveQoeMap({ fixedLocation = false, overviewRevision, metri
   const selectRef = useRef(onEpisodeSelect);
   const [ready, setReady] = useState(false);
   const [tileFailed, setTileFailed] = useState(false);
+  const [pathAsDots, setPathAsDots] = useState(false);
   useEffect(() => { selectRef.current = onEpisodeSelect; }, [onEpisodeSelect]);
 
   useEffect(() => {
@@ -110,8 +111,12 @@ export function ExecutiveQoeMap({ fixedLocation = false, overviewRevision, metri
             if (cut) segments.push([]);
             segments[segments.length - 1].push([sample.lat, sample.lon]);
           });
-          L.polyline(segments.filter(segment => segment.length >= 2), { renderer, color: colorFor(first), weight: 2, opacity: .55 })
+          if (!pathAsDots) L.polyline(segments.filter(segment => segment.length >= 2), { renderer, color: colorFor(first), weight: 2, opacity: .55 })
             .bindTooltip(tooltip).addTo(layerRef.current!);
+          else call.forEach(sample => {
+            L.circleMarker([sample.lat, sample.lon], { renderer, radius: sample.callId === selectedCallId ? 5 : 3, color: '#fff', weight: .6, fillColor: colorFor(sample), fillOpacity: 1 })
+              .bindTooltip(`${sample.time} · CI ${escapeHtml(sample.ci)} · ${valueLabel(sample)}`).addTo(layerRef.current!);
+          });
           const anchor = call[Math.floor(call.length / 2)];
           L.circleMarker([anchor.lat, anchor.lon], { renderer, radius: first.callId === selectedCallId ? 8 : 5, color: '#fff', weight: 1, fillColor: colorFor(first), fillOpacity: 1 })
             .bindTooltip(tooltip).addTo(layerRef.current!);
@@ -119,7 +124,7 @@ export function ExecutiveQoeMap({ fixedLocation = false, overviewRevision, metri
       } else {
         visible.forEach((sample, index) => {
           const previous = visible[index - 1];
-          if (previous && previous.callId === sample.callId && sample.second - previous.second <= 120) {
+          if (previous && previous.callId === sample.callId && sample.second - previous.second <= 120 && !pathAsDots) {
             L.polyline([[previous.lat, previous.lon], [sample.lat, sample.lon]], {
               renderer, color: colorFor(sample), weight: 3.1, opacity: .88,
             }).addTo(layerRef.current!);
@@ -132,12 +137,12 @@ export function ExecutiveQoeMap({ fixedLocation = false, overviewRevision, metri
       if (focused && !fixedLocation) {
         callSamples.forEach((sample, index) => {
           const previous = callSamples[index - 1];
-          if (previous && sample.second - previous.second <= 120) {
+          if (previous && sample.second - previous.second <= 120 && !pathAsDots) {
             const segment: [number, number][] = [[previous.lat, previous.lon], [sample.lat, sample.lon]];
             L.polyline(segment, { renderer, color: '#07131f', weight: 15, opacity: .9 }).addTo(layerRef.current!);
             L.polyline(segment, { renderer, color: colorFor(sample), weight: 10, opacity: 1 }).addTo(layerRef.current!);
           }
-          if (metric !== 'qoe') L.circleMarker([sample.lat, sample.lon], { renderer, radius: 7, color: '#ffffff', weight: 1.5, fillColor: colorFor(sample), fillOpacity: 1 })
+          if (metric !== 'qoe' || pathAsDots) L.circleMarker([sample.lat, sample.lon], { renderer, radius: 7, color: '#ffffff', weight: 1.5, fillColor: colorFor(sample), fillOpacity: 1 })
             .bindTooltip(`CI ${escapeHtml(sample.ci)} · ${sample.time} · ${valueLabel(sample)}`)
             .addTo(layerRef.current!);
         });
@@ -168,7 +173,7 @@ export function ExecutiveQoeMap({ fixedLocation = false, overviewRevision, metri
         map.panTo([sample.lat, sample.lon], { animate: false });
       }
     }).catch(() => undefined);
-  }, [fixedLocation, overviewRevision, metric, samples, episodes, selectedCallId, selectedEpisodeId, selectedSampleIndex, causeLabels, ready]);
+  }, [fixedLocation, overviewRevision, metric, samples, episodes, selectedCallId, selectedEpisodeId, selectedSampleIndex, causeLabels, ready, pathAsDots]);
 
   useEffect(() => {
     if (selectedCallId || !mapRef.current || selectedSampleIndex == null || !samples[selectedSampleIndex]) return;
@@ -183,6 +188,9 @@ export function ExecutiveQoeMap({ fixedLocation = false, overviewRevision, metri
     {!samples.length && <div className="exec-empty map"><b>표시할 측정 경로가 없습니다.</b><span>고객, 일자 또는 지역 필터를 변경해 주세요.</span></div>}
     {!apiKey && <div className="exec-map-status">VWorld 키 없음 · 측정 경로만 표시</div>}
     {tileFailed && <div className="exec-map-status error">VWorld 지도 연결 확인 필요</div>}
+    {!fixedLocation && samples.length > 0 && <div className="adaptive-topbar">
+      <button type="button" className="adaptive-info-toggle" aria-pressed={pathAsDots} onClick={() => setPathAsDots(value => !value)}>{pathAsDots ? '경로: 점' : '경로: 선'}</button>
+    </div>}
     <div className="exec-map-legend" style={{ width: 235 }}>
       <b>{metricInfo.label} · {metric === 'qoe' ? fixedLocation ? '콜별 무선 추정' : '콜 단위' : fixedLocation ? 'MDT 이벤트' : '초 단위 실측'}{selectedCallId ? ' · 선택 콜 강조' : ''}</b>
       <div style={{ display: 'grid', gap: 6, marginTop: 8 }}>
