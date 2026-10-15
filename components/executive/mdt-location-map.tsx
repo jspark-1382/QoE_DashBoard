@@ -14,9 +14,10 @@ const confidenceLabel = { LOW: '낮음 (LOW)', MEDIUM: '중간 (MEDIUM)', HIGH: 
 const meters = (value: number) => Math.round(value).toLocaleString() + ' m';
 const reading = (value: number | null | undefined, unit: string) => value == null ? '미측정' : value.toFixed(1) + ' ' + unit;
 
-export function MdtLocationMap({ samples, baseStations, selectedSampleIndex, onSampleSelect, apiKey, metric, overviewRevision }: {
+export function MdtLocationMap({ samples, baseStations, selectedSampleIndex, onSampleSelect, apiKey, metric, overviewRevision, callId, onShowAllCalls }: {
   samples: ExecutiveSample[]; baseStations: BaseStation[]; selectedSampleIndex: number | null;
   onSampleSelect: (index:number)=>void; apiKey: string; metric: MapMetric; overviewRevision: number;
+  callId: string | null; onShowAllCalls: () => void;
 }) {
   const host = useRef<HTMLDivElement>(null);
   const map = useRef<import('leaflet').Map|null>(null);
@@ -29,16 +30,17 @@ export function MdtLocationMap({ samples, baseStations, selectedSampleIndex, onS
   const [windowSize,setWindowSize]=useState(HISTORY_WINDOW);
   const detailsOpen=false;
   const events=useMemo<MdtSample[]>(()=>samples.flatMap((sample,index)=>sample.mdt ? [{
-    ...sample.mdt, timestamp:Date.parse(sample.mdt.timestamp), rsrp:sample.rsrp, rsrq:sample.rsrq, sinr:sample.sinr, sampleIndex:index,
+    ...sample.mdt, timestamp:Date.parse(sample.mdt.timestamp), rsrp:sample.rsrp, rsrq:sample.rsrq, sinr:sample.sinr, sampleIndex:index, callId:sample.callId,
     measuredLat:sample.mdt.gnss?sample.lat:null, measuredLon:sample.mdt.gnss?sample.lon:null,
   }]:[]),[samples]);
   const selected=events.find(event=>event.sampleIndex===selectedSampleIndex)??events[0];
   // Only stations actually referenced by the visible samples: keeps the map readable
   // when the master covers a whole city while a customer talks to a handful of sites.
   const relevantStations=useMemo(()=>{
-    const ids=new Set(events.map(event=>event.baseStationId).filter(Boolean) as string[]);
+    const scoped=callId ? events.filter(event=>event.callId===callId) : events;
+    const ids=new Set(scoped.map(event=>event.baseStationId).filter(Boolean) as string[]);
     return ids.size ? baseStations.filter(station=>ids.has(station.baseStationId)) : baseStations;
-  },[events,baseStations]);
+  },[events,baseStations,callId]);
   // Compute a causal trajectory once per dataset/settings, not from a new seed on each selection.
   const allEstimates=useMemo(()=>algorithm==='legacy'?estimatePosition(events,relevantStations,{...options,historyWindow:windowSize}):[],[events,relevantStations,options,windowSize,algorithm]);
   const estimate=selected ? allEstimates.find(e=>e.sample.sampleIndex===selected.sampleIndex) : undefined;
@@ -154,7 +156,7 @@ export function MdtLocationMap({ samples, baseStations, selectedSampleIndex, onS
       </div>
       <p>주파수 형식을 확인한 경우에만 보정을 선택하세요. 설정에 따라 POC 후보 영역이 달라지며 실제 GPS 위치를 의미하지 않습니다.</p>
     </details>}
-    {algorithm==='adaptive' && <AdaptivePositionLayer map={ready?map.current:null} events={events} stations={relevantStations} selectedIndex={selectedSampleIndex} onSelect={onSampleSelect} overviewRevision={overviewRevision}/>}
+    {algorithm==='adaptive' && <AdaptivePositionLayer map={ready?map.current:null} events={events} stations={relevantStations} selectedIndex={selectedSampleIndex} onSelect={onSampleSelect} overviewRevision={overviewRevision} callId={callId} callLabel={callId ? samples.find(s=>s.callId===callId)?.ci ?? null : null} onShowAllCalls={onShowAllCalls}/>}
     <div ref={host} className="location-map" aria-label="MDT 기지국 기반 추정 위치 지도" />
     {algorithm==='legacy' && <div className="location-legend"><b>고객 추정 위치 · POC</b>
       {estimate ? <span>{samples[estimate.sample.sampleIndex]?.time} · 신뢰도 {confidenceLabel[estimate.confidence]}</span> : <span>기지국 연결 또는 무선 정보가 부족하여 위치를 추정할 수 없습니다.</span>}

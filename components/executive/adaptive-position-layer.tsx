@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Map as LeafletMap } from 'leaflet';
 import type { BaseStation, MdtSample } from '@/lib/location-estimation';
 import { estimateAdaptive, type AdaptivePosition } from '@/lib/location-estimation/adaptive';
@@ -11,7 +11,7 @@ const time=(t:number)=>new Date(t).toLocaleTimeString('ko-KR',{hour12:false,time
 const format=(v:number|null,d=0)=>v==null?'—':v.toFixed(d);
 function positionDetails(p:AdaptivePosition){return `<b>${p.method==='MEASURED'?'측정 단말 위치':'추정 단말 위치'} · ${time(p.timestamp)}</b><br/>${format(p.estimatedLat,6)}, ${format(p.estimatedLon,6)}<br/>${p.method} · ${p.siteCount} Site / ${p.usedCellCount} Cell<br/>평균 / 최대 RSRP: ${format(p.avgRsrp,1)} / ${format(p.strongestRsrp,1)} dBm<br/>신뢰도 ${p.confidenceScore}/100 · ${p.confidenceGrade} (정확도 아님)<br/>예상 위치 불확실성 약 ±${format(p.estimatedAccuracyM)} m<br/>Residual ${format(p.residualErrorM)} m · Window ±${p.windowSec}초<br/>Site: ${p.usedSites.map(s=>esc(s.siteId)).join(', ')}<br/>Cell: ${p.usedCellIds.map(esc).join(', ')}<br/>${p.warnings.map(esc).join(' · ')}`;}
 
-export function AdaptivePositionLayer({map,events,stations,selectedIndex,onSelect,overviewRevision}:{map:LeafletMap|null;events:MdtSample[];stations:BaseStation[];selectedIndex:number|null;onSelect:(i:number)=>void;overviewRevision:number}){
+export function AdaptivePositionLayer({map,events,stations,selectedIndex,onSelect,overviewRevision,callId,callLabel,onShowAllCalls}:{map:LeafletMap|null;events:MdtSample[];stations:BaseStation[];selectedIndex:number|null;onSelect:(i:number)=>void;overviewRevision:number;callId:string|null;callLabel:string|null;onShowAllCalls:()=>void}){
   const [mode,setMode]=useState<'max'|'median'|'mean'>('max');
   const [infoOpen,setInfoOpen]=useState(false);
   const [method,setMethod]=useState('ALL'),[grade,setGrade]=useState('ALL'),[site,setSite]=useState('ALL');
@@ -22,6 +22,7 @@ export function AdaptivePositionLayer({map,events,stations,selectedIndex,onSelec
   const data=useMemo(()=>estimateAdaptive(events,stations,{...ADAPTIVE_CONFIG,siteRsrpMode:mode}),[events,stations,mode]);
   const selected=data.positions.find(p=>p.sample.sampleIndex===selectedIndex)??(selectedIndex==null?data.positions[0]:undefined);
   const list=useMemo(()=>data.positions.filter(p=>{
+    if(callId&&p.sample.callId!==callId)return false;
     if(selected && p.sample.streamId!==selected.sample.streamId)return false;
     const clock=new Date(p.timestamp).toLocaleTimeString('en-GB',{hour12:false,timeZone:'Asia/Seoul'});if(from&&clock<from||to&&clock>to+':59')return false;
     if(method!=='ALL'&&p.method!==method||grade==='AB'&&!['A','B'].includes(p.confidenceGrade)||grade!=='ALL'&&grade!=='AB'&&p.confidenceGrade!==grade)return false;
@@ -30,9 +31,20 @@ export function AdaptivePositionLayer({map,events,stations,selectedIndex,onSelec
     const used=stations.filter(s=>p.usedCellIds.includes(s.cellId));
     if(frequency!=='ALL'&&!used.some(s=>String(s.frequency)===frequency)||pci&&!used.some(s=>String(s.pci)===pci.trim()))return false;
     return true;
-  }),[data,selected,method,grade,site,cell,frequency,pci,minRsrp,from,to,stations]);
+  }),[data,selected,method,grade,site,cell,frequency,pci,minRsrp,from,to,stations,callId]);
   const activeIndex=list.findIndex(p=>p===selected),visible=selected&&list.includes(selected)?selected:undefined;
-  const displayed=list.slice(Math.max(0,activeIndex-ADAPTIVE_CONFIG.displayLimit+1),Math.max(0,activeIndex)+1);
+  const lastFittedCall=useRef<string|null>(null);
+  useEffect(()=>{
+    if(!map||callId===lastFittedCall.current)return;
+    lastFittedCall.current=callId;
+    if(!callId)return;
+    void import('leaflet').then(L=>{
+      const pts=list.filter(p=>p.estimatedLat!=null&&p.estimatedLon!=null).map(p=>[p.estimatedLat as number,p.estimatedLon as number] as [number,number]);
+      if(pts.length)map.fitBounds(L.latLngBounds(pts),{padding:[60,60],maxZoom:17,animate:false});
+    });
+  },[map,callId,list]);
+  // Call focus shows the whole call at once; otherwise reveal up to the selected point (playback window).
+  const displayed=callId ? list : list.slice(Math.max(0,activeIndex-ADAPTIVE_CONFIG.displayLimit+1),Math.max(0,activeIndex)+1);
   useEffect(()=>{if(!playing)return;const timer=setInterval(()=>{const next=list[activeIndex+1];if(next)onSelect(next.sample.sampleIndex);else setPlaying(false);},1000);return()=>clearInterval(timer);},[playing,list,activeIndex,onSelect]);
   useEffect(()=>{
     if(!map)return;let disposed=false;let group:import('leaflet').LayerGroup|undefined;
@@ -44,6 +56,7 @@ export function AdaptivePositionLayer({map,events,stations,selectedIndex,onSelec
       if(layers.track){
         const lastMeasured=new Map<string,MdtSample>();
         for(const event of events){
+          if(callId&&event.callId!==callId)continue;
           if(event.measuredLat==null||event.measuredLon==null)continue;
           const before=lastMeasured.get(event.streamId);lastMeasured.set(event.streamId,event);
           if(!before||before.measuredLat==null||before.measuredLon==null)continue;
@@ -103,6 +116,7 @@ export function AdaptivePositionLayer({map,events,stations,selectedIndex,onSelec
     </details>
     <div className="adaptive-playbar"><button disabled={activeIndex<=0} onClick={()=>onSelect(list[activeIndex-1].sample.sampleIndex)}>이전</button><button disabled={!list.length} onClick={()=>setPlaying(v=>!v)}>{playing?'일시정지':'재생'}</button><button disabled={activeIndex>=list.length-1||!list.length} onClick={()=>onSelect(list[activeIndex+1].sample.sampleIndex)}>다음</button><input type="range" aria-label="위치 추정 시간" min={0} max={Math.max(0,list.length-1)} value={Math.max(0,activeIndex)} disabled={!list.length} onChange={e=>{setPlaying(false);onSelect(list[Number(e.target.value)].sample.sampleIndex);}}/><span>{selected?time(selected.timestamp):'관측 없음'}</span></div>
     <div className="adaptive-topbar">
+      {callId && <button type="button" className="adaptive-info-toggle" onMouseDown={e=>e.stopPropagation()} onClick={e=>{e.stopPropagation();onShowAllCalls();}}>CI {esc(callLabel??callId)} 콜만 ✕</button>}
       <button type="button" className="adaptive-info-toggle" aria-pressed={layers.stations} onClick={()=>setLayers({...layers,stations:!layers.stations})}>기지국 {layers.stations?'ON':'OFF'}</button>
       <button type="button" className="adaptive-info-toggle" aria-expanded={infoOpen} onClick={()=>setInfoOpen(v=>!v)}>{infoOpen?'위치 상세 닫기':'위치 상세'}</button>
     </div>
