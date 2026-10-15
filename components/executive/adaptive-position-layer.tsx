@@ -64,7 +64,7 @@ export function AdaptivePositionLayer({map,events,stations,selectedIndex,onSelec
         L.polyline([[prev.estimatedLat,prev.estimatedLon],[p.estimatedLat,p.estimatedLon]],{color:'#ba9cff',weight:2,dashArray:'4 7',opacity:.65}).addTo(group!);});
       if(layers.positions)for(const p of displayed){if(p.estimatedLat==null||p.estimatedLon==null)continue;
         const marker=L.circleMarker([p.estimatedLat,p.estimatedLon],{renderer:svg,radius:p===visible?11:5,color:color(p),weight:3,fillColor:color(p),fillOpacity:['D','E'].includes(p.confidenceGrade)?.18:.9})
-          .bindTooltip(`${p.method==='MEASURED'?'측정 UE':'추정 UE'} · ${time(p.timestamp)} · ${p.confidenceGrade}`,{permanent:p===visible,direction:'top'})
+          .bindTooltip(`${p.method==='MEASURED'?'측정 UE':'추정 UE'} · ${time(p.timestamp)} · ${p.confidenceGrade}`,{direction:'top'})
           .bindPopup(positionDetails(p)).on('click',()=>{if(p!==visible)onSelect(p.sample.sampleIndex);}).addTo(group);
         marker.getElement()?.setAttribute('aria-label',`${p.method==='MEASURED'?'측정 UE':'추정 UE'} ${p.sample.sampleIndex}`);
       }
