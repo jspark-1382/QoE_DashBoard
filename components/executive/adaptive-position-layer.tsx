@@ -43,8 +43,8 @@ export function AdaptivePositionLayer({map,events,stations,selectedIndex,onSelec
       if(pts.length)map.fitBounds(L.latLngBounds(pts),{padding:[60,60],maxZoom:17,animate:false});
     });
   },[map,callId,list]);
-  // Call focus shows the whole call at once; otherwise reveal up to the selected point (playback window).
-  const displayed=callId ? list : list.slice(Math.max(0,activeIndex-ADAPTIVE_CONFIG.displayLimit+1),Math.max(0,activeIndex)+1);
+  // Show the whole filtered scope at once (whole day, or the focused call); the slider only moves the highlight.
+  const displayed=list;
   useEffect(()=>{if(!playing)return;const timer=setInterval(()=>{const next=list[activeIndex+1];if(next)onSelect(next.sample.sampleIndex);else setPlaying(false);},1000);return()=>clearInterval(timer);},[playing,list,activeIndex,onSelect]);
   useEffect(()=>{
     if(!map)return;let disposed=false;let group:import('leaflet').LayerGroup|undefined;
@@ -124,7 +124,7 @@ export function AdaptivePositionLayer({map,events,stations,selectedIndex,onSelec
       <b>추정 단말 위치 · {visible?.method??'표시 결과 없음'}</b>
       {visible&&<><span>{format(visible.estimatedLat,6)}, {format(visible.estimatedLon,6)} · {visible.siteCount} Site</span><span>신뢰도 {visible.confidenceScore}/100 · {visible.confidenceGrade} · Window ±{visible.windowSec}초</span><span>평균 / 최대 RSRP {format(visible.avgRsrp,1)} / {format(visible.strongestRsrp,1)} dBm</span><span>예상 위치 불확실성 약 ±{format(visible.estimatedAccuracyM)}m · Residual {format(visible.residualErrorM)}m</span><span>Site {visible.usedSites.map(s=>s.siteId).join(', ')||'없음'} · Cell {visible.usedCellIds.join(', ')||'없음'}</span><span>{visible.warnings.join(' · ')}</span></>}
       {!visible&&<span>필터에 해당하는 관측을 시간 선택에서 고르세요.</span>}
-      <span>미매칭 {data.stats.unmatched}개 · 좌표 이상 제외 {data.stats.excludedSamples}개 관측 · 경로 최대 {ADAPTIVE_CONFIG.displayLimit}개 표시</span>
+      <span>미매칭 {data.stats.unmatched}개 · 좌표 이상 제외 {data.stats.excludedSamples}개 관측 · 표시 {list.length}개 관측</span>
     </div>}
   </>;
 }
