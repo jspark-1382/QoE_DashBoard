@@ -35,16 +35,22 @@ export function buildCallRows(samples: ExecutiveSample[]) {
   });
 }
 
-export function ExecutiveCallTable({ samples, selectedSampleIndex, onSelect, onShowAll, callMeta }: {
+export function ExecutiveCallTable({ samples, selectedSampleIndex, onSelect, onShowAll, callMeta, sortWorstFirst, rowLimit }: {
   callMeta?: Record<string, { start: string; end: string }>;
   samples: ExecutiveSample[];
   selectedSampleIndex: number | null;
   onSelect: (index: number) => void;
   onShowAll: () => void;
+  sortWorstFirst?: boolean;
+  rowLimit?: number;
 }) {
-  const rows = useMemo(() => buildCallRows(samples), [samples]);
+  const allRows = useMemo(() => buildCallRows(samples), [samples]);
+  const rows = useMemo(() => {
+    const ordered = sortWorstFirst ? [...allRows].sort((a, b) => a.qoe - b.qoe) : allRows;
+    return rowLimit ? ordered.slice(0, rowLimit) : ordered;
+  }, [allRows, sortWorstFirst, rowLimit]);
   return <section className="exec-panel exec-call-panel" aria-labelledby="call-table-title">
-    <header><div><h2 id="call-table-title">콜 테이블</h2></div><div className="exec-call-tools"><span className="exec-call-count">{rows.length.toLocaleString()}개 측정 콜</span><button type="button" className="exec-call-show-all" onClick={onShowAll}>전체 보기</button></div></header>
+    <header><div><h2 id="call-table-title">콜 테이블</h2></div><div className="exec-call-tools"><span className="exec-call-count">{rows.length === allRows.length ? `${rows.length.toLocaleString()}개 측정 콜` : `저QoE ${allRows.length.toLocaleString()}콜 중 최악 ${rows.length.toLocaleString()}콜`}</span><button type="button" className="exec-call-show-all" onClick={onShowAll}>전체 보기</button></div></header>
     <p className="exec-call-note">CI 기준 1행 = 1콜 · QoE는 콜 평균 측정값으로 계산 · MOS / RSRP 평균</p>
     <div className="exec-call-scroll">
       <Table>

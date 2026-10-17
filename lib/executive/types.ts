@@ -53,6 +53,8 @@ export interface ExecutiveDataset {
 
 export interface ExecutiveSample {
   mdt?: MdtMetadata;
+  // Owning contract id; set on cross-customer aggregate views so map clicks can drill back.
+  ownerId?: string;
   morphology: string;
   callId: string;
   ci: string;

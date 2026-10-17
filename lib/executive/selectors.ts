@@ -21,18 +21,27 @@ const mode = <T extends string | number>(input: (T | null)[]): T | null => {
   return [...counts].sort((a, b) => b[1] - a[1])[0][0];
 };
 
-export function decodeSample(raw: ExecutiveRawSample): ExecutiveSample {
+export function decodeSample(raw: ExecutiveRawSample, ownerId?: string): ExecutiveSample {
   return {
-    morphology: raw[18] ?? '정보 없음', callId: raw[19] ?? '', ci: raw[20] ?? '', mdt: raw[21],
+    morphology: raw[18] ?? '정보 없음', callId: raw[19] ?? '', ci: raw[20] ?? '', mdt: raw[21], ownerId,
     second: raw[0], time: raw[1], lat: raw[2], lon: raw[3], site: raw[4], areaType: raw[5],
     floorCode: raw[6], floorName: raw[7], rat: raw[8], pci: raw[9], rsrp: raw[10], rsrq: raw[11],
     sinr: raw[12], mos: raw[13], jitter: raw[14], delay: raw[15], qoe: raw[16], sourceCause: raw[17],
   };
 }
 
+// Cross-customer landing view: every sample at or below the low-QoE bound, tagged with its owner.
+export const LOW_QOE_LANDING_MAX = 3.0;
+export function getLowQoeSamplesAcross(days: ExecutiveDay[], date: string): ExecutiveSample[] {
+  return days.filter(day => day.date === date).flatMap(day =>
+    day.samples.map(raw => decodeSample(raw, day.customerId)).filter(sample =>
+      Boolean(sample.callId && sample.ci) && Number.isFinite(sample.qoe) && sample.qoe <= LOW_QOE_LANDING_MAX
+    ));
+}
+
 export function getCustomerDaySamples(day: ExecutiveDay | undefined, site: string, rat: string): ExecutiveSample[] {
   if (!day) return [];
-  return day.samples.map(decodeSample).filter(sample =>
+  return day.samples.map(raw => decodeSample(raw, day.customerId)).filter(sample =>
     Boolean(sample.callId && sample.ci) &&
     (site === 'ALL' || sample.site === site) && (rat === 'ALL' || sample.rat === rat)
   );

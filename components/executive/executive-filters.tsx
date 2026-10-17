@@ -12,6 +12,7 @@ interface Props {
   site: string;
   sites: string[];
   source: '실측' | 'MDT';
+  landingLabel?: string;
   onSourceChange: (source: '실측' | 'MDT') => void;
   onCustomerChange: (id: string) => void;
   onDateChange: (date: string) => void;
@@ -26,7 +27,7 @@ function FilterField({ label, icon, primary = false, children }: { label: string
   </label>;
 }
 
-export function ExecutiveFilters({ customers, customerId, date, dates, site, sites, source, onSourceChange, onCustomerChange, onDateChange, onSiteChange }: Props) {
+export function ExecutiveFilters({ customers, customerId, date, dates, site, sites, source, landingLabel, onSourceChange, onCustomerChange, onDateChange, onSiteChange }: Props) {
   const customer = customers.find(item => item.id === customerId);
   const [gnssFirst, setGnssFirst] = useState(false);
   const hasGnss = customers.some(item => item.gnssSampleCount != null);
@@ -35,15 +36,16 @@ export function ExecutiveFilters({ customers, customerId, date, dates, site, sit
   return <section className="exec-filter-bar" aria-label="고객 일자 분석 필터">
     <FilterField label="고객 선택" icon={<UserRoundSearch />} primary>
       <select aria-label="고객 선택" value={customerId} onChange={event => onCustomerChange(event.target.value)}>
+        {landingLabel && <option value="__ALL__">전체 · 저QoE 분석</option>}
         {ordered.map(item => <option value={item.id} key={item.id}>{item.displayName}{noCoord(item) == null ? '' : ` · 좌표 없음 ${noCoord(item)}%`}</option>)}
       </select>
-      <b>{customer ? `${customer.displayName} · ${customer.maskedPhone}${noCoord(customer) == null ? '' : ` · 좌표 없음 ${noCoord(customer)}%`}` : '데이터 없음'}{hasGnss && <button type="button" onMouseDown={event => event.preventDefault()} onClick={event => { event.preventDefault(); setGnssFirst(value => !value); }} style={{ marginLeft: 6, border: '1px solid #2f76c8', borderRadius: 4, background: gnssFirst ? '#276ebd' : 'transparent', color: gnssFirst ? '#fff' : '#79aef9', fontSize: 6, padding: '1px 4px' }}>좌표 많은 순</button>}</b>
+      <b>{customerId === '__ALL__' ? landingLabel : customer ? `${customer.displayName} · ${customer.maskedPhone}${noCoord(customer) == null ? '' : ` · 좌표 없음 ${noCoord(customer)}%`}` : '데이터 없음'}{hasGnss && <button type="button" onMouseDown={event => event.preventDefault()} onClick={event => { event.preventDefault(); setGnssFirst(value => !value); }} style={{ marginLeft: 6, border: '1px solid #2f76c8', borderRadius: 4, background: gnssFirst ? '#276ebd' : 'transparent', color: gnssFirst ? '#fff' : '#79aef9', fontSize: 6, padding: '1px 4px' }}>좌표 많은 순</button>}</b>
     </FilterField>
     <FilterField label="일자 선택" icon={<CalendarDays />} primary>
       <select aria-label="일자 선택" value={date} onChange={event => onDateChange(event.target.value)}>
         {dates.map(item => <option value={item} key={item}>{item}</option>)}
       </select>
-      <b>{customer?.dates.includes(date) ? '측정 데이터 있음' : '해당 고객 데이터 없음'}</b>
+      <b>{customerId === '__ALL__' ? '전체 계약 분석 대상' : customer?.dates.includes(date) ? '측정 데이터 있음' : '해당 고객 데이터 없음'}</b>
     </FilterField>
     <FilterField label="지역/사이트" icon={<MapPin />}>
       <select aria-label="지역 또는 사이트" value={site} onChange={event => onSiteChange(event.target.value)}>
