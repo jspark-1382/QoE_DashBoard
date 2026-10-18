@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { ExecutiveSample, PoorEpisode } from '@/lib/executive';
 import 'leaflet/dist/leaflet.css';
 import { groupMapCalls, mapMetrics, metricColor, type MapMetric } from '@/lib/executive/map-metrics';
+import { createAdminBoundaryLayer } from '@/lib/executive/admin-boundaries';
 
 interface Props {
   fixedLocation?: boolean;
@@ -35,7 +36,19 @@ export function ExecutiveQoeMap({ fixedLocation = false, overviewRevision, metri
   const [ready, setReady] = useState(false);
   const [tileFailed, setTileFailed] = useState(false);
   const [pathAsDots, setPathAsDots] = useState(false);
+  const [boundaries, setBoundaries] = useState(false);
+  const boundaryRef = useRef<import('leaflet').Layer | null>(null);
   useEffect(() => { selectRef.current = onEpisodeSelect; }, [onEpisodeSelect]);
+  useEffect(() => {
+    if (!ready || !mapRef.current || !apiKey) return;
+    let disposed = false;
+    if (boundaries && !boundaryRef.current) void import('leaflet').then(L => {
+      if (disposed || !mapRef.current || boundaryRef.current || !boundaries) return;
+      boundaryRef.current = createAdminBoundaryLayer(L, apiKey).addTo(mapRef.current);
+    }).catch(() => undefined);
+    if (!boundaries && boundaryRef.current) { boundaryRef.current.remove(); boundaryRef.current = null; }
+    return () => { disposed = true; };
+  }, [ready, boundaries, apiKey]);
 
   useEffect(() => {
     if (!hostRef.current || mapRef.current) return;
@@ -188,8 +201,9 @@ export function ExecutiveQoeMap({ fixedLocation = false, overviewRevision, metri
     {!samples.length && <div className="exec-empty map"><b>표시할 측정 경로가 없습니다.</b><span>고객, 일자 또는 지역 필터를 변경해 주세요.</span></div>}
     {!apiKey && <div className="exec-map-status">VWorld 키 없음 · 측정 경로만 표시</div>}
     {tileFailed && <div className="exec-map-status error">VWorld 지도 연결 확인 필요</div>}
-    {!fixedLocation && samples.length > 0 && <div className="adaptive-topbar">
-      <button type="button" className="adaptive-info-toggle" aria-pressed={pathAsDots} onClick={() => setPathAsDots(value => !value)}>{pathAsDots ? '경로: 점' : '경로: 선'}</button>
+    {!fixedLocation && (samples.length > 0 || apiKey) && <div className="adaptive-topbar">
+      {apiKey && <button type="button" className="adaptive-info-toggle" aria-pressed={boundaries} onClick={() => setBoundaries(value => !value)}>행정경계 {boundaries ? 'ON' : 'OFF'}</button>}
+      {samples.length > 0 && <button type="button" className="adaptive-info-toggle" aria-pressed={pathAsDots} onClick={() => setPathAsDots(value => !value)}>{pathAsDots ? '경로: 점' : '경로: 선'}</button>}
     </div>}
     <div className="exec-map-legend" style={{ width: 235 }}>
       <b>{metricInfo.label} · {metric === 'qoe' ? fixedLocation ? '콜별 무선 추정' : '콜 단위' : fixedLocation ? 'MDT 이벤트' : '초 단위 실측'}{selectedCallId ? ' · 선택 콜 강조' : ''}</b>

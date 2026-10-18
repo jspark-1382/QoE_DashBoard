@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ExecutiveSample } from '@/lib/executive';
 import { LOW_QOE_LANDING_MAX } from '@/lib/executive';
+import { createAdminBoundaryLayer } from '@/lib/executive/admin-boundaries';
 import 'leaflet/dist/leaflet.css';
 
 // ~60m grid so a 100k+ point landing view stays interactive; each cell collapses to one severity dot.
@@ -42,7 +43,19 @@ export function ExecutiveLowQoeMap({ samples, apiKey, onSelectSample }: {
   const selectRef = useRef(onSelectSample);
   const [ready, setReady] = useState(false);
   const [tileFailed, setTileFailed] = useState(false);
+  const [boundaries, setBoundaries] = useState(false);
+  const boundaryRef = useRef<import('leaflet').Layer | null>(null);
   useEffect(() => { selectRef.current = onSelectSample; }, [onSelectSample]);
+  useEffect(() => {
+    if (!ready || !mapRef.current || !apiKey) return;
+    let disposed = false;
+    if (boundaries && !boundaryRef.current) void import('leaflet').then(L => {
+      if (disposed || !mapRef.current || boundaryRef.current || !boundaries) return;
+      boundaryRef.current = createAdminBoundaryLayer(L, apiKey).addTo(mapRef.current);
+    }).catch(() => undefined);
+    if (!boundaries && boundaryRef.current) { boundaryRef.current.remove(); boundaryRef.current = null; }
+    return () => { disposed = true; };
+  }, [ready, boundaries, apiKey]);
 
   useEffect(() => {
     if (!hostRef.current || mapRef.current) return;
@@ -90,6 +103,9 @@ export function ExecutiveLowQoeMap({ samples, apiKey, onSelectSample }: {
     <div ref={hostRef} className="exec-vworld-map" />
     {!apiKey && <div className="exec-map-status">VWorld 키 없음 · 저QoE 점만 표시</div>}
     {tileFailed && <div className="exec-map-status error">VWorld 지도 연결 확인 필요</div>}
+    {apiKey && <div className="adaptive-topbar">
+      <button type="button" className="adaptive-info-toggle" aria-pressed={boundaries} onClick={() => setBoundaries(value => !value)}>행정경계 {boundaries ? 'ON' : 'OFF'}</button>
+    </div>}
     <div className="exec-map-legend" style={{ width: 250 }}>
       <b>전체 고객 저QoE 지도 · QoE {LOW_QOE_LANDING_MAX.toFixed(1)} 이하</b>
       <div style={{ display: 'grid', gap: 6, marginTop: 8 }}>

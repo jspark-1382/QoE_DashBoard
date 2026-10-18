@@ -156,7 +156,7 @@ export function MdtLocationMap({ samples, baseStations, selectedSampleIndex, onS
       </div>
       <p>주파수 형식을 확인한 경우에만 보정을 선택하세요. 설정에 따라 POC 후보 영역이 달라지며 실제 GPS 위치를 의미하지 않습니다.</p>
     </details>}
-    {algorithm==='adaptive' && <AdaptivePositionLayer map={ready?map.current:null} events={events} stations={relevantStations} selectedIndex={selectedSampleIndex} onSelect={onSampleSelect} overviewRevision={overviewRevision} callId={callId} callLabel={callId ? samples.find(s=>s.callId===callId)?.ci ?? null : null} onShowAllCalls={onShowAllCalls}/>}
+    {algorithm==='adaptive' && <AdaptivePositionLayer map={ready?map.current:null} events={events} stations={relevantStations} selectedIndex={selectedSampleIndex} onSelect={onSampleSelect} overviewRevision={overviewRevision} callId={callId} callLabel={callId ? samples.find(s=>s.callId===callId)?.ci ?? null : null} apiKey={apiKey} onShowAllCalls={onShowAllCalls}/>}
     <div ref={host} className="location-map" aria-label="MDT 기지국 기반 추정 위치 지도" />
     {algorithm==='legacy' && <div className="location-legend"><b>고객 추정 위치 · POC</b>
       {estimate ? <span>{samples[estimate.sample.sampleIndex]?.time} · 신뢰도 {confidenceLabel[estimate.confidence]}</span> : <span>기지국 연결 또는 무선 정보가 부족하여 위치를 추정할 수 없습니다.</span>}
