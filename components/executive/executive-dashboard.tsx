@@ -7,6 +7,7 @@ import { ExecutiveKpiCards } from './executive-kpis';
 import { ExecutiveQoeMap } from './qoe-map';
 import { MdtLocationMap } from './mdt-location-map';
 import { ExecutiveLowQoeMap, LowQoeHourChart } from './executive-low-qoe-map';
+import { LowQoeClusterPanel } from './low-qoe-cluster-panel';
 import { getLowQoeSamplesAcross } from '@/lib/executive';
 import { mapMetrics, type MapMetric } from '@/lib/executive/map-metrics';
 import { NativeSelect, NativeSelectOption } from '@/components/ui/native-select';
@@ -103,7 +104,7 @@ export function ExecutiveDashboard() {
   const selectedEpisode = showAllCalls ? null : episodes.find(episode => episode.id === selectedEpisodeId) ?? worstEpisode;
   const activeSampleIndex = showAllCalls ? null : selectedSampleIndex ?? selectedEpisode?.minIndex ?? (samples.length ? 0 : null);
   const summary = useMemo(() => calculateQoESummary(viewSamples, episodes, dataset?.meta.poorQoeThreshold), [viewSamples, episodes, dataset?.meta.poorQoeThreshold]);
-  const causes = useMemo(() => analyzeRootCause(samples, selectedEpisode), [samples, selectedEpisode]);
+  const causes = useMemo(() => analyzeRootCause(viewSamples, selectedEpisode), [viewSamples, selectedEpisode]);
   const mainCause = causes.find(cause => cause.evidenceCount > 0) ?? null;
   const episodeCauseLabels = useMemo(() => Object.fromEntries(episodes.map(episode => [episode.id, analyzeRootCause(samples, episode).find(cause => cause.evidenceCount > 0)?.label ?? 'Rule 근거 부족'])), [episodes, samples]);
 
@@ -169,6 +170,8 @@ export function ExecutiveDashboard() {
       <ExecutivePanel number={2} title="시간대별 품질 변화" className="exec-chart-panel" badge={<span className="exec-data-badge derived">{source === 'MDT' ? 'QoE 무선 추정 · MOS 없음' : 'QoE 계산 · MOS 실측'}</span>}>
         {isAll ? <LowQoeHourChart samples={lowUnion} /> : <ExecutiveTimeChart samples={samples} episodes={episodes} selectedCallId={selectedCallId} selectedEpisodeId={selectedCallId ? null : selectedEpisode?.id ?? null} selectedSampleIndex={activeSampleIndex} onEpisodeSelect={chooseEpisode} onSampleSelect={index => { setShowAllCalls(false); setSelectedSampleIndex(index); }} />}
       </ExecutivePanel>
+
+      {isAll && <LowQoeClusterPanel samples={lowUnion} onSelectSample={index => drillToOwner(lowUnion[index])} />}
 
       <ExecutiveCallTable callMeta={dataset.meta.callMeta} samples={viewSamples} selectedSampleIndex={activeSampleIndex} sortWorstFirst={isAll} rowLimit={isAll ? 200 : undefined} onShowAll={() => { setShowAllCalls(true); setSelectedCallId(null); setCallFocusId(null); setSelectedEpisodeId(null); setSelectedSampleIndex(null); setOverviewRevision(value => value + 1); }} onSelect={index => isAll ? drillToOwner(viewSamples[index]) : (() => { setShowAllCalls(false); setSelectedCallId(samples[index]?.callId || null); setCallFocusId(samples[index]?.callId || null); setSelectedEpisodeId(null); setSelectedSampleIndex(index); })()} />
     </section>

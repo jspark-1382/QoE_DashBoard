@@ -135,8 +135,10 @@ const strength = (matches: number, sampleCount: number): RootCauseResult['streng
 };
 
 export function analyzeRootCause(samples: ExecutiveSample[], episode: PoorEpisode | null): RootCauseResult[] {
-  if (!episode || !samples.length) return [];
-  const segment = samples.slice(episode.startIndex, episode.endIndex + 1);
+  if (!samples.length) return [];
+  // Without an episode the whole displayed window (day or landing scope) is the analysis segment.
+  const segment = episode ? samples.slice(episode.startIndex, episode.endIndex + 1) : samples;
+  if (!segment.length) return [];
   const count = (predicate: (sample: ExecutiveSample) => boolean) => segment.filter(predicate).length;
   const lowSinr = count(sample => sample.sinr != null && sample.sinr < 3);
   const normalRsrp = count(sample => sample.rsrp != null && sample.rsrp >= -105);
@@ -146,6 +148,13 @@ export function analyzeRootCause(samples: ExecutiveSample[], episode: PoorEpisod
   const lowMos = count(sample => sample.mos != null && sample.mos < 2.8);
   const radioNormalLowMos = count(sample => sample.mos != null && sample.mos < 2.8 && (sample.rsrp == null || sample.rsrp >= -100));
   const simultaneous = count(sample => sample.sinr != null && sample.sinr < 3 && sample.mos != null && sample.mos < 3.2);
+  const deepRsrp = count(sample => sample.rsrp != null && sample.rsrp < -115);
+  const radioOkLowQoe = count(sample => (sample.rsrp == null || sample.rsrp >= -105) && (sample.sinr == null || sample.sinr >= 3) && sample.qoe < 3);
+  const mosObserved = segment.some(sample => sample.mos != null);
+  const distinctPci = new Set(segment.filter(sample => sample.pci != null).map(sample => sample.pci as number)).size;
+  let pciChanges = 0;
+  for (let index = 1; index < segment.length; index += 1) if (segment[index].pci != null && segment[index].pci !== segment[index - 1].pci) pciChanges += 1;
+  const flapping = distinctPci >= 3 ? pciChanges : 0;
 
   const causes: RootCauseResult[] = [
     {
@@ -155,7 +164,11 @@ export function analyzeRootCause(samples: ExecutiveSample[], episode: PoorEpisod
     },
     {
       key: 'coverage', label: 'Coverage 부족', strength: strength(lowRsrp, segment.length), evidenceCount: lowRsrp,
-      evidence: [`RSRP -105 dBm 미만 ${lowRsrp.toLocaleString()}건`],
+      evidence: [`RSRP -105 dBm 미만 ${lowRsrp.toLocaleString()}건`, `-115 dBm 미만 심층 ${deepRsrp.toLocaleString()}건`],
+    },
+    {
+      key: 'flapping', label: 'Handover·셀 재선택 빈번', strength: strength(flapping, segment.length), evidenceCount: flapping,
+      evidence: [`구간 내 PCI 변경 ${pciChanges.toLocaleString()}회 · distinct PCI ${distinctPci}개`],
     },
     {
       key: 'indoor', label: '실내 전파 저하', strength: strength(indoorWeak, segment.length), evidenceCount: indoorWeak,
@@ -166,8 +179,12 @@ export function analyzeRootCause(samples: ExecutiveSample[], episode: PoorEpisod
       evidence: [`Jitter 30 ms 초과 또는 Delay 150 ms 초과 ${transport.toLocaleString()}건`],
     },
     {
-      key: 'service', label: '단말/서비스·음성', strength: strength(radioNormalLowMos, segment.length), evidenceCount: radioNormalLowMos,
-      evidence: [`MOS 2.8 미만 ${lowMos.toLocaleString()}건`, `무선 정상·MOS 저하 ${radioNormalLowMos.toLocaleString()}건`, '단말 자체 상태 데이터 없음'],
+      key: 'service', label: '단말/서비스·음성',
+      strength: strength(mosObserved ? radioNormalLowMos : radioOkLowQoe, segment.length),
+      evidenceCount: mosObserved ? radioNormalLowMos : radioOkLowQoe,
+      evidence: mosObserved
+        ? [`MOS 2.8 미만 ${lowMos.toLocaleString()}건`, `무선 정상·MOS 저하 ${radioNormalLowMos.toLocaleString()}건`, '단말 자체 상태 데이터 없음']
+        : [`MOS 미측정(MDT) · 무선 정상인데 QoE 3.0 미만 ${radioOkLowQoe.toLocaleString()}건`],
     },
   ];
   return causes.sort((a, b) => b.evidenceCount - a.evidenceCount);
