@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { ExecutiveSample } from '@/lib/executive';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
@@ -45,12 +45,15 @@ export function ExecutiveCallTable({ samples, selectedSampleIndex, onSelect, onS
   rowLimit?: number;
 }) {
   const allRows = useMemo(() => buildCallRows(samples), [samples]);
+  // In the landing view the cap is a display choice: the header button expands it to the full set and back.
+  const [expanded, setExpanded] = useState(false);
+  useEffect(() => setExpanded(false), [samples]);
   const rows = useMemo(() => {
     const ordered = sortWorstFirst ? [...allRows].sort((a, b) => a.qoe - b.qoe) : allRows;
-    return rowLimit ? ordered.slice(0, rowLimit) : ordered;
-  }, [allRows, sortWorstFirst, rowLimit]);
-  return <section className="exec-panel exec-call-panel" aria-labelledby="call-table-title">
-    <header><div><h2 id="call-table-title">콜 테이블</h2></div><div className="exec-call-tools"><span className="exec-call-count">{rows.length === allRows.length ? `${rows.length.toLocaleString()}개 측정 콜` : `저QoE ${allRows.length.toLocaleString()}콜 중 최악 ${rows.length.toLocaleString()}콜`}</span><button type="button" className="exec-call-show-all" onClick={onShowAll}>전체 보기</button></div></header>
+    const cap = rowLimit && !expanded ? rowLimit : undefined;
+    return cap ? ordered.slice(0, cap) : ordered;
+  }, [allRows, sortWorstFirst, rowLimit, expanded]);
+  return <section className="exec-panel exec-call-panel" aria-labelledby="call-table-title"><header><div><h2 id="call-table-title">콜 테이블</h2></div><div className="exec-call-tools"><span className="exec-call-count">{rowLimit ? (expanded ? `저QoE ${allRows.length.toLocaleString()}콜 전체` : `저QoE ${allRows.length.toLocaleString()}콜 중 최악 ${rows.length.toLocaleString()}콜`) : `${rows.length.toLocaleString()}개 측정 콜`}</span><button type="button" className="exec-call-show-all" onClick={() => rowLimit ? setExpanded(value => !value) : onShowAll()}>{!rowLimit || expanded ? '전체 보기' : `최악 ${rowLimit.toLocaleString()}개만`}</button></div></header>
     <p className="exec-call-note">CI 기준 1행 = 1콜 · QoE는 콜 평균 측정값으로 계산 · MOS / RSRP 평균</p>
     <div className="exec-call-scroll">
       <Table>
