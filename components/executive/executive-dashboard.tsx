@@ -72,7 +72,12 @@ export function ExecutiveDashboard() {
       setDate(initialDate);
       setSite(params.get('site') ?? 'ALL');
       setRat(params.get('rat') ?? 'ALL');
-    }).catch(() => { if (!controller.signal.aborted) setLoadError(true); });
+    }).catch(() => {
+      if (controller.signal.aborted) return;
+      // The 실측 workbook is optional in this merged-MDT deployment: unless ?source=실측 was requested explicitly, fall back to MDT.
+      const explicitSource = new URLSearchParams(window.location.search).get('source');
+      if (source === '실측' && explicitSource !== '실측') setSource('MDT'); else setLoadError(true);
+    });
     return () => controller.abort();
   }, [source]);
 
