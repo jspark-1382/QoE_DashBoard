@@ -151,11 +151,27 @@ test('HIGH requires nonvirtual multistation calibrated-format evidence',()=>{
  assert.equal(decideConfidence({...evidence,virtual:false}).confidence,'HIGH');
  assert.equal(decideConfidence({...evidence,cells:1}).confidence,'LOW');
 });
-if(fs.existsSync('public/mdt-data.json'))test('Local MDT + virtual Master real fixture joins and bounded estimates',()=>{
+if(fs.existsSync('public/mdt-data.json'))test('Local inline/partitioned MDT real fixture joins and bounded estimates',()=>{
  const d=JSON.parse(fs.readFileSync('public/mdt-data.json','utf8'));
- const events=d.days.flatMap(day=>day.samples.map((s,i)=>({...s[21],timestamp:Date.parse(s[21].timestamp),rsrp:s[10],rsrq:s[11],sinr:s[12],sampleIndex:i})));
- const matches=events.map(e=>matchBaseStation(e,d.meta.baseStations));
- const adaptive=estimateAdaptive(events,d.meta.baseStations);
+ let detail;
+ // Read one owning customer/day only. Partitioned manifests intentionally contain no inline events.
+ for(const entry of d.days){
+   if(!entry.sampleCount)continue;
+   const candidate=entry.dataPath?JSON.parse(fs.readFileSync(path.join('public',entry.dataPath),'utf8')):entry;
+   if(candidate.samples.some(row=>row[21]&&Number.isFinite(row[10]))){detail=candidate;break;}
+ }
+ assert(detail,'A local customer/day with radio metadata must exist');
+ const events=detail.samples.map((row,index)=>({row,index})).filter(({row})=>row[21]&&Number.isFinite(row[10])).slice(0,200).map(({row,index})=>({
+   ...row[21],timestamp:Date.parse(row[21].timestamp),rsrp:row[10],rsrq:row[11],sinr:row[12],sampleIndex:index,
+   streamId:`${detail.customerId}:${row[19]||row[21].streamId}`,
+ }));
+ const observedStationIds=new Set(events.map(e=>e.baseStationId));
+ const masters=(detail.baseStations??d.meta.baseStations??[]).filter(master=>observedStationIds.has(master.baseStationId));
+ assert(events.length>0&&events.length<=200);
+ assert(events.every(event=>Number.isFinite(event.timestamp)));
+ const matches=events.map(e=>matchBaseStation(e,masters));
+ const adaptive=estimateAdaptive(events,masters);
+ console.log('  Fixture:',detail.key,events.length,'radio events /',masters.length,'observed Master rows');
  const methods=Object.fromEntries(['MULTILATERATION','WEIGHTED_2_SITE','CELL_SITE','INVALID'].map(m=>[m,adaptive.positions.filter(p=>p.method===m).length]));
  console.log('  Adaptive:',JSON.stringify({stats:adaptive.stats,sites:adaptive.sites.length,methods,windows:Object.fromEntries(ADAPTIVE_CONFIG.windowsSec.map(w=>[w,adaptive.positions.filter(p=>p.windowSec===w).length])),grades:Object.fromEntries(['A','B','C','D','E'].map(g=>[g,adaptive.positions.filter(p=>p.confidenceGrade===g).length])),jumps:adaptive.positions.filter(p=>p.jump).length}));
  assert.equal(adaptive.positions.length,events.length);
@@ -168,8 +184,10 @@ if(fs.existsSync('public/mdt-data.json'))test('Local MDT + virtual Master real f
    assert.equal(matches[i].station.baseStationId,events[i].baseStationId);
    assert(matches[i].station.frequency==null || matches[i].station.frequency===events[i].frequency);
  }
- const stream=events.filter(e=>e.streamId===events[0].streamId).slice(0,8);
- const start=performance.now(),out=estimatePosition(stream,d.meta.baseStations);
+ const firstMatched=events.find((event,index)=>matches[index]);
+ assert(firstMatched,'At least one actual fixture radio event must join its master');
+ const stream=events.filter(e=>e.streamId===firstMatched.streamId).slice(0,8);
+ const start=performance.now(),out=estimatePosition(stream,masters);
  assert(out.length>0);assert(out.every(e=>Number.isFinite(e.latitude) && Number.isFinite(e.longitude)));
  assert(out.filter(e=>e.station.isVirtual || e.station.provenanceUnknown).every(e=>e.confidence!=='HIGH'));
  console.log('  8-sample estimate ms:',Math.round(performance.now()-start));

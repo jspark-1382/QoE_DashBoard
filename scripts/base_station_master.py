@@ -1,4 +1,4 @@
-"""Read legacy and updated MDT station CSV without losing duplicate CellID headers."""
+"""Read legacy cell CSV and headerless station TXT without inventing cell data."""
 import csv
 import io
 import math
@@ -33,6 +33,8 @@ def load_master(path):
         content = raw.decode('utf-8-sig')
     except UnicodeDecodeError:
         content = raw.decode('cp949')
+    if path.suffix.lower() == '.txt':
+        return load_station_text(content, path.name)
     reader = csv.reader(io.StringIO(content))
     header = next(reader, [])
     legacy = 'base_station_id' in header
@@ -66,3 +68,36 @@ def load_master(path):
                 isVirtual=row.get('is_virtual', '').strip().lower() in ('true', '1', 'yes'),
                 provenanceUnknown='is_virtual' not in row))
     return stations, errors
+
+
+def load_station_text(content, filename):
+    """TXT is station ID, decimal latitude, decimal longitude (no header)."""
+    stations, errors, conflicts = {}, [], set()
+    for line, values in enumerate(csv.reader(io.StringIO(content)), 1):
+        if not values or not any(value.strip() for value in values):
+            continue
+        prefix = f'{filename} {line}행: '
+        if len(values) != 3:
+            errors.append(prefix + '컬럼 수 불일치 (ID, 위도, 경도 3개 필요)')
+            continue
+        identifier, raw_lat, raw_lon = (value.strip() for value in values)
+        lat, lon = number(raw_lat), number(raw_lon)
+        if not identifier or lat is None or lon is None or not (-90 <= lat <= 90 and -180 <= lon <= 180):
+            errors.append(prefix + '기지국 ID 또는 좌표 누락/오류')
+            continue
+        station = dict(baseStationId=identifier, cellId='', frequency=None,
+                       latitude=lat, longitude=lon, pci=None, isVirtual=False,
+                       provenanceUnknown=True, matchLevel='station')
+        if identifier in conflicts:
+            errors.append(prefix + '좌표 충돌 기지국 ID 제외')
+        elif identifier in stations:
+            previous = stations[identifier]
+            if (previous['latitude'], previous['longitude']) == (lat, lon):
+                errors.append(prefix + '동일 기지국 ID/좌표 중복 제외')
+            else:
+                conflicts.add(identifier)
+                del stations[identifier]
+                errors.append(prefix + '동일 기지국 ID 좌표 충돌: 해당 ID 제외')
+        else:
+            stations[identifier] = station
+    return list(stations.values()), errors

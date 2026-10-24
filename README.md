@@ -2,6 +2,25 @@
 
 이 폴더 안에서만 동작하는 로컬 웹 대시보드입니다. 배포 서비스와 연결되지 않습니다.
 
+## 분석가 작업 화면
+
+기본 `/qoe/`는 **품질 현황**, 원본 서비스계약번호를 선택하거나 기존 `?source=MDT&customer=...&date=...` 링크를 열면 **계약·통화 분석**으로 연결됩니다. 지역/시간을 조사한 뒤 통화를 선택하고, 지도·원래 단위의 무선 차트·원본 관측 근거를 함께 확인합니다. 실측 자료는 데이터 출처에서 선택합니다.
+
+```powershell
+npm.cmd run data:mdt
+npm.cmd run data:overview
+npm.cmd run dev -- --port 3001
+```
+
+- `data:mdt`는 `data/MDT_New`가 있으면 우선 사용하고 고객·일자별 상세와 목록을 원자적으로 생성합니다. `-- --source-dir data/MDT`로 구형 입력도 지정할 수 있습니다. 기존 데이터가 있다면 재추출 없이 `data:overview`와 `dev`만 실행해도 됩니다.
+- 현황은 일자별 요약 파일을 읽고, 계약을 선택할 때 해당 상세만 읽습니다. 원본을 갱신한 후에는 `npm.cmd run data:overview`도 실행합니다. MDT만 갱신하려면 `npm.cmd run data:overview -- MDT`입니다. 없는 선택 출처는 기본 전체 갱신에서 건너뜁니다.
+- 현재 MDT_New의 좌표계는 사용자가 확인한 **UTMK / EPSG:5179**입니다. 원본 계약번호 문자열과 독립 통화 기록을 보존하며, 정확도가 없는 GNSS에는 정확도를 만들지 않습니다. 다른 좌표계의 자료는 `-- --gnss-crs unknown`으로 변환을 끕니다.
+- 저품질 기준은 `meta.poorQoeThreshold`(기본 QoE < 2.5)로 통일합니다. 평가 가능 통화를 비율 분모로 사용하며 평가 불가·위치 없음 통화도 별도로 집계합니다. 지도와 순위는 같은 60m 격자입니다.
+- 원본 GNSS는 그대로 사용합니다. 좌표가 없는 시점의 무선 추정은 기존 모델을 통화 안에서 적용하며, 단일 기지국을 고객 좌표로 복사하지 않습니다. 모델 후보 반경은 측정 정확도 보장이 아닙니다.
+- 원본 데이터·생성 상세·일자별 요약·실제 데이터가 보이는 QA 캡처는 Git에서 제외됩니다. 설계 문서와 설명용 시안은 `docs/superpowers/specs`에 있습니다.
+
+검증: `npm.cmd run test:analyst`, `node scripts/test-location-estimation.cjs`, `py -3 -m unittest discover -s scripts -p "test_*.py"`, `npx.cmd tsc --noEmit --incremental false`, `npm.cmd run build`.
+
 ## Windows 설치 및 실행
 
 아래 명령은 **Windows PowerShell** 기준입니다. 모든 프로젝트 명령은 `package.json`이 있는 폴더에서 실행합니다.
@@ -139,7 +158,9 @@ node scripts/test-location-estimation.cjs
 - `npm run local` 실행 시 두 원본을 자동으로 읽어 화면용 분석 데이터를 다시 생성합니다.
 - 실행 중 원본을 교체했다면 서버를 다시 시작합니다.
 
-### 통합 MDT 데이터
+### 통합 MDT 데이터 (이전 화면·비교용)
+
+이 절은 이전 Executive 화면과 `data:mdt-merged` 비교 파이프라인의 동작 기록입니다. 현재 기본 화면·데이터 갱신은 위 **분석가 작업 화면** 절을 따릅니다.
 
 - `data` 폴더 최상위에 `lte+mdt`가 이름에 포함된 Excel 원본을 둡니다(계약번호 컬럼 포함 영어 스키마).
 - `py -3 scripts/extract_mdt_merged.py`를 실행하면 계약·콜 단위로 집계해 `public/mdt-data.json`을 다시 만들고, `data/BaseStation/BaseStation_new.txt`(형식: `기지국ID,위도,경도`, 1행 1기지국)를 실기지국 마스터로 화면에 주입합니다. 가상 기지국은 생성하지 않습니다. 화면 갱신은 브라우저 새로고침입니다.
@@ -151,7 +172,7 @@ node scripts/test-location-estimation.cjs
 - 원본의 `gnss_utmkx/utmky` 좌표계는 아직 확인되지 않아, 위치는 사이트(개포4동) 대표 좌표를 사용합니다. 좌표계(EPSG)가 확인되면 `scripts/gnss_utm.py`의 `CHOSEN`만 갱신하면 실제 경로 표시가 켜집니다.
 - 원본 Excel과 생성된 JSON·CSV는 Git에 포함되지 않습니다.
 
-### Executive Dashboard
+### Executive Dashboard (이전 화면)
 
 - 기본 경로 `/qoe/`는 고객 전화번호를 마스킹한 고객·일자별 Executive Dashboard입니다.
 - 고객별 측정 경로와 KPI는 `public/executive-data.json`에서 읽으며 `npm run data:executive`로 다시 생성합니다.

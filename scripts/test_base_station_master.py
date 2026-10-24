@@ -20,6 +20,29 @@ class MasterTest(unittest.TestCase):
             self.assertEqual([s['frequency'] for s in stations], [1550, 1694])
             self.assertTrue(all(s['cellId'] == '123' and s['baseStationId'] == 'A' for s in stations))
 
+    def test_headerless_txt_has_station_coordinates_without_inventing_cell(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / 'BaseStation_new.txt'
+            path.write_text('\ufeff A ,37.5,127.1\nB,,\nC,NaN,127.2\nD,91,127\nE,37,127,extra\n', encoding='utf-8')
+            stations, errors = load_master(path)
+            self.assertEqual(stations, [{
+                'baseStationId': 'A', 'cellId': '', 'frequency': None,
+                'latitude': 37.5, 'longitude': 127.1, 'pci': None,
+                'isVirtual': False, 'provenanceUnknown': True, 'matchLevel': 'station',
+            }])
+            self.assertEqual(len(errors), 4)
+            self.assertTrue(all('BaseStation_new.txt' in error for error in errors))
+            self.assertTrue(any('2행' in error for error in errors))
+
+    def test_txt_duplicate_ids_are_deduped_and_coordinate_conflicts_excluded(self):
+        with tempfile.TemporaryDirectory() as folder:
+            path = Path(folder) / 'master.txt'
+            path.write_text('A,37,127\nA,37,127\nB,37,127\nB,38,128\n', encoding='utf-8')
+            stations, errors = load_master(path)
+            self.assertEqual([station['baseStationId'] for station in stations], ['A'])
+            self.assertEqual(len(errors), 2)
+            self.assertTrue(any('충돌' in error for error in errors))
+
 
 if __name__ == '__main__':
     unittest.main()

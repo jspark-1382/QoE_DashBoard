@@ -42,14 +42,14 @@ export default function EngineeringDashboard() {
   const [journeyStep, setJourneyStep] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [actions, setActions] = useState([true, true, false, false, false]);
-  const [mapKey] = useState(() => import.meta.env.VITE_VWORLD_API_KEY?.trim() ?? '');
+  const [mapKey] = useState(() => (import.meta as ImportMeta & {env:{VITE_VWORLD_API_KEY?:string}}).env.VITE_VWORLD_API_KEY?.trim() ?? '');
   const [toast, setToast] = useState('');
   const [customerId, setCustomerId] = useState(virtualCustomers[0].id);
   const [analysisDate, setAnalysisDate] = useState('');
   const [analysisHour, setAnalysisHour] = useState('ALL');
 
   useEffect(() => {
-    fetch('/qoe/qoe-data.json').then(response => response.json()).then((next: QoeDataset) => {
+    fetch('/qoe/qoe-data.json').then(response => response.json() as Promise<QoeDataset>).then((next: QoeDataset) => {
       setData(next);
       setSelectedKey(`${next.pciSummary[0].rat}-${next.pciSummary[0].pci}`);
       setAnalysisDate(next.meta.measurementDate);
@@ -57,7 +57,7 @@ export default function EngineeringDashboard() {
   }, []);
 
   useEffect(() => {
-    fetch('/qoe/indoor-data.json').then(response => response.json()).then((next: IndoorDataset) => {
+    fetch('/qoe/indoor-data.json').then(response => response.json() as Promise<IndoorDataset>).then((next: IndoorDataset) => {
       setIndoorData(next);
       setBuildingName(next.buildings[0]?.name ?? '');
       setFloorCode(next.buildings[0]?.floors[0]?.code ?? '');

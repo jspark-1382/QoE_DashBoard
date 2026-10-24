@@ -1,0 +1,272 @@
+.shell {
+  min-height: 100vh;
+  background: #f5f6f7;
+  color: #20252b;
+  font-family:var(--font-geist-sans), 'Noto Sans KR', 'Malgun Gothic', Arial, sans-serif;
+  font-size:14px;
+  line-height:1.5;
+}
+.shell * {
+  box-sizing: border-box;
+}
+.shell button,
+.shell select,
+.shell input {
+  font: inherit;
+  border: 1px solid #cdd4dd;
+  background: #fff;
+  color: #20252b;
+  border-radius: 4px;
+  padding: 8px 12px;
+}
+.shell button,
+.shell select {
+  cursor: pointer;
+}
+.shell button:focus-visible,
+.shell input:focus-visible,
+.shell select:focus-visible,
+.shell a:focus-visible {
+  outline: 2px solid #2459a6;
+  outline-offset: 2px;
+}
+.appbar {
+  display: flex;
+  align-items: center;
+  height: 54px;
+  background: #fff;
+  border-bottom: 1px solid #dce0e5;
+  padding: 0 24px;
+  gap: 32px;
+}
+.brand {
+  font-size: 21px;
+  font-weight: 700;
+  color: #20252b;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.appbar nav {
+  height: 100%;
+  display: flex;
+  gap: 28px;
+}
+.appbar nav button {
+  border: 0;
+  border-bottom: 3px solid transparent;
+  border-radius: 0;
+  padding: 0 4px;
+  background: transparent;
+}
+.appbar nav .active {
+  color: #2459a6;
+  border-bottom-color: #2459a6;
+  font-weight: 650;
+}
+.settingsButton {
+  margin-left: auto;
+}
+.content {
+  max-width: 2080px;
+  margin: auto;
+  padding: 16px 24px 20px;
+}
+.toolbar {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+.search {
+  display:flex;
+  align-items:center;
+  gap:10px;
+  position: relative;
+  width: 430px;
+  max-width: 50%;
+}
+.search > label,
+.field {
+  font-size: 12px;
+  color: #596574;
+  display: flex;
+  flex-direction: row;
+  align-items:center;
+  gap: 6px;
+}
+.searchLine {
+  display: flex;
+  gap: 8px;
+  margin-top:0;
+  flex:1;
+  min-width:0;
+}
+.searchLine input {
+  min-width: 0;
+  flex: 1;
+}
+.searchLine button {
+  color: #2459a6;
+  border-color: #9fb5d1;
+}
+.field select {
+  min-width: 145px;
+  font-size: 14px;
+}
+.sourceNote {
+  font-size: 12px;
+  color: #596574;
+  padding-bottom:0;
+}
+.message {
+  min-height: 18px;
+  color: #2459a6;
+  font-size: 12px;
+  margin: 5px 0;
+}
+.message:empty{display:none}
+.results {
+  position: absolute;
+  z-index: 1000;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  min-width: 300px;
+  background: #fff;
+  border: 1px solid #cdd4dd;
+  border-radius: 4px;
+  box-shadow: 0 5px 15px #20252b18;
+  padding: 5px;
+}
+.results > [role='listbox'] {
+  max-height: 330px;
+  overflow: auto;
+}
+.results [role='option'] {
+  display: flex;
+  flex-direction: column;
+  align-items: start;
+  border: 0;
+  width: 100%;
+  text-align: left;
+  padding: 10px;
+  border-radius: 0;
+}
+.results [role='option'][aria-selected='true'] {
+  background: #edf3fa;
+}
+.results span,
+.results p {
+  font-size: 12px;
+  color: #596574;
+  margin: 4px 8px;
+}
+.results strong {
+  overflow-wrap: anywhere;
+}
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 5px 0 15px;
+  font-size: 12px;
+  flex-wrap: wrap;
+}
+.breadcrumb button {
+  padding: 5px 8px;
+  font-size: 12px;
+  color: #2459a6;
+}
+.breadcrumb strong {
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+.notice {
+  background: #fff;
+  border: 1px solid #dce0e5;
+  border-radius: 4px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  color: #536171;
+  font-size: 12px;
+}
+.state {
+  min-height: 220px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  flex-direction: column;
+  color: #596574;
+  background: #fff;
+  border: 1px solid #dce0e5;
+  border-radius: 4px;
+  padding: 32px;
+  text-align: center;
+}
+.state button {
+  color: #2459a6;
+}
+@media (max-width: 1000px) {
+  .content {
+    padding: 18px;
+  }
+  .appbar {
+    padding: 0 18px;
+    gap: 28px;
+  }
+  .toolbar {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .search {
+    width: 400px;
+    max-width: 100%;
+  }
+  .sourceNote {
+    padding-bottom: 4px;
+  }
+}
+@media (max-width: 600px) {
+  .appbar {
+    height: auto;
+    min-height: 64px;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 12px 16px;
+  }
+  .appbar nav {
+    order: 3;
+    width: 100%;
+    gap: 20px;
+    height: 40px;
+  }
+  .appbar nav button {
+    font-size: 14px;
+  }
+  .settingsButton {
+    font-size: 12px !important;
+  }
+  .toolbar {
+    align-items: stretch;
+  }
+  .search {
+    width: 100%;
+  }
+  .field {
+    flex: 1;
+  }
+  .field select {
+    min-width: 0;
+  }
+  .sourceNote {
+    width: 100%;
+  }
+  .content {
+    padding: 14px;
+  }
+}
+.shell .brand {
+  border: 0;
+  background: transparent;
+  padding: 0;
+}

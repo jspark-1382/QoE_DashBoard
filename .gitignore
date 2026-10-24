@@ -35,6 +35,8 @@ yarn-error.log*
 /public/indoor-data.json
 /public/executive-data.json
 /public/mdt-data.json
+/public/mdt-data/
+/public/analyst-overview/
 
 # local QA artifact
 /dashboard-local-preview.png
