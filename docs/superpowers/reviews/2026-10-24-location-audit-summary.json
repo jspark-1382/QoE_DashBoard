@@ -1,0 +1,142 @@
+{
+  "sourceRevision": "9a822f8105670b24606e",
+  "date": [
+    "2026-09-15"
+  ],
+  "method": "sha256 lowest 300 call keys among all GNSS-bearing calls; entire-call GNSS coordinates hidden before production normalizeDay; fixed RF parameters not refit; exploratory replay against unverified-accuracy GNSS, not independent holdout",
+  "profile": {
+    "partitions": 10250,
+    "calls": 25548,
+    "callsWithGnss": 3592,
+    "inCallEvents": 541707,
+    "gnss": 44433,
+    "gnssRadio": 44433,
+    "radio": 345901,
+    "radioDistanceMin": 63329,
+    "radioDistanceMax": 118941,
+    "radioOutsideTypicalRange": 0,
+    "neighbors": 198821,
+    "gnssStationPairs": 43385,
+    "gnssJumpPairs": 3136,
+    "gnssTimedPairs": 29525,
+    "gnssZeroDtMoves": 0
+  },
+  "stationDistanceM": {
+    "n": 43385,
+    "p50": 191.48344607139694,
+    "p90": 680.3490577096098,
+    "p95": 1186.040362831866,
+    "max": 6677.048405949771
+  },
+  "modelDistanceM": {
+    "n": 43385,
+    "p50": 149.0504643386195,
+    "p90": 1500,
+    "p95": 1500,
+    "max": 1500
+  },
+  "rsrpVsLogDistancePearson": -0.25503809532234656,
+  "gnssSpeedKmh": {
+    "n": 29525,
+    "p50": 0.41892553975530095,
+    "p90": 233.16598922939767,
+    "p95": 867.4245814219569,
+    "max": 97757.9297870022
+  },
+  "evaluate": {
+    "selectedCalls": 300,
+    "gnssTargets": 3612,
+    "estimated": 2625,
+    "none": 987,
+    "servingAvailable": 3560,
+    "estimateWithin60m": 200,
+    "estimateWithin100m": 439,
+    "estimateWithin300m": 1427,
+    "estimateWithinRadius": 2326
+  },
+  "estimatedErrorM": {
+    "n": 2625,
+    "p50": 270.00820681683973,
+    "p90": 1321.075008894316,
+    "p95": 1534.3742352568718,
+    "max": 2984.8587867189844
+  },
+  "pairedComparison": {
+    "estimator": {
+      "n": 2609,
+      "p50": 268.7592336250049,
+      "p90": 1321.012248183386,
+      "p95": 1534.3725609140167,
+      "max": 2984.8587867189844
+    },
+    "serving": {
+      "n": 2609,
+      "p50": 233.1783441302588,
+      "p90": 929.9453587409124,
+      "p95": 1578.443784120605,
+      "max": 5704.064704985933
+    },
+    "estimatorCloser": 1328
+  },
+  "stableReferenceSubset": {
+    "definition": "all immediate GNSS neighbors within 120 sec and speed <=200 km/h, equal-time moves <=1m; plausibility screen only, not verified accuracy",
+    "estimator": {
+      "n": 2192,
+      "p50": 263.99945395755225,
+      "p90": 1291.5783002654207,
+      "p95": 1541.8656259683535,
+      "max": 2984.8587867189844
+    },
+    "serving": {
+      "n": 2192,
+      "p50": 231.8747978158741,
+      "p90": 933.7986881152407,
+      "p95": 1617.2984900792871,
+      "max": 5704.064704985933
+    }
+  },
+  "servingBaselineAllTargetsM": {
+    "n": 3560,
+    "p50": 200.95288433151092,
+    "p90": 885.5071315965713,
+    "p95": 1320.5063432130144,
+    "max": 5704.064704985933
+  },
+  "heuristicRadiusM": {
+    "n": 2625,
+    "p50": 1281.2453760364288,
+    "p90": 5736.553793254623,
+    "p95": 7953.421712439469,
+    "max": 39416.15971947751
+  },
+  "confidenceErrors": {
+    "50-64": {
+      "n": 1022,
+      "p50": 241.98033783750378,
+      "p90": 1079.4141028499066,
+      "p95": 1247.5712710952255,
+      "max": 2984.8587867189844
+    },
+    "65+": {
+      "n": 1101,
+      "p50": 259.3751202333666,
+      "p90": 1450.0640099300642,
+      "p95": 1558.1303441320226,
+      "max": 2778.2606986462156
+    },
+    "30-49": {
+      "n": 423,
+      "p50": 324.69985075831954,
+      "p90": 1196.1902125396775,
+      "p95": 1433.6592420003851,
+      "max": 2146.9108311931013
+    },
+    "0-29": {
+      "n": 79,
+      "p50": 764.4949466770106,
+      "p90": 1759.5254442035205,
+      "p95": 1999.2332505074266,
+      "max": 2146.9108311931013
+    }
+  }
+}

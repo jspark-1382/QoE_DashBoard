@@ -1,0 +1,23 @@
+{
+  "rows": 598926,
+  "rawCallKeys": 25548,
+  "imsCardinalityDistribution": {
+    "1": 25548
+  },
+  "keysWithMultipleNonblankIms": 0,
+  "rowsInMultipleImsKeys": 0,
+  "gnssRowsInMultipleImsKeys": 0,
+  "keysWithMultipleStartValues": 0,
+  "keysWithMultipleEndValues": 0,
+  "keysWithMultipleWindowTuples": 0,
+  "multiImsKeysWithMultipleWindows": 0,
+  "neighborColumns": [
+    "n1_pci",
+    "n1_rsrp",
+    "n2_pci",
+    "n2_rsrp"
+  ],
+  "note": "Raw rows before exact-row deduplication; keys=(base_date,svc_cont_id,lte_vc_div). Numeric GNSS pairs include zero placeholders and are NOT valid projected fixes. No identity or coordinates exported.",
+  "rawKeysWithNumericGnssPairsIncludingPlaceholders": 23366,
+  "rawNumericGnssPairRowsIncludingPlaceholders": 391856
+}
