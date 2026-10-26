@@ -75,9 +75,13 @@ try {
     queryFilters,
   );
   assert.deepEqual(readFilters(encoded), queryFilters);
+  const qoeFair=readFilters('?band=fair&poor=0');
+  assert.equal(qoeFair.scoreMetric,'qoe');
+  assert.equal(qoeFair.scoreBand,'fair');
+  assert.deepEqual(readFilters(urlFor(parseSelection('?source=MDT&view=overview'),qoeFair)),qoeFair);
   assert.equal(
     readFilters('?metric=bad&band=fair&experience=bad').scoreBand,
-    null,
+    'fair',
   );
   assert.equal(readFilters('?metric=bad&experience=bad').experienceGroup, null);
   const html = renderToStaticMarkup(React.createElement(AnalystDashboard));

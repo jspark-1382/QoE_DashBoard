@@ -33,6 +33,15 @@ test('analytics exports aggregation and metric projection for real calls', () =>
   assert.equal(typeof api.projectOverviewMetric, 'function');
   assert.equal(typeof api.getScoreBand, 'function');
 });
+
+test('QoE distribution uses document labels good, fair and poor instead of two bands', () => {
+  const result=api.getOverviewAnalytics([call('low',1),call('middle',3.75),call('high',4)],'qoe',2.5);
+  assert.deepEqual(result.bands.map(b=>[b.id,b.label,b.count]),[
+    ['good','양호',1],['fair','보통',1],['poor','불량',1],
+  ]);
+  assert.equal(api.getScoreBand(3.75,'qoe',2.5),'fair');
+  assert.equal(api.getScoreBand(4,'qoe',2.5),'good');
+});
 test('unique calls retain finite QoE including zero and outside-domain scores in the mean', () => {
   const a = call('a', 0),
     result = api.getOverviewAnalytics(
@@ -58,7 +67,8 @@ test('unique calls retain finite QoE including zero and outside-domain scores in
   assert.deepEqual(
     result.bands.map((b) => [b.id, b.count, b.percent]),
     [
-      ['good', 3, 60],
+      ['good', 2, 40],
+      ['fair', 1, 20],
       ['poor', 2, 40],
     ],
   );
@@ -70,7 +80,7 @@ test('unique calls retain finite QoE including zero and outside-domain scores in
     result.bins.reduce((sum, b) => sum + b.count, 0),
     3,
   );
-  assert.equal(api.getScoreBand(2.5, 'qoe', 2.5), 'good');
+  assert.equal(api.getScoreBand(2.5, 'qoe', 2.5), 'fair');
   assert.equal(api.getScoreBand(2.4, 'qoe', 2.5), 'poor');
 });
 test('MOS validates 1..5 and uses 3.5/4 boundaries regardless of QoE threshold', () => {
@@ -97,6 +107,19 @@ test('MOS validates 1..5 and uses 3.5/4 boundaries regardless of QoE threshold',
   );
   assert.equal(api.getScoreBand(3.5, 'mos', 0), 'fair');
   assert.equal(api.getScoreBand(4, 'mos', 0), 'good');
+});
+
+test('QoE fair boundaries preserve the configured poor threshold and histogram colors', () => {
+  const result=api.getOverviewAnalytics([2.49,2.5,3.99,4,5].map((qoe,i)=>call(String(i),qoe)),'qoe',2.5);
+  assert.deepEqual(result.bands.map(b=>[b.id,b.count]),[['good',2],['fair',2],['poor',1]]);
+  assert.equal(result.bands.reduce((sum,b)=>sum+b.count,0),result.evaluated);
+  assert.equal(result.bins[9].band,'poor');
+  assert.equal(result.bins[10].band,'fair');
+  assert.equal(result.bins[15].band,'fair');
+  assert.equal(result.bins[16].band,'good');
+  assert.equal(api.getScoreBand(3.49,'qoe',3.5),'poor');
+  assert.equal(api.getScoreBand(3.5,'qoe',3.5),'fair');
+  assert.equal(api.getScoreBand(4,'qoe',4.5),'poor');
 });
 test('projection clones calls and cells, sanitizes selected MOS, and preserves source QoE', () => {
   const original = {

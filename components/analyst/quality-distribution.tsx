@@ -24,16 +24,18 @@ export function QualityDistribution({
   const maximum = Math.max(1, ...analytics.bins.map((bin) => bin.count));
   const select = (band: ScoreBand) =>
     onBandSelect(selectedBand === band ? null : band);
+  const poorBoundary = analytics.threshold;
+  const goodBoundary = Math.max(4, poorBoundary);
+  const boundaryLabel = (value: number) =>
+    Number.isInteger(value) ? value.toFixed(1) : String(value);
+  const poorLabel = boundaryLabel(poorBoundary);
+  const goodLabel = boundaryLabel(goodBoundary);
   const rangeLabel = (band: ScoreBand) =>
-    analytics.metric === 'mos'
-      ? band === 'good'
-        ? '4.0 이상'
-        : band === 'fair'
-          ? '3.5 이상 4.0 미만'
-          : '3.5 미만'
-      : band === 'good'
-        ? `${analytics.threshold} 이상`
-        : `${analytics.threshold} 미만`;
+    band === 'good'
+      ? `${goodLabel} 이상`
+      : band === 'fair'
+        ? `${poorLabel} 이상 ${goodLabel} 미만`
+        : `${poorLabel} 미만`;
 
   return (
     <section className={styles.panel} aria-label={`${metricLabel} 점수 분포`}>
@@ -68,8 +70,8 @@ export function QualityDistribution({
                 <span>
                   {band.label}
                   <small>
-                    {analytics.metric === 'mos' && band.id === 'fair'
-                      ? '3.5–4.0'
+                    {band.id === 'fair'
+                      ? `${poorLabel}–${goodLabel}`
                       : rangeLabel(band.id)}
                   </small>
                 </span>

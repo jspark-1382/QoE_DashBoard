@@ -59,7 +59,7 @@ function readFilters(search: string): OverviewFilters {
     scoreBand:
       p.get('band') === 'good' ||
       p.get('band') === 'poor' ||
-      (p.get('band') === 'fair' && p.get('metric') === 'mos')
+      p.get('band') === 'fair'
         ? (p.get('band') as OverviewFilters['scoreBand'])
         : null,
     experienceGroup: ['affected', 'repeat', 'consecutive'].includes(

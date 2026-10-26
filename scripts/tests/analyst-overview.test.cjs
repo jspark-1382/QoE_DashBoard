@@ -206,6 +206,22 @@ test('distribution and experience filters change investigation while keeping who
   assert.equal(selected.updates[0].experienceGroup, null);
 });
 
+test('QoE fair investigation filters rows and keeps the same global denominator', () => {
+  const original=calls[1].qoe;
+  calls[1].qoe=3;
+  try {
+    const r=render({scoreMetric:'qoe',scoreBand:'fair',poorOnly:false});
+    const rows=r.all.filter(n=>n.props?.['aria-label']?.endsWith('통화 분석'));
+    assert.equal(rows.length,1);
+    assert.match(rows[0].props['aria-label'],/09:00:00/);
+    const a=r.all.find(n=>n.type==='QualityDistribution').props.analytics;
+    assert.deepEqual(a.bands.map(b=>[b.id,b.count]),[['good',0],['fair',1],['poor',1]]);
+    assert.equal(a.total,3);
+    assert.equal(a.evaluated,2);
+    assert.match(text(r.all.find(n=>n.props?.['aria-label']==='전체 분석 요약')),/50\.0%/);
+  } finally {calls[1].qoe=original;}
+});
+
 test('MOS projects all summaries and rows consistently without changing original QoE', () => {
   calls[0].mos = 4.2;
   calls[1].mos = 3.2;

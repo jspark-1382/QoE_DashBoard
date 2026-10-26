@@ -60,15 +60,9 @@ export function getScoreBand(
   metric: ScoreMetric,
   threshold: number,
 ): ScoreBand {
-  return metric === 'mos'
-    ? value >= 4
-      ? 'good'
-      : value >= 3.5
-        ? 'fair'
-        : 'poor'
-    : value < threshold
-      ? 'poor'
-      : 'good';
+  const poorLimit = metric === 'mos' ? 3.5 : threshold;
+  const goodLimit = Math.max(4, poorLimit);
+  return value < poorLimit ? 'poor' : value < goodLimit ? 'fair' : 'good';
 }
 
 export function projectOverviewMetric(
@@ -156,13 +150,8 @@ export function getOverviewAnalytics(
     timestamp: parseFullTimestamp(call.startTimestamp),
   }));
   const values = rows.flatMap((row) => (row.value == null ? [] : [row.value]));
-  const bands = (
-    metric === 'mos' ? ['good', 'fair', 'poor'] : ['good', 'poor']
-  ) as ScoreBand[];
-  const labels =
-    metric === 'mos'
-      ? { good: '양호', fair: '보통', poor: '불량' }
-      : { good: '기준 이상', fair: '보통', poor: '저품질' };
+  const bands: ScoreBand[] = ['good', 'fair', 'poor'];
+  const labels = { good: '양호', fair: '보통', poor: '불량' };
   const bins = Array.from({ length: 20 }, (_, i) => {
     const from = i / 4,
       to = (i + 1) / 4;

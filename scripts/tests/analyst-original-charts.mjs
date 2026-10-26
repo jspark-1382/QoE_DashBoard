@@ -144,15 +144,12 @@ try {
     ...mos,
     metric: 'qoe',
     threshold: 2.5,
-    bands: [
-      { ...mos.bands[0], label: '기준 이상', count: 96, percent: 96 },
-      { ...mos.bands[2], label: '저품질' },
-    ],
+    bands: [{ ...mos.bands[0] }, { ...mos.bands[1] }, { ...mos.bands[2] }],
     bins: mos.bins.map((bin, index) => ({
       ...bin,
-      count: index === 0 ? 4 : index === 19 ? 96 : 0,
-      band: bin.from < 2.5 ? 'poor' : 'good',
-      color: bin.from < 2.5 ? '#e16868' : '#23a86e',
+      count: index === 0 ? 4 : index === 10 ? 24 : index === 16 ? 72 : 0,
+      band: bin.from < 2.5 ? 'poor' : bin.from < 4 ? 'fair' : 'good',
+      color: bin.from < 2.5 ? '#e16868' : bin.from < 4 ? '#f1c847' : '#23a86e',
     })),
   };
   const qoeHTML = renderToStaticMarkup(
@@ -163,9 +160,74 @@ try {
     }),
   );
   assert.match(qoeHTML, /QoE 점수 분포/);
-  assert.match(qoeHTML, /2\.5/);
-  assert.doesNotMatch(qoeHTML, /MOS|보통|3\.5 이상 4\.0 미만|#f1c847/);
-  assert.match(qoeHTML, /QoE 0\.00 이상 0\.25 미만, 4통화, 저품질/);
+  assert.match(qoeHTML, /aria-label="양호 4\.0 이상, 72통화, 72\.0%"/);
+  assert.match(
+    qoeHTML,
+    /aria-label="보통 2\.5 이상 4\.0 미만, 24통화, 24\.0%"/,
+  );
+  assert.match(qoeHTML, /aria-label="불량 2\.5 미만, 4통화, 4\.0%"/);
+  assert.match(qoeHTML, /#f1c847/);
+  assert.match(qoeHTML, /width:24%/);
+  assert.doesNotMatch(qoeHTML, /MOS|기준 이상|3\.5 이상 4\.0 미만/);
+  assert.match(qoeHTML, /QoE 0\.00 이상 0\.25 미만, 4통화, 불량/);
+  assert.match(qoeHTML, /QoE 2\.50 이상 2\.75 미만, 24통화, 보통/);
+  assert.match(qoeHTML, /QoE 4\.00 이상 4\.25 미만, 72통화, 양호/);
+  const qoeNodes = descendants(
+    QualityDistribution({
+      analytics: qoe,
+      selectedBand: 'fair',
+      onBandSelect: (value) => {
+        bandSelection = value;
+      },
+    }),
+  );
+  qoeNodes
+    .find(
+      (node) => node.type === 'button' && node.props['data-bin-from'] === 2.5,
+    )
+    .props.onClick();
+  assert.equal(
+    bandSelection,
+    null,
+    'QoE fair lower-bound histogram toggles the selected middle band off',
+  );
+  qoeNodes
+    .find((node) => node.type === 'button' && node.props['data-bin-from'] === 4)
+    .props.onClick();
+  assert.equal(bandSelection, 'good', 'QoE exact good boundary selects good');
+  qoeNodes
+    .find(
+      (node) =>
+        node.type === 'button' &&
+        node.props['data-composition-band'] === 'poor',
+    )
+    .props.onClick();
+  assert.equal(
+    bandSelection,
+    'poor',
+    'QoE poor remains independently selectable with its existing cutoff',
+  );
+  const alternateHTML = renderToStaticMarkup(
+    React.createElement(QualityDistribution, {
+      analytics: {
+        ...qoe,
+        threshold: 3.5,
+        bins: qoe.bins.map((bin, index) => ({
+          ...bin,
+          count: index === 0 ? 4 : index === 14 ? 24 : index === 16 ? 72 : 0,
+          band: bin.from < 3.5 ? 'poor' : bin.from < 4 ? 'fair' : 'good',
+          color:
+            bin.from < 3.5 ? '#e16868' : bin.from < 4 ? '#f1c847' : '#23a86e',
+        })),
+      },
+      selectedBand: null,
+      onBandSelect() {},
+    }),
+  );
+  assert.match(alternateHTML, /aria-label="보통 3\.5 이상 4\.0 미만/);
+  assert.match(alternateHTML, /aria-label="불량 3\.5 미만/);
+  assert.match(alternateHTML, /aria-label="양호 4\.0 이상/);
+  assert.match(alternateHTML, /QoE 3\.50 이상 3\.75 미만, 24통화, 보통/);
   const empty = {
     ...mos,
     total: 0,
