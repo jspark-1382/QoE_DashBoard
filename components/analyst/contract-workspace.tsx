@@ -1,6 +1,10 @@
 'use client';
 import React, { useEffect, useState } from 'react';
 import type { AnalystDay } from '../../lib/analyst/types';
+import {
+  estimationReason,
+  estimationSummary,
+} from '../../lib/analyst/estimation-evidence';
 import { isPoorCall } from '../../lib/analyst/data';
 import { getMetricLegend } from '../../lib/analyst/map';
 import { AnalystMap } from './analyst-map';
@@ -31,6 +35,7 @@ export function ContractWorkspace({
   const [gnss, setGnss] = useState(true),
     [estimates, setEstimates] = useState(true),
     [stations, setStations] = useState(false);
+  const [showEstimationEvidence, setShowEstimationEvidence] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(true);
   const [railOpen, setRailOpen] = useState(true);
   const [focus, setFocus] = useState<'balanced' | 'map' | 'evidence'>(
@@ -47,6 +52,7 @@ export function ContractWorkspace({
   const samples = call
     ? day.samples.filter((s) => s.callId === call.id && s.inCallWindow)
     : [];
+  const positionSummary = estimationSummary(samples);
   const sample = samples.find((s) => s.index === sampleIndex) ?? null;
   const evaluated = day.calls.filter(
       (c) => c.qoe !== null && Number.isFinite(c.qoe),
@@ -252,6 +258,42 @@ export function ContractWorkspace({
                 <option value="qoe">통화 QoE</option>
               </select>
             </div>
+            {day.source === 'MDT' && (
+              <div
+                className={styles.estimationStatus}
+                aria-label="자동 위치 추정 상태"
+              >
+                <strong>
+                  자동 위치 추정 · GNSS 우선, 없으면 무선 근거로 추정
+                </strong>
+                <p>
+                  선택 통화: GNSS {positionSummary.gnss}건 · 3개 이상 기지국
+                  삼변·다변측량 {positionSummary.multi}건 · 2개 기지국 가중중심{' '}
+                  {positionSummary.two}건 · 위치 보류{' '}
+                  {positionSummary.unavailable}건
+                </p>
+                <button
+                  type="button"
+                  disabled={!positionSummary.radioIndices.length}
+                  onClick={() => {
+                    setEstimates(true);
+                    const next =
+                      positionSummary.radioIndices.find(
+                        (index) => index > (sampleIndex ?? -1),
+                      ) ?? positionSummary.radioIndices[0];
+                    if (next !== undefined) onSelectSample(next);
+                  }}
+                >
+                  무선 추정 시점으로 이동 ({positionSummary.radioIndices.length}
+                  건)
+                </button>
+                {sample && <p>{estimationReason(sample)}</p>}
+                <p>
+                  기지국 2개는 가중중심입니다. 기지국 1개는 고객 위치로 표시하지
+                  않습니다.
+                </p>
+              </div>
+            )}
             <div className={styles.layers}>
               <label>
                 <input
@@ -277,6 +319,18 @@ export function ContractWorkspace({
                 />
                 기지국
               </label>
+              {day.source === 'MDT' && (
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={showEstimationEvidence}
+                    onChange={(e) =>
+                      setShowEstimationEvidence(e.target.checked)
+                    }
+                  />
+                  추정 근거 보기
+                </label>
+              )}
             </div>
             <div className={styles.map}>
               <AnalystMap
@@ -293,6 +347,7 @@ export function ContractWorkspace({
                 showGnss={gnss}
                 showEstimates={estimates}
                 showStations={stations}
+                showEstimationEvidence={showEstimationEvidence}
                 focusKey={`${day.customerId}/${day.date}/${callId}`}
                 source={day.source}
               />

@@ -162,12 +162,7 @@ export function normalizeDay(
   }
   for (const [callId, rows] of grouped) {
     // The existing estimator is isolated to this call. Single-site fallback is never a customer point.
-    if (
-      source !== 'MDT' ||
-      !rows.some((s) => s.lat == null) ||
-      !baseStations.length
-    )
-      continue;
+    if (source !== 'MDT' || !rows.some((s) => s.lat == null)) continue;
     const observedStations = baseStations.filter((station) =>
       rows.some(
         (s) =>
@@ -195,6 +190,27 @@ export function normalizeDay(
     const byIndex = new Map(rows.map((s) => [s.index, s]));
     for (const estimate of estimates.positions) {
       const sample = byIndex.get(estimate.sample.sampleIndex)!;
+      sample.estimation = {
+        method: estimate.method,
+        siteCount: estimate.siteCount,
+        windowSec: estimate.windowSec,
+        usedSites: estimate.usedSites.map((site) => ({
+          ...site,
+          cellIds: [...site.cellIds],
+          baseStationIds: [
+            ...new Set(
+              (
+                estimates.sites.find((s) => s.siteId === site.siteId)?.cells ??
+                []
+              ).map((cell) => cell.baseStationId),
+            ),
+          ],
+        })),
+        residualErrorM: estimate.residualErrorM,
+        geometry: estimate.geometry,
+        jump: estimate.jump,
+        warnings: [...estimate.warnings],
+      };
       if (
         sample.lat != null ||
         estimate.siteCount < 2 ||

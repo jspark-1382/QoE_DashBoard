@@ -93,6 +93,25 @@ export function visiblePoints(
         : showEstimates,
     );
 }
+
+export function getSelectedEstimationSites(
+  samples: AnalystSample[],
+  selectedIndex: number | null | undefined,
+  enabled: boolean,
+) {
+  if (!enabled || selectedIndex == null) return [];
+  const sample = samples.find((s) => s.index === selectedIndex);
+  if (!sample || ['gnss', 'measured'].includes(sample.locationSource))
+    return [];
+  return (sample.estimation?.usedSites ?? []).filter(
+    (site) =>
+      Number.isFinite(site.latitude) &&
+      Number.isFinite(site.longitude) &&
+      Math.abs(site.latitude) <= 90 &&
+      Math.abs(site.longitude) <= 180 &&
+      (site.latitude !== 0 || site.longitude !== 0),
+  );
+}
 export function splitTracks(samples: AnalystSample[]): AnalystSample[][] {
   const groups: AnalystSample[][] = [];
   let active: AnalystSample[] = [];

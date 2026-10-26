@@ -12,9 +12,11 @@ import {
   visiblePoints,
   splitTracks,
   overviewRateColor,
+  getSelectedEstimationSites,
   type AnalystMetric,
 } from '../../lib/analyst/map';
 import { locationLabels } from '../../lib/analyst/data';
+import { estimationMethodLabel } from '../../lib/analyst/estimation-evidence';
 import 'leaflet/dist/leaflet.css';
 import styles from './analyst-map.module.css';
 interface Props {
@@ -29,6 +31,7 @@ interface Props {
   showGnss?: boolean;
   showEstimates?: boolean;
   showStations?: boolean;
+  showEstimationEvidence?: boolean;
   focusKey?: string;
   source?: AnalystSource;
   threshold?: number;
@@ -58,6 +61,7 @@ export function AnalystMap({
   showGnss = true,
   showEstimates = true,
   showStations = false,
+  showEstimationEvidence = false,
   focusKey = 'map',
   source = 'MDT',
   threshold = 2.5,
@@ -176,7 +180,11 @@ export function AnalystMap({
           color = metricColor(s[metric], metric, threshold),
           estimate = ['radio', 'interpolated'].includes(s.locationSource);
         const label = `${locationLabels[s.locationSource]} ${s.time} · 표본 ${s.index}`;
-        const html = `<b>${esc(locationLabels[s.locationSource])} · ${esc(s.time)}</b><br/>${s.lat!.toFixed(6)}, ${s.lon!.toFixed(6)}<br/>RSRP ${s.rsrp ?? '미제공'} dBm · SINR ${s.sinr ?? '미제공'} dB<br/>${estimate ? '위치 후보 · 정확도 검증값 아님' : '원본 관측 · 측정 정확도 정보 없음'}`;
+        const method =
+          estimate && s.estimation
+            ? `<br/>${esc(estimationMethodLabel(s.estimation.method))} · ${s.estimation.siteCount}개 기지국 근거`
+            : '';
+        const html = `<b>${esc(locationLabels[s.locationSource])} · ${esc(s.time)}</b><br/>${s.lat!.toFixed(6)}, ${s.lon!.toFixed(6)}<br/>RSRP ${s.rsrp ?? '미제공'} dBm · SINR ${s.sinr ?? '미제공'} dB${method}<br/>${estimate ? '위치 후보 · 정확도 검증값 아님' : '원본 관측 · 측정 정확도 정보 없음'}`;
         const marker = estimate
           ? L.marker(point, {
               icon: L.divIcon({
@@ -200,6 +208,60 @@ export function AnalystMap({
           .on('click', () => onSampleSelect?.(s.index))
           .addTo(layer);
         marker.getElement()?.setAttribute('aria-label', label);
+      }
+      const selectedSample = samples.find(
+        (sample) => sample.index === selectedIndex,
+      );
+      for (const site of getSelectedEstimationSites(
+        samples,
+        selectedIndex,
+        showEstimationEvidence,
+      )) {
+        const position: [number, number] = [site.latitude, site.longitude];
+        const stationNames = site.baseStationIds?.length
+          ? site.baseStationIds.join(', ')
+          : site.siteId;
+        const label = `추정 근거 기지국 ${stationNames}`;
+        const marker = L.marker(position, {
+          zIndexOffset: 500,
+          icon: L.divIcon({
+            className: styles.evidenceStation,
+            html: '△',
+            iconSize: [22, 22],
+            iconAnchor: [11, 11],
+          }),
+        });
+        marker
+          .bindTooltip(
+            `${esc(label)}<br/>RSRP ${site.rsrp} dBm · 시간차 ${site.deltaTimeSec}초`,
+          )
+          .bindPopup(
+            `<b>${esc(label)}</b><br/>모델 거리 ${Math.round(site.estimatedDistanceM)}m · 측정 거리 아님<br/>가중치 ${site.weight.toFixed(3)} · 잔차 ${Math.round(site.residualM)}m`,
+          )
+          .addTo(layer);
+        marker.getElement()?.setAttribute('aria-label', label);
+        if (
+          Number.isFinite(site.estimatedDistanceM) &&
+          site.estimatedDistanceM > 0
+        )
+          L.circle(position, {
+            renderer: canvas,
+            radius: site.estimatedDistanceM,
+            color: '#826c37',
+            weight: 1,
+            dashArray: '4 5',
+            fill: false,
+            interactive: false,
+          }).addTo(layer);
+        if (selectedSample?.lat != null && selectedSample.lon != null)
+          L.polyline([position, [selectedSample.lat, selectedSample.lon]], {
+            renderer: canvas,
+            color: '#826c37',
+            weight: 1.4,
+            dashArray: '5 5',
+          })
+            .bindTooltip('위치 추정에 사용한 기지국 연결 · 고객 이동경로 아님')
+            .addTo(layer);
       }
       if (showStations) {
         const seen = new Set<string>();
@@ -262,6 +324,7 @@ export function AnalystMap({
     showGnss,
     showEstimates,
     showStations,
+    showEstimationEvidence,
     selectedIndex,
     selectedCellId,
     focusKey,
@@ -276,6 +339,15 @@ export function AnalystMap({
   const selectedLocation = selectedPoint
     ? { lat: selectedPoint.lat!, lon: selectedPoint.lon! }
     : selectedCell;
+  const evidenceSites = getSelectedEstimationSites(
+    samples,
+    selectedIndex,
+    showEstimationEvidence,
+  );
+  const siteOnly =
+    evidenceSites.length > 0 &&
+    !cells.length &&
+    !visiblePoints(samples, showGnss, showEstimates).length;
   return (
     <div className={styles.container} data-source={source}>
       <div
@@ -285,8 +357,15 @@ export function AnalystMap({
           cells.length ? '전체 지역 품질 지도' : '선택 통화 위치 지도'
         }
       />
-      {error && <span className={styles.notice}>{error}</span>}
+      {(error || siteOnly) && (
+        <span className={styles.notice}>
+          {[error, siteOnly ? '기지국 근거만 표시 · 고객 위치 미제공' : '']
+            .filter(Boolean)
+            .join(' · ')}
+        </span>
+      )}
       {!cells.length &&
+        !evidenceSites.length &&
         !visiblePoints(samples, showGnss, showEstimates).length && (
           <span className={styles.empty}>
             {samples.length
@@ -295,6 +374,28 @@ export function AnalystMap({
           </span>
         )}
       <div className={styles.controls}>
+        {evidenceSites.length > 0 && (
+          <button
+            className={styles.fit}
+            type="button"
+            aria-label="위치 추정 근거 기지국으로 지도 이동"
+            onClick={() => {
+              const points: [number, number][] = evidenceSites.map((site) => [
+                site.latitude,
+                site.longitude,
+              ]);
+              if (selectedPoint)
+                points.push([selectedPoint.lat!, selectedPoint.lon!]);
+              instance.current?.fitBounds(points, {
+                padding: [35, 35],
+                maxZoom: 16,
+                animate: false,
+              });
+            }}
+          >
+            추정 기지국 보기
+          </button>
+        )}
         {selectedLocation && (
           <button
             className={styles.fit}
@@ -326,6 +427,9 @@ export function AnalystMap({
               .map((c) => [c.lat, c.lon]);
             visiblePoints(samples, showGnss, showEstimates).forEach((s) =>
               p.push([s.lat!, s.lon!]),
+            );
+            evidenceSites.forEach((site) =>
+              p.push([site.latitude, site.longitude]),
             );
             if (p.length)
               m.fitBounds(p, {

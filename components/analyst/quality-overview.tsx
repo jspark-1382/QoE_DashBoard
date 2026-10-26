@@ -561,7 +561,13 @@ export function QualityOverview({
                     className={styles.contract}
                     title={call.contractId ?? undefined}
                   >
-                    {call.contractId ?? '계약번호 미제공'}
+                    <button
+                      className={styles.link}
+                      onClick={() => onAnalyze(call)}
+                      aria-label={`${call.contractId ?? '계약번호 미제공'} ${call.start} 통화 열기`}
+                    >
+                      {call.contractId ?? '계약번호 미제공'}
+                    </button>
                   </td>
                   <td>{call.start}</td>
                   <td>{duration(call)}</td>

@@ -473,3 +473,26 @@
     grid-row: auto;
   }
 }
+
+.estimationStatus {
+  padding: 12px 16px;
+  border-top: 1px solid #dbe3ec;
+  background: #f4f8fd;
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.estimationStatus p {
+  margin: 6px 0;
+}
+.estimationStatus button {
+  border: 1px solid #a9bfd7;
+  border-radius: 6px;
+  background: white;
+  padding: 5px 10px;
+  cursor: pointer;
+}
+.estimationStatus button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

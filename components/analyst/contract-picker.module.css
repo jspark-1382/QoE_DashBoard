@@ -1,0 +1,109 @@
+.trigger {
+  background: #1d4ed8;
+  color: white;
+  border: 1px solid #1d4ed8;
+  border-radius: 7px;
+  padding: 10px 16px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.dialog {
+  margin: auto;
+  width: min(900px, calc(100vw - 32px));
+  max-height: calc(100dvh - 48px);
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  padding: 24px;
+  color: #172033;
+  background: white;
+  box-shadow: 0 24px 70px #0f172a44;
+}
+.dialog::backdrop {
+  background: #0f172a88;
+}
+.header,
+.filters,
+.footer {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.header {
+  justify-content: space-between;
+}
+.header h2 {
+  margin: 0;
+}
+.dialog button,
+.dialog select,
+.search input {
+  border: 1px solid #94a3b8;
+  border-radius: 6px;
+  padding: 8px 12px;
+  background: white;
+  color: #172033;
+}
+.dialog button {
+  cursor: pointer;
+}
+.dialog button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+.search {
+  display: grid;
+  gap: 6px;
+  margin: 18px 0;
+}
+.search input {
+  width: 100%;
+  box-sizing: border-box;
+}
+.table {
+  overflow: auto;
+  max-height: 48dvh;
+}
+.table table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+.table th,
+.table td {
+  padding: 10px;
+  border-bottom: 1px solid #e2e8f0;
+  white-space: nowrap;
+}
+.table th {
+  position: sticky;
+  top: 0;
+  background: #f1f5f9;
+}
+.table small {
+  display: block;
+  color: #64748b;
+}
+.table tr[aria-selected='true'] {
+  background: #eff6ff;
+}
+.table td span {
+  display: block;
+  color: #1d4ed8;
+  font-size: 12px;
+}
+.footer {
+  justify-content: flex-end;
+  margin-top: 18px;
+}
+.dialog :focus-visible,
+.trigger:focus-visible {
+  outline: 3px solid #2563eb;
+  outline-offset: 3px;
+}
+
+.resultCount {
+  display: block;
+  margin: 16px 0;
+}

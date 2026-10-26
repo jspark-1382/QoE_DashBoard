@@ -2,6 +2,16 @@ import type { BaseStation } from '../location-estimation/types';
 
 export type AnalystSource = 'MDT' | '실측';
 export type LocationSource = 'gnss' | 'interpolated' | 'radio' | 'station' | 'measured' | 'unavailable';
+export interface AnalystEstimationSite {
+  siteId:string; latitude:number; longitude:number; baseStationIds:string[];
+  rsrp:number; deltaTimeSec:number; weight:number; estimatedDistanceM:number;
+  cellIds:string[]; residualM:number;
+}
+export interface AnalystEstimationEvidence {
+  method:'MEASURED'|'MULTILATERATION'|'WEIGHTED_2_SITE'|'CELL_SITE'|'INVALID';
+  siteCount:number; windowSec:number; usedSites:AnalystEstimationSite[];
+  residualErrorM:number|null; geometry:number; jump:boolean; warnings:string[];
+}
 export interface SourceCustomer { id:string; displayName:string; maskedPhone:string; dates:string[]; sampleCount:number; sourceContractId?:string; gnssSampleCount?:number; callCount?:number; }
 export interface SourceCall {
   id:string; ci?:string; start:string; end:string; startTimestamp?:string; endTimestamp?:string;
@@ -14,6 +24,7 @@ export interface SourceDay {
   sourceContractId?:string; dataPath?:string; calls?:SourceCall[]; baseStations?:BaseStation[];
   sites?:string[]; rats?:string[]; sampleCount:number;
   callMeta?:Record<string,{start:string;end:string;startTimestamp?:string;endTimestamp?:string}>;
+  callCount?:number; gnssSampleCount?:number;
 }
 export interface AnalystDataset {
   meta:{ dates:string[]; poorQoeThreshold:number; revision?:string; schemaVersion?:string; partitioned?:boolean;
@@ -29,6 +40,7 @@ export interface AnalystSample {
   locationSource:LocationSource; inCallWindow:boolean; baseStationId:string; cellId:string; frequency:number|null;
   gnssCrs:string|null; gnssX:number|null; gnssY:number|null;
   stationLat:number|null; stationLon:number|null; confidence:number|null; accuracyM:number|null;
+  estimation?:AnalystEstimationEvidence;
   raw:readonly unknown[];
 }
 export interface AnalystCall {

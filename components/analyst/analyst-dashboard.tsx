@@ -21,6 +21,7 @@ import {
   type AnalystSelection,
 } from '../../lib/analyst/selection';
 import type { AnalystSource, SourceCustomer } from '../../lib/analyst/types';
+import { ContractPicker } from './contract-picker';
 import { ContractWorkspace } from './contract-workspace';
 import { QualityOverview, type OverviewFilters } from './quality-overview';
 import styles from './analyst-shell.module.css';
@@ -161,7 +162,7 @@ export function AnalystDashboard() {
   );
   const detailKey =
     resolved.view === 'contract' && entry
-      ? `${resolved.source}/${revision}/${resolved.date}/${resolved.customerId}`
+      ? `detail-evidence-v1/${resolved.source}/${revision}/${resolved.date}/${resolved.customerId}`
       : null;
   const detailLoader = useCallback(
     (signal: AbortSignal) => loadDay(dataset!, entry!, resolved.source, signal),
@@ -296,6 +297,15 @@ export function AnalystDashboard() {
       </header>
       <div className={styles.content}>
         <div className={styles.toolbar}>
+          {dataset && (
+            <ContractPicker
+              dataset={dataset}
+              source={resolved.source}
+              date={resolved.date}
+              selectedId={resolved.customerId}
+              onSelect={choose}
+            />
+          )}
           <div className={styles.search}>
             <label htmlFor="contract-search">
               {resolved.source === 'MDT'
@@ -424,6 +434,13 @@ export function AnalystDashboard() {
             Voice · 저품질 QoE &lt; {threshold}
           </span>
         </div>
+        {customer && (
+          <div className={styles.currentContract}>
+            <span>현재 선택</span>
+            <strong>{getContractId(customer) ?? customer.displayName}</strong>
+            <span>위 계약 선택 버튼에서 변경할 수 있습니다.</span>
+          </div>
+        )}
         <p className={styles.message} role="status">
           {message}
         </p>
@@ -504,7 +521,7 @@ export function AnalystDashboard() {
                 )
               ) : !resolved.customerId ? (
                 <div className={styles.state}>
-                  서비스 계약번호를 검색하고 결과에서 계약을 선택하세요.
+                  계약 목록에서 계약을 선택하거나 서비스 계약번호를 검색하세요.
                 </div>
               ) : !entry ? (
                 <div className={styles.state}>

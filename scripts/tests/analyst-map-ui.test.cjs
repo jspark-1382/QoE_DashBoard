@@ -52,3 +52,49 @@ test('overview legend exposes the discrete percentage steps used by the map', ()
   assert.match(legend[1].label, /10/);
   assert.match(legend[2].label, /25/);
 });
+
+test('estimation map evidence belongs only to the selected non-GNSS observation', () => {
+  assert.equal(typeof api.getSelectedEstimationSites, 'function');
+  const site = {
+    siteId: 'one',
+    latitude: 37.48,
+    longitude: 127.05,
+    estimatedDistanceM: 300,
+  };
+  const samples = [
+    {
+      index: 7,
+      locationSource: 'radio',
+      estimation: {
+        usedSites: [site, { ...site, siteId: 'bad', latitude: NaN }],
+      },
+    },
+    {
+      index: 12,
+      locationSource: 'radio',
+      estimation: { usedSites: [{ ...site, siteId: 'other' }] },
+    },
+    { index: 18, locationSource: 'gnss', estimation: { usedSites: [site] } },
+    {
+      index: 23,
+      locationSource: 'unavailable',
+      estimation: { usedSites: [site] },
+    },
+  ];
+  assert.deepEqual(api.getSelectedEstimationSites(samples, 7, false), []);
+  assert.deepEqual(
+    api.getSelectedEstimationSites(samples, 7, true).map((s) => s.siteId),
+    ['one'],
+  );
+  assert.deepEqual(
+    api.getSelectedEstimationSites(samples, 12, true).map((s) => s.siteId),
+    ['other'],
+  );
+  assert.deepEqual(api.getSelectedEstimationSites(samples, 18, true), []);
+  assert.equal(
+    api.getSelectedEstimationSites(samples, 23, true).length,
+    1,
+    'site evidence can explain why no customer point was made',
+  );
+  assert.deepEqual(api.getSelectedEstimationSites(samples, null, true), []);
+});

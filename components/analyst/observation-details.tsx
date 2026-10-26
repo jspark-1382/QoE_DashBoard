@@ -5,6 +5,10 @@ import type {
   AnalystSample,
   AnalystSource,
 } from '../../lib/analyst/types';
+import {
+  estimationMethodLabel,
+  estimationReason,
+} from '../../lib/analyst/estimation-evidence';
 import styles from './contract-workspace.module.css';
 const labels = {
   gnss: 'GNSS 관측',
@@ -18,6 +22,10 @@ const value = (n: number | null | undefined, unit = '') =>
   n === null || n === undefined || !Number.isFinite(n)
     ? '미제공'
     : `${n}${unit}`;
+const modelValue = (n: number | null | undefined, unit = '', digits = 1) =>
+  n == null || !Number.isFinite(n)
+    ? '미제공'
+    : `${Number(n.toFixed(digits))}${unit}`;
 export function ObservationDetails({
   sample,
   call,
@@ -58,6 +66,89 @@ export function ObservationDetails({
               </>
             )}
           </dl>
+          {source === 'MDT' && (
+            <section
+              className={styles.estimationStatus}
+              aria-label="선택 관측 위치 추정 근거"
+            >
+              <h4>자동 위치 추정 근거</h4>
+              <p>{estimationReason(sample)}</p>
+              {sample.estimation && (
+                <>
+                  <dl className={styles.detailList}>
+                    <dt>실제 방법</dt>
+                    <dd>{estimationMethodLabel(sample.estimation.method)}</dd>
+                    <dt>사용 기지국 위치 / 시간창</dt>
+                    <dd>
+                      {sample.estimation.siteCount}개 /{' '}
+                      {sample.estimation.windowSec}초
+                    </dd>
+                    <dt>거리 모델 잔차</dt>
+                    <dd>
+                      {modelValue(sample.estimation.residualErrorM, ' m')}
+                    </dd>
+                    <dt>배치 지표 / 급이동</dt>
+                    <dd>
+                      {modelValue(sample.estimation.geometry, '', 2)} /{' '}
+                      {sample.estimation.jump ? '감지' : '미감지'}
+                    </dd>
+                    <dt>모델 불확실성 추정</dt>
+                    <dd>{modelValue(sample.accuracyM, ' m', 0)}</dd>
+                    <dt>모델 신뢰 점수</dt>
+                    <dd>{value(sample.confidence)} (위치 정확도 % 아님)</dd>
+                  </dl>
+                  <p>
+                    진단:{' '}
+                    {sample.estimation.warnings
+                      .map((warning) => {
+                        if (
+                          warning.includes('단일 Site 좌표를 임시 위치로 사용')
+                        )
+                          return '기지국 1개 근거의 임시 좌표는 고객 위치에서 제외합니다. 방향은 알 수 없습니다.';
+                        if (warning.includes('보정 오프셋 약'))
+                          return (
+                            warning.replace(
+                              '보정 오프셋 약',
+                              '엔진 반경 모델 가정',
+                            ) + ' (GNSS 측정 정확도 미확인)'
+                          );
+                        return warning;
+                      })
+                      .join(' · ') || '없음'}
+                  </p>
+                  <details className={styles.raw}>
+                    <summary>
+                      엔진 원본 진단 (화면의 고객 위치 정책 적용 전)
+                    </summary>
+                    <p>{sample.estimation.warnings.join(' · ') || '없음'}</p>
+                    <p>
+                      원본 진단은 엔진 내부 가정을 포함합니다. 고객 위치 표시와
+                      측정 정확도에 대한 설명은 위의 진단을 따릅니다.
+                    </p>
+                  </details>
+                  <ul className={styles.evidence}>
+                    {sample.estimation.usedSites.map((site) => (
+                      <li key={site.siteId}>
+                        {site.siteId} · 기지국{' '}
+                        {site.baseStationIds.join(', ') || '미제공'} · 셀{' '}
+                        {site.cellIds.join(', ') || '미제공'}
+                        <br />
+                        {site.latitude.toFixed(6)} / {site.longitude.toFixed(6)}{' '}
+                        · RSRP {site.rsrp} dBm · 시간차{' '}
+                        {modelValue(site.deltaTimeSec)}초 · 모델 거리{' '}
+                        {site.estimatedDistanceM.toFixed(1)} m · 잔차{' '}
+                        {site.residualM.toFixed(1)} m
+                      </li>
+                    ))}
+                  </ul>
+                  <p className={styles.helper}>
+                    거리와 반경은 무선 모델의 참고값이며 검증된 위치 정확도가
+                    아닙니다. 연결선은 고객 이동 경로가 아닙니다.
+                  </p>
+                </>
+              )}
+            </section>
+          )}
           <details className={styles.raw}>
             <summary>위치 근거</summary>
             <dl className={styles.detailList}>
