@@ -34,6 +34,9 @@ const initialFilters: OverviewFilters = {
   poorOnly: true,
   sort: 'poor',
   page: 0,
+  scoreMetric: 'qoe',
+  scoreBand: null,
+  experienceGroup: null,
 };
 function readFilters(search: string): OverviewFilters {
   const p = new URLSearchParams(search);
@@ -52,6 +55,18 @@ function readFilters(search: string): OverviewFilters {
     poorOnly: p.get('poor') !== '0',
     sort: p.get('sort') === 'time' ? 'time' : 'poor',
     page: Number.isSafeInteger(page) ? Math.max(0, page) : 0,
+    scoreMetric: p.get('metric') === 'mos' ? 'mos' : 'qoe',
+    scoreBand:
+      p.get('band') === 'good' ||
+      p.get('band') === 'poor' ||
+      (p.get('band') === 'fair' && p.get('metric') === 'mos')
+        ? (p.get('band') as OverviewFilters['scoreBand'])
+        : null,
+    experienceGroup: ['affected', 'repeat', 'consecutive'].includes(
+      p.get('experience') ?? '',
+    )
+      ? (p.get('experience') as OverviewFilters['experienceGroup'])
+      : null,
   };
 }
 function urlFor(selection: AnalystSelection, filters: OverviewFilters) {
@@ -64,6 +79,9 @@ function urlFor(selection: AnalystSelection, filters: OverviewFilters) {
   p.set('poor', filters.poorOnly ? '1' : '0');
   p.set('sort', filters.sort);
   p.set('page', String(filters.page));
+  if (filters.scoreMetric === 'mos') p.set('metric', 'mos');
+  if (filters.scoreBand) p.set('band', filters.scoreBand);
+  if (filters.experienceGroup) p.set('experience', filters.experienceGroup);
   return `?${p}`;
 }
 interface Resource<T> {
@@ -171,7 +189,7 @@ export function AnalystDashboard() {
   const detail = useResource(detailKey, detailLoader);
   const overviewKey =
     dataset && resolved.view === 'overview' && resolved.date
-      ? `${resolved.source}/${revision}/${resolved.date}/overview`
+      ? `overview-analytics-v1/${resolved.source}/${revision}/${resolved.date}/overview`
       : null;
   const overviewLoader = useCallback(
     (signal: AbortSignal) =>
@@ -461,6 +479,12 @@ export function AnalystDashboard() {
         </button>
       </header>
       <div className={styles.content}>
+        {resolved.view === 'overview' && (
+          <div className={styles.pageHeading}>
+            <h1>품질 현황</h1>
+            <span>지역·시간·계약별 저품질을 조사합니다.</span>
+          </div>
+        )}
         {resolved.view === 'contract' && (
           <>
             <div className={styles.breadcrumb}>
@@ -478,10 +502,14 @@ export function AnalystDashboard() {
           </>
         )}
         {!(
-          resolved.view === 'contract' &&
-          day &&
-          !detail.loading &&
-          !detail.error
+          (resolved.view === 'contract' &&
+            day &&
+            !detail.loading &&
+            !detail.error) ||
+          (resolved.view === 'overview' &&
+            overview.data &&
+            !overview.loading &&
+            !overview.error)
         ) && toolbar}
         <p className={styles.message} role="status">
           {message}
@@ -518,6 +546,7 @@ export function AnalystDashboard() {
                 ) : overview.data ? (
                   <QualityOverview
                     overview={overview.data}
+                    toolbar={toolbar}
                     threshold={threshold}
                     filters={filters}
                     onFiltersChange={setFilters}

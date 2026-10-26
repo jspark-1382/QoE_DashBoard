@@ -1,6 +1,17 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import {
+  getOverviewAnalytics,
+  getScoreBand,
+  projectOverviewMetric,
+  type ScoreMetric,
+  type ScoreBand,
+  type ExperienceGroup,
+  type OverviewAnalytics,
+} from '../../lib/analyst/overview-analytics';
+import { QualityDistribution } from './quality-distribution';
+import { CustomerExperience } from './customer-experience';
 import type { AnalystOverview, OverviewCall } from '../../lib/analyst/types';
 import {
   filterOverviewCalls,
@@ -27,8 +38,12 @@ export interface OverviewFilters {
   poorOnly: boolean;
   sort: 'poor' | 'time';
   page: number;
+  scoreMetric?: ScoreMetric;
+  scoreBand?: ScoreBand | null;
+  experienceGroup?: ExperienceGroup | null;
 }
 interface Props {
+  toolbar?: ReactNode;
   overview: AnalystOverview;
   threshold: number;
   onAnalyze: (call: OverviewCall) => void;
@@ -44,13 +59,73 @@ function duration(call: OverviewCall) {
   return `${Math.floor(seconds / 60)}분 ${String(seconds % 60).padStart(2, '0')}초`;
 }
 
+function applyChartFilters(
+  calls: OverviewCall[],
+  analytics: OverviewAnalytics,
+  band: ScoreBand | null | undefined,
+  group: ExperienceGroup | null | undefined,
+) {
+  const experience = analytics.experience.find((item) => item.id === group);
+  if (group && (!experience || experience.count === null)) return [];
+  const customers =
+    experience && experience.count !== null
+      ? new Set(experience.customerIds)
+      : null;
+  return calls.filter(
+    (call) =>
+      (!band ||
+        (call.qoe !== null &&
+          Number.isFinite(call.qoe) &&
+          getScoreBand(call.qoe, analytics.metric, analytics.threshold) ===
+            band)) &&
+      (!customers || customers.has(call.customerId)),
+  );
+}
 export function QualityOverview({
   overview,
-  threshold,
+  threshold: qoeThreshold,
+  toolbar,
   onAnalyze,
-  filters,
+  filters: requestedFilters,
   onFiltersChange,
 }: Props) {
+  const mosAvailable = useMemo(
+    () =>
+      overview.calls.some(
+        (call) =>
+          typeof call.mos === 'number' &&
+          Number.isFinite(call.mos) &&
+          call.mos >= 1 &&
+          call.mos <= 5,
+      ),
+    [overview],
+  );
+  const unsupportedMetric =
+    requestedFilters.scoreMetric === 'mos' && !mosAvailable;
+  const filters = useMemo(
+    () =>
+      unsupportedMetric
+        ? {
+            ...requestedFilters,
+            scoreMetric: 'qoe' as const,
+            scoreBand: null,
+            experienceGroup: null,
+            page: 0,
+          }
+        : requestedFilters,
+    [requestedFilters, unsupportedMetric],
+  );
+  useEffect(() => {
+    if (unsupportedMetric) onFiltersChange(filters);
+  }, [filters, onFiltersChange, unsupportedMetric]);
+  const metric: ScoreMetric =
+    filters.scoreMetric === 'mos' && mosAvailable ? 'mos' : 'qoe';
+  const metricName = metric === 'mos' ? 'MOS' : 'QoE';
+  const threshold = metric === 'mos' ? 3.5 : qoeThreshold;
+  const scoredOverview = useMemo(
+    () => projectOverviewMetric(overview, metric),
+    [overview, metric],
+  );
   const [viewMode, setViewMode] = useState<'map' | 'list'>('map');
   const [hourMode, setHourMode] = useState<'count' | 'rate'>('count');
   const [focusTarget, setFocusTarget] = useState<{
@@ -75,20 +150,41 @@ export function QualityOverview({
     [filters.from, filters.to, threshold],
   );
   const globalCalls = useMemo(
-    () => filterOverviewCalls(overview, base),
-    [overview, base],
+    () => filterOverviewCalls(scoredOverview, base),
+    [scoredOverview, base],
   );
   const summary = useMemo(
     () => getOverviewSummary(globalCalls, threshold),
     [globalCalls, threshold],
   );
+  const analytics = useMemo(
+    () => getOverviewAnalytics(globalCalls, metric, threshold),
+    [globalCalls, metric, threshold],
+  );
+  const unavailableExperience = Boolean(
+    filters.experienceGroup &&
+    analytics.experience.find((item) => item.id === filters.experienceGroup)
+      ?.count === null,
+  );
   const investigation = useMemo(
     () =>
-      filterOverviewCalls(overview, {
-        ...base,
-        hour: filters.hour ?? undefined,
-      }),
-    [overview, base, filters.hour],
+      applyChartFilters(
+        filterOverviewCalls(scoredOverview, {
+          ...base,
+          hour: filters.hour ?? undefined,
+        }),
+        analytics,
+        filters.scoreBand,
+        filters.experienceGroup,
+      ),
+    [
+      scoredOverview,
+      base,
+      filters.hour,
+      filters.scoreBand,
+      filters.experienceGroup,
+      analytics,
+    ],
   );
   const cells = useMemo(
     () =>
@@ -119,13 +215,27 @@ export function QualityOverview({
   const selected = cells.find((cell) => cell.id === filters.cellId);
   const areaCalls = useMemo(
     () =>
-      filterOverviewCalls(overview, {
-        ...base,
-        hour: filters.hour ?? undefined,
-        cellId: filters.cellId ?? undefined,
-        location: filters.missingLocation ? 'missing' : 'all',
-      }),
-    [overview, base, filters.hour, filters.cellId, filters.missingLocation],
+      applyChartFilters(
+        filterOverviewCalls(scoredOverview, {
+          ...base,
+          hour: filters.hour ?? undefined,
+          cellId: filters.cellId ?? undefined,
+          location: filters.missingLocation ? 'missing' : 'all',
+        }),
+        analytics,
+        filters.scoreBand,
+        filters.experienceGroup,
+      ),
+    [
+      scoredOverview,
+      base,
+      filters.hour,
+      filters.cellId,
+      filters.missingLocation,
+      filters.scoreBand,
+      filters.experienceGroup,
+      analytics,
+    ],
   );
   const area = getOverviewSummary(areaCalls, threshold);
   const rows = useMemo(
@@ -158,9 +268,8 @@ export function QualityOverview({
       className={`${styles.overview} ${viewMode === 'list' ? styles.listMode : ''}`}
     >
       <div className={styles.scope}>
-        <span>
-          <strong>전체 분석 범위</strong> · {overview.date} · {overview.source}
-        </span>
+        {toolbar}
+        <span className={styles.scopeLabel}>시간 범위</span>
         <label>
           시작{' '}
           <input
@@ -194,7 +303,28 @@ export function QualityOverview({
             }
           />
         </label>
-        <span className={styles.muted}>저품질 기준 QoE &lt; {threshold}</span>
+        <label>
+          평가 지표{' '}
+          <select
+            aria-label="평가 지표"
+            value={metric}
+            onChange={(event) =>
+              change({
+                scoreMetric: event.target.value as ScoreMetric,
+                scoreBand: null,
+                experienceGroup: null,
+              })
+            }
+          >
+            <option value="qoe">QoE</option>
+            <option value="mos" disabled={!mosAvailable}>
+              MOS{!mosAvailable ? ' (미제공)' : ''}
+            </option>
+          </select>
+        </label>
+        <span className={styles.muted}>
+          저품질 {metricName} &lt; {threshold}
+        </span>
       </div>
       {filters.from > filters.to && (
         <p className={styles.notice}>
@@ -203,101 +333,140 @@ export function QualityOverview({
       )}
       <section aria-label="전체 분석 요약" className={styles.summary}>
         <div>
-          분석 계약 <strong>{count(summary.customers)}</strong>
+          <span>전체 통화</span>
+          <strong>{count(summary.total)}</strong>
+          <small>
+            평가 가능 {count(summary.evaluated)} · 평가 불가{' '}
+            {count(summary.unscored)}
+          </small>
         </div>
         <div>
-          평가 가능 통화 <strong>{count(summary.evaluated)}</strong>
-          <span> / {count(summary.total)}</span>
+          <span>평균 {metricName}</span>
+          <strong>
+            {analytics.average === null ? '—' : analytics.average.toFixed(2)}
+          </strong>
+          <small>유효 통화별 동일 가중</small>
         </div>
         <div>
-          저품질 통화{' '}
-          <strong className={styles.poor}>{count(summary.poor)}</strong>
+          <span>저품질 통화</span>
+          <strong className={styles.poor}>
+            {count(summary.poor)} <em>{rate(summary.poorRate)}</em>
+          </strong>
+          <small>
+            {metricName} &lt; {threshold} · 평가 {count(summary.evaluated)}통화
+            기준
+          </small>
+        </div>
+        <div
+          title={
+            '종료 분류 기준 미설정 · 미분류 ' +
+            count(analytics.termination.unknown) +
+            '통화'
+          }
+        >
+          <span>비정상 종료</span>
+          <strong className={styles.unknown}>—</strong>
+          <small>종료 분류 기준 미설정</small>
+        </div>
+        <div>
+          <span>영향 계약</span>
+          <strong>{count(summary.affectedCustomers)}</strong>
+          <small>분석 {count(summary.customers)}계약 기준</small>
+        </div>
+        <footer className={styles.summaryNote}>
           <span>
-            {' '}
-            / {count(summary.evaluated)} ·{' '}
-            <b className={styles.poor}>{rate(summary.poorRate)}</b>
+            전체 분석 범위 · {overview.date} · {overview.source} · 분석 계약{' '}
+            {count(summary.customers)}
           </span>
-        </div>
-        <div>
-          영향 계약 <strong>{count(summary.affectedCustomers)}</strong>
-        </div>
-        <div className={styles.summaryNote}>
-          전체 분석 범위 기준 · 평가 불가 {count(summary.unscored)}통화
           <button
             className={styles.link}
             onClick={() =>
-              change({ missingLocation: true, cellId: null, poorOnly: true })
+              change({
+                hour: null,
+                missingLocation: true,
+                cellId: null,
+                poorOnly: true,
+                scoreBand: null,
+                experienceGroup: null,
+              })
             }
           >
             위치 없는 저품질 {count(summary.unlocatedPoor)}통화 보기
           </button>
-        </div>
+        </footer>
       </section>
-      <section aria-label="현재 조사 조건" className={styles.investigation}>
-        <strong>현재 조사</strong>
-        {filters.hour !== null ? (
-          <button
-            className={styles.badge}
-            onClick={() => change({ hour: null })}
-          >
-            {String(filters.hour).padStart(2, '0')}시 해제 ×
-          </button>
-        ) : (
-          <span>전체 시간</span>
-        )}
-        {filters.cellId ? (
-          <button
-            className={styles.badge}
-            onClick={() => change({ cellId: null })}
-          >
-            {labels.get(filters.cellId) || filters.cellId} 해제 ×
-          </button>
-        ) : (
-          <span>전체 구역</span>
-        )}
-        {filters.missingLocation && (
-          <button
-            className={styles.badge}
-            onClick={() => change({ missingLocation: false })}
-          >
-            위치 없음 해제 ×
-          </button>
-        )}
-        <span>
-          조사 {count(area.total)}통화 · 평가 {count(area.evaluated)} · 목록{' '}
-          {count(rows.length)}건
-        </span>
-        <button
-          onClick={() =>
-            change({
-              hour: null,
-              cellId: null,
-              missingLocation: false,
-              poorOnly: true,
-            })
+      <div className={styles.analyticsRow} aria-label="품질 분포와 고객 체감">
+        <QualityDistribution
+          analytics={analytics}
+          selectedBand={filters.scoreBand ?? null}
+          onBandSelect={(band) => change({ scoreBand: band, poorOnly: false })}
+        />
+        <section className={styles.panel} aria-label="시간대별 저품질 통화">
+          <div className={styles.panelHead}>
+            <h2>시간대별 저품질 통화</h2>
+
+            <div>
+              <button
+                aria-pressed={hourMode === 'count'}
+                onClick={() => setHourMode('count')}
+              >
+                건수
+              </button>
+              <button
+                aria-pressed={hourMode === 'rate'}
+                onClick={() => setHourMode('rate')}
+              >
+                비율
+              </button>
+            </div>
+          </div>
+          <div className={styles.chart}>
+            {hourly.map((bin) => {
+              const display = getHourlyDisplay(bin, hourMode);
+              return (
+                <button
+                  key={bin.hour}
+                  className={`${styles.bin} ${filters.hour === bin.hour ? styles.activeBin : ''}`}
+                  title={`${bin.hour}시 · ${display.label}${hourMode === 'count' ? '통화' : ''} · ${display.context}`}
+                  aria-pressed={filters.hour === bin.hour}
+                  aria-label={`${bin.hour}시 저품질 ${bin.poor}통화, 평가 가능 ${bin.evaluated}통화${hourMode === 'rate' ? `, 비율 ${display.label}` : ''}${filters.hour === bin.hour ? ', 선택 해제' : ''}`}
+                  onClick={() =>
+                    change({
+                      hour: filters.hour === bin.hour ? null : bin.hour,
+                    })
+                  }
+                >
+                  <span className={styles.barZone}>
+                    <span
+                      className={styles.bar}
+                      style={{
+                        height: `${((display.value ?? 0) / maximum) * 70 + (display.value ? 3 : 0)}px`,
+                      }}
+                    />
+                    <span className={styles.barValue}>
+                      {hourMode === 'rate' && display.value === null
+                        ? '—'
+                        : display.label}
+                    </span>
+                  </span>
+                  <span>{String(bin.hour).padStart(2, '0')}시</span>
+                </button>
+              );
+            })}
+          </div>
+          <p className={styles.footnote}>
+            비율 = 같은 시간대 저품질 / 평가 가능 · — 평가 불가. 시간 선택은
+            조사 조건에 적용됩니다.
+          </p>
+        </section>
+
+        <CustomerExperience
+          analytics={analytics}
+          selectedGroup={filters.experienceGroup ?? null}
+          onGroupSelect={(group) =>
+            change({ experienceGroup: group, poorOnly: false })
           }
-        >
-          조사 조건 전체 해제
-        </button>
-        <span>전체 요약·시간 분포의 분모 유지</span>
-      </section>
-      <div className={styles.viewTools} aria-label="작업 공간 보기">
-        <button
-          aria-pressed={viewMode === 'map'}
-          onClick={() => setViewMode('map')}
-        >
-          지도 중심
-        </button>
-        <button
-          aria-pressed={viewMode === 'list'}
-          onClick={() => setViewMode('list')}
-        >
-          목록 확장
-        </button>
-        <span>
-          현재 페이지 {count(visible.length)}행 · 보기 전환은 조사 조건을
-          유지합니다.
-        </span>
+        />
       </div>
       <div className={styles.spatial}>
         <section className={styles.panel} aria-label="지역별 품질 지도">
@@ -412,65 +581,107 @@ export function QualityOverview({
           </p>
         </section>
       </div>
-      <section className={styles.panel} aria-label="시간대별 저품질 통화">
-        <div className={styles.panelHead}>
-          <h2>시간대별 저품질 통화</h2>
-          <span>전체 분석 범위 · 통화 시작 시각 기준</span>
-          <div>
-            <button
-              aria-pressed={hourMode === 'count'}
-              onClick={() => setHourMode('count')}
-            >
-              건수
-            </button>
-            <button
-              aria-pressed={hourMode === 'rate'}
-              onClick={() => setHourMode('rate')}
-            >
-              비율
-            </button>
-          </div>
-        </div>
-        <div className={styles.chart}>
-          {hourly.map((bin) => {
-            const display = getHourlyDisplay(bin, hourMode);
-            return (
-              <button
-                key={bin.hour}
-                className={`${styles.bin} ${filters.hour === bin.hour ? styles.activeBin : ''}`}
-                title={`${bin.hour}시 · ${display.label}${hourMode === 'count' ? '통화' : ''} · ${display.context}`}
-                aria-pressed={filters.hour === bin.hour}
-                aria-label={`${bin.hour}시 저품질 ${bin.poor}통화, 평가 가능 ${bin.evaluated}통화${hourMode === 'rate' ? `, 비율 ${display.label}` : ''}${filters.hour === bin.hour ? ', 선택 해제' : ''}`}
-                onClick={() =>
-                  change({
-                    hour: filters.hour === bin.hour ? null : bin.hour,
-                  })
-                }
-              >
-                <span className={styles.barZone}>
-                  <span
-                    className={styles.bar}
-                    style={{
-                      height: `${((display.value ?? 0) / maximum) * 70 + (display.value ? 3 : 0)}px`,
-                    }}
-                  />
-                  <span className={styles.barValue}>
-                    {hourMode === 'rate' && display.value === null
-                      ? '—'
-                      : display.label}
-                  </span>
-                </span>
-                <span>{String(bin.hour).padStart(2, '0')}시</span>
-              </button>
-            );
-          })}
-        </div>
-        <p className={styles.footnote}>
-          비율 = 저품질 / 같은 시간대 평가 가능 통화 · — 평가 불가 · 건수 0은
-          저품질 없음 (통화 없음과 구별은 막대 상세). 시간 선택은
-          지도·순위·목록에 적용됩니다.
-        </p>
+      <section aria-label="현재 조사 조건" className={styles.investigation}>
+        <strong>현재 조사</strong>
+        {filters.hour !== null ? (
+          <button
+            className={styles.badge}
+            onClick={() => change({ hour: null })}
+          >
+            {String(filters.hour).padStart(2, '0')}시 해제 ×
+          </button>
+        ) : (
+          <span>전체 시간</span>
+        )}
+        {filters.cellId ? (
+          <button
+            className={styles.badge}
+            onClick={() => change({ cellId: null })}
+          >
+            {labels.get(filters.cellId) || filters.cellId} 해제 ×
+          </button>
+        ) : (
+          <span>전체 구역</span>
+        )}
+        {filters.missingLocation && (
+          <button
+            className={styles.badge}
+            onClick={() => change({ missingLocation: false })}
+          >
+            위치 없음 해제 ×
+          </button>
+        )}
+        {filters.scoreBand && (
+          <button
+            className={styles.badge}
+            onClick={() => change({ scoreBand: null })}
+          >
+            {analytics.bands.find((item) => item.id === filters.scoreBand)
+              ?.label ?? '점수 구간'}{' '}
+            해제 ×
+          </button>
+        )}
+        {filters.experienceGroup && (
+          <button
+            className={styles.badge}
+            onClick={() => change({ experienceGroup: null })}
+          >
+            {analytics.experience.find(
+              (item) => item.id === filters.experienceGroup,
+            )?.label ?? '고객 체감'}
+            {analytics.experience.find(
+              (item) => item.id === filters.experienceGroup,
+            )?.count === null
+              ? ' (판정 정보 미제공)'
+              : ''}{' '}
+            해제 ×
+          </button>
+        )}
+        <span>
+          조사 {count(area.total)}통화 · 평가 {count(area.evaluated)} · 목록{' '}
+          {count(rows.length)}건
+        </span>
+        <button
+          onClick={() =>
+            change({
+              hour: null,
+              cellId: null,
+              missingLocation: false,
+              poorOnly: true,
+              scoreBand: null,
+              experienceGroup: null,
+            })
+          }
+        >
+          조사 조건 전체 해제
+        </button>
+        <span>전체 요약·시간 분포의 분모 유지</span>
       </section>
+      {unavailableExperience && (
+        <output className={styles.notice}>
+          선택한 체감 집단은 통화 순서를 확인할 수 없어 집계 보류 중입니다. 체감
+          조건을 해제해 다른 통화를 조사하세요.
+        </output>
+      )}
+      <details className={styles.viewTools} aria-label="작업 공간 보기">
+        <summary>목록 보기 설정</summary>
+        <button
+          aria-pressed={viewMode === 'map'}
+          onClick={() => setViewMode('map')}
+        >
+          지도 중심
+        </button>
+        <button
+          aria-pressed={viewMode === 'list'}
+          onClick={() => setViewMode('list')}
+        >
+          목록 확장
+        </button>
+        <span>
+          현재 페이지 {count(visible.length)}행 · 보기 전환은 조사 조건을
+          유지합니다.
+        </span>
+      </details>
       <section className={styles.panel} aria-label="조사 통화 목록">
         <div className={styles.listHead}>
           <h2>
@@ -549,7 +760,7 @@ export function QualityOverview({
                 <th>서비스 계약번호</th>
                 <th>시작 시각</th>
                 <th>통화 시간</th>
-                <th>QoE</th>
+                <th>{metricName}</th>
                 <th>위치 근거</th>
                 <th>작업</th>
               </tr>

@@ -1,0 +1,151 @@
+.panel {
+  height: 230px;
+  box-sizing: border-box;
+  min-width: 0;
+  padding: 12px 12px 9px;
+  border: 1px solid #dce1e7;
+  border-radius: 5px;
+  background: #fff;
+  color: #20252b;
+  font-variant-numeric: tabular-nums;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  container-type: inline-size;
+}
+.heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-height: 20px;
+}
+.heading h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 650;
+}
+.heading > span {
+  font-size: 10px;
+  color: #687586;
+  white-space: nowrap;
+}
+.tiles {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 5px;
+  min-height: 0;
+}
+.panel .tile {
+  width: 100%;
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-align: left;
+  padding: 5px 7px;
+  border: 1px solid #e6eaf0;
+  border-radius: 4px;
+  background: #fff;
+  color: inherit;
+  font-family: inherit;
+  cursor: pointer;
+}
+.panel .tile[aria-pressed='true'] {
+  border-color: #6d7f95;
+  background: #f8faff;
+  box-shadow: inset 2px 0 #6d7f95;
+}
+.panel .tile:disabled {
+  opacity: 1;
+  cursor: default;
+}
+.panel .tile:focus-visible {
+  outline: 2px solid #2459a6;
+  outline-offset: 2px;
+}
+.icon {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.details {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+.label {
+  font-size: 10px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.label small {
+  color: #6b7685;
+  font-size: 9px;
+  font-weight: 400;
+}
+.value {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  font-size: 19px;
+  line-height: 1.15;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.value small {
+  font-size: 10px;
+  font-weight: 500;
+  color: #586576;
+}
+.spark {
+  display: block;
+  align-self: flex-end;
+  width: 68px;
+  height: 27px;
+  flex: 0 0 68px;
+}
+.unavailable {
+  font-size: 9px;
+  color: #7b8796;
+  width: 68px;
+  flex: 0 0 68px;
+  text-align: right;
+}
+.note {
+  margin: 0;
+  font-size: 10px;
+  color: #687586;
+  line-height: 14px;
+}
+@container (max-width: 285px) {
+  .label small {
+    display: block;
+  }
+  .spark,
+  .unavailable {
+    width: 48px;
+    flex-basis: 48px;
+  }
+  .panel .tile {
+    gap: 5px;
+  }
+  .icon {
+    width: 26px;
+    height: 26px;
+    flex-basis: 26px;
+  }
+  .value {
+    font-size: 18px;
+    gap: 4px;
+  }
+}

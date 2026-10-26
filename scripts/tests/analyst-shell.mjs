@@ -57,9 +57,29 @@ try {
     'const styles={};',
   );
   const shellPath = new URL('./.analyst-shell-test.mjs', import.meta.url);
+  code += '\nexport {readFilters, urlFor};\n';
   files.push(shellPath);
   await fs.writeFile(shellPath, code);
-  const { AnalystDashboard } = await import(shellPath.href);
+  const { AnalystDashboard, readFilters, urlFor } = await import(
+    shellPath.href
+  );
+  const { parseSelection } = await import(selectionPath.href);
+  const queryFilters = readFilters(
+    '?metric=mos&band=fair&experience=repeat&from=08%3A00&to=20%3A00&hour=14&cell=x&poor=0',
+  );
+  assert.equal(queryFilters.scoreMetric, 'mos');
+  assert.equal(queryFilters.scoreBand, 'fair');
+  assert.equal(queryFilters.experienceGroup, 'repeat');
+  const encoded = urlFor(
+    parseSelection('?source=실측&view=overview'),
+    queryFilters,
+  );
+  assert.deepEqual(readFilters(encoded), queryFilters);
+  assert.equal(
+    readFilters('?metric=bad&band=fair&experience=bad').scoreBand,
+    null,
+  );
+  assert.equal(readFilters('?metric=bad&experience=bad').experienceGroup, null);
   const html = renderToStaticMarkup(React.createElement(AnalystDashboard));
   assert.match(html, /데이터 목록을 불러오는 중입니다/);
   assert.match(html, /QoE 분석/);

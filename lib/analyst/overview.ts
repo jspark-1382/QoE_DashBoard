@@ -48,7 +48,13 @@ export function appendOverview(
       start: call.start,
       end: call.end,
       startSecond: call.startSecond,
+      startTimestamp: call.startTimestamp,
       qoe: call.qoe,
+      mos: call.mos,
+      endType: call.endType,
+      sipCause: call.sipCause,
+      q850Cause: call.q850Cause,
+      fc: call.fc,
       locationSource: call.locationSource,
       gridIds: [...gridIds],
       site: call.site,
@@ -64,6 +70,7 @@ export function buildOverview(
 ): AnalystOverview {
   const overview: AnalystOverview = {
     schemaVersion: 'analyst-overview-v1',
+    analyticsVersion: 'overview-analytics-v1',
     source,
     date,
     sourceRevision: dataset.meta.revision,

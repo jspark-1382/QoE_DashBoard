@@ -504,3 +504,247 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Approved chart layout: whole-scope summaries, original-style charts, spatial investigation. */
+.scope {
+  gap: 8px 12px;
+  font-size: 12px;
+}
+.scope > label {
+  font-size: 11px;
+  gap: 5px;
+}
+.scope input {
+  width: 126px;
+  min-height: 30px;
+}
+.scope select {
+  padding: 4px 6px;
+}
+.scopeLabel {
+  color: #637181;
+  font-size: 11px;
+}
+.overview .summary {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  padding: 14px 0 0;
+  gap: 0;
+}
+.overview .summary > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  white-space: normal;
+  padding: 0 20px;
+  border-right: 1px solid #dce1e7;
+}
+.overview .summary > div:nth-child(5) {
+  border: 0;
+}
+.summary > div > span {
+  font-size: 12px;
+  color: #435263;
+}
+.overview .summary strong {
+  margin: 0;
+  font-size: 25px;
+  line-height: 1.35;
+}
+.summary strong em {
+  font-size: 16px;
+  font-style: normal;
+  font-weight: 500;
+  margin-left: 6px;
+}
+.summary small {
+  color: #697586;
+  font-size: 11px;
+}
+.summary .unknown {
+  color: #8a94a0;
+}
+.overview .summaryNote {
+  grid-column: 1/-1;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 12px 0 0;
+  padding: 5px 14px;
+  border-top: 1px solid #e8edf2;
+  font-size: 11px;
+  gap: 4px 14px;
+}
+.overview .summaryNote .link {
+  min-height: 20px;
+  font-size: 11px;
+}
+.analyticsRow {
+  display: grid;
+  grid-template-columns: minmax(0, 32fr) minmax(0, 44fr) minmax(0, 24fr);
+  gap: 12px;
+  align-items: stretch;
+}
+.analyticsRow > .panel {
+  height: 230px;
+  display: flex;
+  flex-direction: column;
+}
+.analyticsRow .panelHead {
+  min-height: 40px;
+  padding: 5px 10px;
+}
+.analyticsRow .panelHead h2 {
+  font-size: 14px;
+}
+.analyticsRow .panelHead button {
+  min-height: 24px;
+  padding: 2px 8px;
+  font-size: 11px;
+}
+.analyticsRow .panelHead button[aria-pressed='true'] {
+  color: #2167b1;
+  border-color: #8db8df;
+  background: #f3f8ff;
+}
+.analyticsRow .chart {
+  flex: 1;
+  gap: 2px;
+  padding: 5px 10px 0;
+}
+.analyticsRow .bin {
+  font-size: 9px;
+  padding: 0;
+}
+.analyticsRow .barZone {
+  height: 111px;
+}
+.analyticsRow .barValue {
+  font-size: 9px;
+  line-height: 16px;
+}
+.analyticsRow .bar {
+  background: #99bce0;
+  border-radius: 1px 1px 0 0;
+  width: 84%;
+}
+.analyticsRow .activeBin .bar {
+  background: #df6b64;
+}
+.analyticsRow .footnote {
+  padding: 5px 10px;
+  font-size: 10px;
+  line-height: 1.5;
+}
+.spatial {
+  grid-template-columns: minmax(0, 7fr) minmax(310px, 3fr);
+}
+.map {
+  height: 300px;
+}
+.rankScroll {
+  height: 288px;
+}
+.spatial .panelHead h2 {
+  font-size: 15px;
+}
+.spatial .legend {
+  padding: 6px 12px;
+  gap: 5px 10px;
+  font-size: 10px;
+}
+.spatial .footnote {
+  font-size: 10px;
+  padding: 6px 12px;
+}
+.overview .investigation {
+  position: static;
+  font-size: 11px;
+  padding: 7px 10px;
+  gap: 6px 10px;
+}
+.overview .investigation > span:last-child {
+  margin-left: auto;
+  font-size: 10px;
+}
+.overview .viewTools {
+  display: block;
+  font-size: 11px;
+  color: #68798a;
+}
+.viewTools > summary {
+  width: fit-content;
+  cursor: pointer;
+}
+.viewTools[open] > button {
+  margin: 6px 6px 0 0;
+  min-height: 26px;
+  font-size: 11px;
+}
+@media (max-width: 1100px) {
+  .analyticsRow {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  }
+  .analyticsRow > :last-child {
+    grid-column: 1/-1;
+  }
+  .spatial {
+    grid-template-columns: minmax(0, 1.6fr) minmax(290px, 1fr);
+  }
+  .overview .summary > div {
+    padding: 0 12px;
+  }
+  .overview .summary strong {
+    font-size: 22px;
+  }
+}
+@media (max-width: 760px) {
+  .analyticsRow,
+  .spatial {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .analyticsRow > :last-child {
+    grid-column: auto;
+  }
+  .overview .summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    row-gap: 12px;
+  }
+  .overview .summary > div {
+    border-right: 0;
+  }
+  .overview .summary > div:nth-child(5) {
+    grid-column: 1/-1;
+  }
+  .overview .summaryNote {
+    align-items: flex-start;
+  }
+  .scope {
+    align-items: center;
+  }
+  .scope > :first-child {
+    width: 100%;
+  }
+  .overview .investigation > span:last-child {
+    margin-left: 0;
+  }
+  .analyticsRow .bin {
+    font-size: 8px;
+  }
+  .analyticsRow .barValue {
+    font-size: 8px;
+  }
+  .analyticsRow .chart {
+    padding-left: 5px;
+    padding-right: 5px;
+  }
+  .rankScroll {
+    height: 230px;
+  }
+  .map {
+    height: 280px;
+  }
+}

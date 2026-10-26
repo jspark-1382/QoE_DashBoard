@@ -74,6 +74,7 @@ export async function loadOverview(
   signal?.throwIfAborted();
   if (
     overview.schemaVersion !== 'analyst-overview-v1' ||
+    overview.analyticsVersion !== 'overview-analytics-v1' ||
     overview.source !== source ||
     overview.date !== date ||
     overview.sourceRevision !== dataset.meta.revision

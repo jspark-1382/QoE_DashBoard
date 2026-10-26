@@ -38,6 +38,9 @@ function load(file, imports) {
 const api = load('../../lib/analyst/overview.ts', { './data': data });
 const map = load('../../lib/analyst/map.ts', {});
 const ui = load('../../lib/analyst/overview-ui.ts', {});
+const analytics = require('../analyst-ts-loader.cjs').load(
+  'lib/analyst/overview-analytics.ts',
+);
 const jsx = (type, props) => ({ type, props });
 let stateValues = [],
   stateIndex = 0;
@@ -47,6 +50,7 @@ const { QualityOverview } = load(
   {
     react: {
       useMemo: (fn) => fn(),
+      useEffect: (fn) => fn(),
       useState: (value) => {
         const index = stateIndex++;
         return [
@@ -60,6 +64,9 @@ const { QualityOverview } = load(
     '../../lib/analyst/overview-ui': ui,
     '../../lib/analyst/map': map,
     '../../lib/analyst/overview': api,
+    '../../lib/analyst/overview-analytics': analytics,
+    './quality-distribution': { QualityDistribution: 'QualityDistribution' },
+    './customer-experience': { CustomerExperience: 'CustomerExperience' },
     '../../lib/analyst/data': data,
     './analyst-map': { AnalystMap: 'AnalystMap' },
     './quality-overview.module.css': {
@@ -135,14 +142,14 @@ const text = (tree) =>
       : typeof tree === 'object'
         ? text(tree.props?.children)
         : String(tree);
-function render(filters = {}, values = []) {
+function render(filters = {}, values = [], source = overview) {
   stateValues = values;
   stateIndex = 0;
   stateUpdates.length = 0;
   const updates = [],
     analyzed = [];
   const tree = QualityOverview({
-    overview,
+    overview: source,
     threshold: 2.5,
     filters: { ...defaults, ...filters },
     onFiltersChange: (value) => updates.push(value),
@@ -161,6 +168,86 @@ test('keeps raw contract zeros and score zero; analyzes only explicit selected r
     .props.onClick();
   assert.equal(r.analyzed[0].id, 'a');
 });
+
+test('distribution and experience filters change investigation while keeping whole-scope summary', () => {
+  const r = render();
+  const distribution = r.all.find((n) => n.type === 'QualityDistribution');
+  distribution.props.onBandSelect('good');
+  assert.equal(r.updates[0].scoreBand, 'good');
+  assert.equal(r.updates[0].poorOnly, false);
+  const experience = r.all.find((n) => n.type === 'CustomerExperience');
+  experience.props.onGroupSelect('repeat');
+  assert.equal(r.updates[1].experienceGroup, 'repeat');
+  const selected = render({
+    scoreBand: 'good',
+    experienceGroup: 'repeat',
+    poorOnly: false,
+  });
+  assert.equal(
+    selected.all.filter((n) => n.props?.['aria-label']?.endsWith('통화 분석'))
+      .length,
+    0,
+  );
+  assert.match(
+    text(
+      selected.all.find((n) => n.props?.['aria-label'] === '전체 분석 요약'),
+    ),
+    /100\.0%/,
+  );
+  assert.equal(
+    selected.all.find((n) => n.type === 'QualityDistribution').props.analytics
+      .total,
+    3,
+  );
+  selected.all
+    .find((n) => n.type === 'button' && text(n) === '조사 조건 전체 해제')
+    .props.onClick();
+  assert.equal(selected.updates[0].scoreBand, null);
+  assert.equal(selected.updates[0].experienceGroup, null);
+});
+
+test('MOS projects all summaries and rows consistently without changing original QoE', () => {
+  calls[0].mos = 4.2;
+  calls[1].mos = 3.2;
+  try {
+    const r = render({ scoreMetric: 'mos', poorOnly: true });
+    assert.equal(
+      r.updates.length,
+      0,
+      'available MOS stays selected without normalization',
+    );
+    const summary = text(
+      r.all.find((n) => n.props?.['aria-label'] === '전체 분석 요약'),
+    );
+    assert.match(summary, /평균 MOS3\.70/);
+    assert.match(summary, /50\.0%/);
+    const rows = r.all.filter((n) =>
+      n.props?.['aria-label']?.endsWith('통화 분석'),
+    );
+    assert.equal(rows.length, 1);
+    assert.match(rows[0].props['aria-label'], /09:00:00/);
+    assert.equal(calls[0].qoe, 0);
+    assert.equal(calls[1].qoe, 2);
+    assert.equal(
+      r.all.find((n) => n.type === 'QualityDistribution').props.analytics
+        .metric,
+      'mos',
+    );
+  } finally {
+    delete calls[0].mos;
+    delete calls[1].mos;
+  }
+  const missing = render({ scoreMetric: 'mos' });
+  assert.match(
+    text(missing.all.find((n) => n.props?.['aria-label'] === '전체 분석 요약')),
+    /평균 QoE/,
+  );
+  assert.equal(
+    missing.all.find((n) => n.type === 'option' && n.props.value === 'mos')
+      .props.disabled,
+    true,
+  );
+});
 test('hour investigation narrows map while global summary stays fixed; selection is removable', () => {
   const r = render({ hour: 8 });
   const summary = r.all.find(
@@ -178,7 +265,13 @@ test('hour investigation narrows map while global summary stays fixed; selection
   assert.equal(r.updates[0].hour, null);
 });
 test('unlocated link clears selected grid and lists unlocated poor calls only', () => {
-  const r = render({ cellId: 'x' });
+  const r = render({
+    cellId: 'x',
+    hour: 8,
+    scoreBand: 'good',
+    experienceGroup: 'repeat',
+    page: 3,
+  });
   r.all
     .find(
       (n) => n.type === 'button' && text(n) === '위치 없는 저품질 1통화 보기',
@@ -186,12 +279,129 @@ test('unlocated link clears selected grid and lists unlocated poor calls only', 
     .props.onClick();
   assert.equal(r.updates[0].cellId, null);
   assert.equal(r.updates[0].missingLocation, true);
-  const missing = render({ missingLocation: true });
+  assert.equal(
+    r.updates[0].hour,
+    null,
+    'global unlocated count must open the same whole time scope',
+  );
+  assert.equal(r.updates[0].scoreBand, null);
+  assert.equal(r.updates[0].experienceGroup, null);
+  assert.equal(r.updates[0].page, 0);
+  assert.equal(r.updates[0].poorOnly, true);
+  const missing = render(r.updates[0]);
   const analysis = missing.all.filter((n) =>
     n.props?.['aria-label']?.endsWith('통화 분석'),
   );
   assert.equal(analysis.length, 1);
   assert.match(analysis[0].props['aria-label'], /계약번호 미제공/);
+});
+
+test('unavailable consecutive selection with missing or tied chronology withholds investigation and tells user to clear it', () => {
+  for (const timestamp of [undefined, '2026-10-24T08:00:00+09:00']) {
+    const source = {
+      ...overview,
+      calls: calls.map((call) => ({
+        ...call,
+        customerId: '1',
+        startTimestamp: timestamp,
+      })),
+    };
+    const r = render(
+      { experienceGroup: 'consecutive', poorOnly: false },
+      [],
+      source,
+    );
+    const experience = r.all
+      .find((n) => n.type === 'CustomerExperience')
+      .props.analytics.experience.find((group) => group.id === 'consecutive');
+    assert.equal(
+      experience.count,
+      null,
+      'fixture must represent truly unavailable chronology',
+    );
+    assert.equal(
+      r.all.filter((n) => n.props?.['aria-label']?.endsWith('통화 분석'))
+        .length,
+      0,
+      'unavailable group cannot display unrelated calls',
+    );
+    assert.equal(
+      r.all
+        .find((n) => n.type === 'AnalystMap')
+        .props.cells.reduce((sum, cell) => sum + cell.evaluated, 0),
+      0,
+    );
+    assert.match(text(r.tree), /체감.*집계 보류.*해제/);
+    const summary = text(
+      r.all.find((n) => n.props?.['aria-label'] === '전체 분석 요약'),
+    );
+    assert.match(summary, /전체 통화3/);
+    assert.match(summary, /100\.0%/);
+    const badge = r.all.find(
+      (n) =>
+        n.type === 'button' &&
+        text(n).includes('2회 이상 연속') &&
+        text(n).includes('해제'),
+    );
+    badge.props.onClick();
+    assert.equal(r.updates[0].experienceGroup, null);
+    const cleared = render(r.updates[0], [], source);
+    assert.equal(
+      cleared.all.filter((n) => n.props?.['aria-label']?.endsWith('통화 분석'))
+        .length,
+      2,
+      'clearing the unavailable group restores the evaluated calls',
+    );
+  }
+});
+
+test('unavailable MOS URL normalizes QoE and clears metric-specific investigation before rendering', () => {
+  const r = render({
+    scoreMetric: 'mos',
+    scoreBand: 'fair',
+    experienceGroup: 'consecutive',
+    poorOnly: false,
+    hour: 8,
+    page: 5,
+  });
+  assert.equal(r.updates.length, 1);
+  const normalized = r.updates[0];
+  assert.equal(normalized.scoreMetric, 'qoe');
+  assert.equal(normalized.scoreBand, null);
+  assert.equal(normalized.experienceGroup, null);
+  assert.equal(normalized.page, 0);
+  assert.equal(
+    normalized.hour,
+    8,
+    'metric normalization preserves the independent hour scope',
+  );
+  assert.equal(normalized.from, '00:00');
+  const distribution = r.all.find((n) => n.type === 'QualityDistribution');
+  assert.equal(distribution.props.selectedBand, null);
+  assert.equal(distribution.props.analytics.metric, 'qoe');
+  assert.equal(
+    r.all.find((n) => n.type === 'CustomerExperience').props.selectedGroup,
+    null,
+  );
+  assert.equal(
+    r.all.filter((n) => n.props?.['aria-label']?.endsWith('통화 분석')).length,
+    1,
+    'fallback must not render an impossible QoE fair band',
+  );
+  assert.match(
+    text(r.all.find((n) => n.props?.['aria-label'] === '전체 분석 요약')),
+    /전체 통화3/,
+  );
+  assert.equal(
+    render(normalized).updates.length,
+    0,
+    'normalized URL does not repeat updates',
+  );
+  assert.equal(
+    render({ scoreMetric: 'qoe' }).updates.length,
+    0,
+    'ordinary QoE needs no normalization',
+  );
 });
 test('time range and sort callbacks reset pagination; null score never becomes zero', () => {
   const r = render({ page: 8, poorOnly: false });

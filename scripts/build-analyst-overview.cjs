@@ -24,6 +24,7 @@ for (const [source, filename, folder] of [
   for (const date of dataset.meta.dates) {
     const overview = {
       schemaVersion: 'analyst-overview-v1',
+      analyticsVersion: 'overview-analytics-v1',
       source,
       date,
       ...(revision ? { sourceRevision: revision } : {}),

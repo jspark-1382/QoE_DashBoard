@@ -1,4 +1,5 @@
 import { estimateAdaptive } from '../location-estimation/adaptive';
+import { normalizeStartTimestamp } from './call-time';
 import type {
   AnalystDataset,
   AnalystDay,
@@ -64,6 +65,8 @@ export function normalizeDay(
       ci: str(row[20]),
       start: meta?.start ?? str(rows[0][1]),
       end: meta?.end ?? str(rows.at(-1)?.[1]),
+      startTimestamp: meta?.startTimestamp,
+      endTimestamp: meta?.endTimestamp,
       qoe: num(row[16]),
     });
   }
@@ -256,6 +259,11 @@ export function normalizeDay(
       contractId,
       start: call.start,
       end: call.end,
+      startTimestamp: normalizeStartTimestamp(
+        call.startTimestamp,
+        detail.date,
+        call.start,
+      ),
       startCellId: str(call.startCellId),
       endCellId: str(call.endCellId),
       startSecond,

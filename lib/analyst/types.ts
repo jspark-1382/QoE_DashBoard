@@ -30,7 +30,7 @@ export interface SourceDay {
 export interface AnalystDataset {
   meta:{ dates:string[]; poorQoeThreshold:number; revision?:string; schemaVersion?:string; partitioned?:boolean;
     source?:string; sourceFiles?:string[]; baseStations?:BaseStation[]; gnssCrs?:string;
-    callMeta?:Record<string,{start:string;end:string}>; qoeBasis?:string; frequencyEncoding?:string;
+    callMeta?:Record<string,{start:string;end:string;startTimestamp?:string;endTimestamp?:string}>; qoeBasis?:string; frequencyEncoding?:string;
   };
   customers:SourceCustomer[]; days:SourceDay[];
 }
@@ -46,7 +46,7 @@ export interface AnalystSample {
 }
 export interface AnalystCall {
   id:string; ci:string; customerId:string; contractId:string|null;
-  start:string; end:string; startSecond:number; endSecond:number; qoe:number|null;
+  start:string; end:string; startTimestamp?:string; startSecond:number; endSecond:number; qoe:number|null;
   startCellId:string; endCellId:string;
   durationSeconds?:number;
   rsrp:number|null; rsrq:number|null; sinr:number|null; mos:number|null; pci:number|null; site:string;
@@ -60,11 +60,14 @@ export interface AnalystDay {
 }
 export interface OverviewCall {
   id:string; rawCallId?:string; customerId:string; contractId:string|null; start:string; end:string; startSecond:number;
+  startTimestamp?:string; mos?:number|null;
+  endType?:string; sipCause?:string; q850Cause?:string; fc?:string;
   qoe:number|null; locationSource:LocationSource; gridIds:string[]; site:string;
 }
 export interface OverviewCell { id:string; lat:number; lon:number; label:string; callIds:string[]; }
 export interface AnalystOverview {
   schemaVersion:'analyst-overview-v1'; source:AnalystSource; date:string; sourceRevision?:string;
+  analyticsVersion?:'overview-analytics-v1';
   gridSizeM:60; calls:OverviewCall[]; cells:OverviewCell[];
 }
 export interface OverviewCellRow extends OverviewCell {

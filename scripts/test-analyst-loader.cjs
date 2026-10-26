@@ -148,6 +148,11 @@ console.log(
       }),
     });
     await assert.rejects(() => loadOverview(ds, 'MDT', '2026-01-01'), /버전/);
+    const summaryPayload = {schemaVersion:'analyst-overview-v1',source:'MDT',date:'2026-01-01',sourceRevision:'r1',gridSizeM:60,calls:[],cells:[]};
+    global.fetch=async()=>({ok:true,json:async()=>summaryPayload});
+    await assert.rejects(()=>loadOverview(ds,'MDT','2026-01-01'),/버전/,'Old shape with matching source revision is not current analytics');
+    summaryPayload.analyticsVersion='overview-analytics-v1';
+    assert.equal((await loadOverview(ds,'MDT','2026-01-01')).analyticsVersion,'overview-analytics-v1');
     // An unversioned inline source may have been regenerated while an old summary remains.
     const freshDay = day([]);
     freshDay.calls[0].qoe = 4;
