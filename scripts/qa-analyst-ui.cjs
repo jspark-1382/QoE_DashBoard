@@ -43,6 +43,7 @@ const missingEntry=manifest.days.find(d=>d.sampleCount===0);
  const r=detailFor(rich.id),events=r.day.samples.map((raw,index)=>({raw,index})).filter(({raw})=>raw[21].inCallWindow!==false);
  assert.equal(new URL(page.url()).searchParams.get('customer'),rich.id);assert((await page.locator('body').innerText()).includes(rich.sourceContractId));
  await page.locator('[aria-label^="GNSS 관측"]').first().waitFor({timeout:30000});
+ await page.getByText('위치 근거',{exact:true}).click();
  assert((await page.locator('body').innerText()).includes('정확도 정보 없음'));
  const range=page.getByRole('slider',{name:'관측 시점 선택'});await range.press('End');
  await page.waitForFunction(index=>new URL(location.href).searchParams.get('sample')===String(index),events.at(-1).index);

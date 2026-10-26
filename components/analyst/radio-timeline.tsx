@@ -1,5 +1,10 @@
 'use client';
-import React from 'react';
+import React, { useState } from 'react';
+import {
+  clampWindow,
+  nextObservation,
+  observationSecond,
+} from '../../lib/analyst/timeline-navigation';
 import type { AnalystSample } from '../../lib/analyst/types';
 import styles from './contract-workspace.module.css';
 
@@ -18,22 +23,86 @@ export function RadioTimeline({
   selectedIndex,
   onSelectSample,
 }: Props) {
-  const ordered = [...samples].sort(
-    (a, b) => a.second - b.second || a.index - b.index,
+  const [windowSeconds, setWindowSeconds] = useState<number | null>(null);
+  const allOrdered = [...samples].sort(
+    (a, b) => observationSecond(a) - observationSecond(b) || a.index - b.index,
+  );
+  const [windowStart, windowEnd] = clampWindow(
+    allOrdered,
+    selectedIndex,
+    windowSeconds,
+  );
+  const ordered = allOrdered.filter(
+    (s) =>
+      observationSecond(s) >= windowStart && observationSecond(s) <= windowEnd,
   );
   if (!ordered.length)
-    return <section className={styles.timeline} aria-label="선택 통화 무선 시간축"><div className={styles.panelHeading}><h3>무선 관측 시간축</h3></div><p className={styles.empty}>관측 이벤트가 없습니다.</p></section>;
-  const start = ordered[0].second,
-    span = Math.max(1, ordered[ordered.length - 1].second - start);
-  const selected = ordered.findIndex((s) => s.index === selectedIndex);
+    return (
+      <section className={styles.timeline} aria-label="선택 통화 무선 시간축">
+        <div className={styles.panelHeading}>
+          <h3>무선 관측 시간축</h3>
+        </div>
+        <p className={styles.empty}>관측 이벤트가 없습니다.</p>
+      </section>
+    );
+  const start = windowStart,
+    span = Math.max(1, windowEnd - start);
+  const selected = allOrdered.findIndex((s) => s.index === selectedIndex);
   const position = Math.max(0, selected);
-  const x = (s: AnalystSample) => 42 + ((s.second - start) / span) * 700;
+  const x = (s: AnalystSample) =>
+    42 + ((observationSecond(s) - start) / span) * 700;
   return (
     <section className={styles.timeline} aria-label="선택 통화 무선 시간축">
       <div className={styles.panelHeading}>
         <h3>무선 관측 시간축</h3>
         <span>원래 단위 · 동일 시점 커서</span>
       </div>
+      <div className={styles.navigationTools}>
+        <label>
+          시간 범위{' '}
+          <select
+            aria-label="시간축 표시 범위"
+            value={windowSeconds ?? 'all'}
+            onChange={(e) =>
+              setWindowSeconds(
+                e.target.value === 'all' ? null : Number(e.target.value),
+              )
+            }
+          >
+            <option value="all">전체 시간</option>
+            <option value="60">선택 시점 주변 1분</option>
+            <option value="300">선택 시점 주변 5분</option>
+          </select>
+        </label>
+        <button
+          type="button"
+          disabled={windowSeconds === null}
+          onClick={() => setWindowSeconds(null)}
+        >
+          전체 시간으로 복원
+        </button>
+        {(['condition', 'cell', 'gap'] as const).map((target) => {
+          const next = nextObservation(allOrdered, selectedIndex, target);
+          return (
+            <button
+              key={target}
+              type="button"
+              disabled={next === null}
+              onClick={() => next !== null && onSelectSample(next)}
+            >
+              {target === 'condition'
+                ? '다음 조건 관측'
+                : target === 'cell'
+                  ? '다음 Cell 변경'
+                  : '다음 30초 초과 공백'}
+            </button>
+          );
+        })}
+      </div>
+      <p className={styles.timelineNote}>
+        관측 탐색: RSRP −105 dBm 미만 또는 SINR 0 dB 미만 · 원인 판정 아님.
+        공백은 이후 첫 관측으로 이동합니다.
+      </p>
       {bands.map((b) => {
         const segments: string[] = [];
         let path = '';
@@ -51,7 +120,8 @@ export function RadioTimeline({
             ((b.max - Math.max(b.min, Math.min(b.max, value))) /
               (b.max - b.min)) *
               48;
-          const gap = previous && s.second - previous.second > 30;
+          const gap =
+            previous && observationSecond(s) - observationSecond(previous) > 30;
           if (gap && path) {
             segments.push(path);
             path = '';
@@ -64,7 +134,7 @@ export function RadioTimeline({
           <div key={b.key} className={styles.band}>
             <div className={styles.bandLabel}>
               <strong>{b.label}</strong> <span>{b.unit}</span>
-              <b>{ordered[position][b.key] ?? '—'}</b>
+              <b>{allOrdered[position][b.key] ?? '—'}</b>
             </div>
             <button
               type="button"
@@ -73,11 +143,11 @@ export function RadioTimeline({
                 if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
                   e.preventDefault();
                   onSelectSample(
-                    ordered[
+                    allOrdered[
                       Math.max(
                         0,
                         Math.min(
-                          ordered.length - 1,
+                          allOrdered.length - 1,
                           position + (e.key === 'ArrowRight' ? 1 : -1),
                         ),
                       )
@@ -92,7 +162,10 @@ export function RadioTimeline({
                   start +
                   ((((e.clientX - r.left) / r.width) * 760 - 42) / 700) * span;
                 const nearest = ordered.reduce((a, s) =>
-                  Math.abs(s.second - t) < Math.abs(a.second - t) ? s : a,
+                  Math.abs(observationSecond(s) - t) <
+                  Math.abs(observationSecond(a) - t)
+                    ? s
+                    : a,
                 );
                 onSelectSample(nearest.index);
               }}
@@ -116,7 +189,8 @@ export function RadioTimeline({
                 ))}
                 {ordered.map(
                   (s) =>
-                    s[b.key] !== null && (
+                    s[b.key] !== null &&
+                    Number.isFinite(s[b.key]) && (
                       <circle
                         key={s.index}
                         cx={x(s)}
@@ -133,8 +207,8 @@ export function RadioTimeline({
                     ),
                 )}
                 <line
-                  x1={x(ordered[position])}
-                  x2={x(ordered[position])}
+                  x1={x(allOrdered[position])}
+                  x2={x(allOrdered[position])}
                   y1="6"
                   y2="67"
                   stroke="#2459A6"
@@ -148,16 +222,16 @@ export function RadioTimeline({
       <div className={styles.timelineControls}>
         <button
           disabled={position === 0}
-          onClick={() => onSelectSample(ordered[position - 1].index)}
+          onClick={() => onSelectSample(allOrdered[position - 1].index)}
         >
           이전 관측
         </button>
         <output>
-          {ordered[position].time} · {position + 1}/{ordered.length}
+          {allOrdered[position].time} · {position + 1}/{allOrdered.length}
         </output>
         <button
-          disabled={position === ordered.length - 1}
-          onClick={() => onSelectSample(ordered[position + 1].index)}
+          disabled={position === allOrdered.length - 1}
+          onClick={() => onSelectSample(allOrdered[position + 1].index)}
         >
           다음 관측
         </button>
@@ -167,13 +241,15 @@ export function RadioTimeline({
         type="range"
         aria-label="관측 시점 선택"
         min={0}
-        max={ordered.length - 1}
+        max={allOrdered.length - 1}
         value={position}
-        onChange={(e) => onSelectSample(ordered[Number(e.target.value)].index)}
+        onChange={(e) =>
+          onSelectSample(allOrdered[Number(e.target.value)].index)
+        }
       />
       <div className={styles.timeBounds}>
-        <span>{ordered[0].time}</span>
-        <span>{ordered[ordered.length - 1].time}</span>
+        <span>{allOrdered[0].time}</span>
+        <span>{allOrdered[allOrdered.length - 1].time}</span>
       </div>
     </section>
   );

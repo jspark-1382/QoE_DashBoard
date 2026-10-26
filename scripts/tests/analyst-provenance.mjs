@@ -3,6 +3,16 @@ import fs from 'node:fs/promises';
 import ts from 'typescript';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+const helperFile = new URL('./.analyst-map-helper.mjs', import.meta.url);
+await fs.writeFile(
+  helperFile,
+  ts.transpileModule(await fs.readFile('lib/analyst/map.ts', 'utf8'), {
+    compilerOptions: {
+      module: ts.ModuleKind.ESNext,
+      target: ts.ScriptTarget.ES2022,
+    },
+  }).outputText,
+);
 let code = ts.transpileModule(
   await fs.readFile('components/analyst/contract-workspace.tsx', 'utf8'),
   {
@@ -13,6 +23,7 @@ let code = ts.transpileModule(
     },
   },
 ).outputText;
+code = code.replace('../../lib/analyst/map', './.analyst-map-helper.mjs');
 code = code.replace(
   /import\s+\{[^}]+\}\s+from ['"]\.\.\/\.\.\/lib\/analyst\/data['"];?/s,
   'const isPoorCall=(q,t)=>q!==null&&q<t;',
@@ -84,4 +95,5 @@ try {
   );
 } finally {
   await fs.unlink(file);
+  await fs.unlink(helperFile);
 }

@@ -41,30 +41,10 @@ export function ObservationDetails({
           <p className={styles.locationLabel}>
             {labels[sample.locationSource]}
           </p>
+          <p className={styles.helper}>
+            원본 관측 #{sample.index} · {source}
+          </p>
           <dl className={styles.detailList}>
-            <dt>위도 / 경도</dt>
-            <dd>
-              {sample.locationSource === 'station'
-                ? '고객 위치 미제공'
-                : sample.lat !== null && sample.lon !== null
-                  ? `${sample.lat.toFixed(6)} / ${sample.lon.toFixed(6)}`
-                  : '미제공'}
-            </dd>
-            <dt>위치 정확도</dt>
-            <dd>
-              {sample.locationSource === 'gnss'
-                ? '정확도 정보 없음'
-                : value(sample.accuracyM, ' m')}
-            </dd>
-            {sample.locationSource === 'gnss' && (
-              <>
-                <dt>GNSS 원본 좌표</dt>
-                <dd>
-                  {sample.gnssCrs || '좌표계 미제공'}
-                  <br />X {value(sample.gnssX)} / Y {value(sample.gnssY)}
-                </dd>
-              </>
-            )}
             <dt>RSRP</dt>
             <dd>{value(sample.rsrp, ' dBm')}</dd>
             <dt>RSRQ</dt>
@@ -77,43 +57,91 @@ export function ObservationDetails({
                 <dd>{value(sample.mos)}</dd>
               </>
             )}
-            <dt>PCI</dt>
-            <dd>{value(sample.pci)}</dd>
-            <dt>Cell ID</dt>
-            <dd>{sample.cellId || '미제공'}</dd>
-            <dt>기지국 ID</dt>
-            <dd>{sample.baseStationId || '미제공'}</dd>
-            <dt>주파수 (원본)</dt>
-            <dd>{value(sample.frequency)}</dd>
-            <dt>망 / 사이트</dt>
-            <dd>
-              {sample.rat || '미제공'} / {sample.site || '미제공'}
-            </dd>
           </dl>
           <details className={styles.raw}>
+            <summary>위치 근거</summary>
+            <dl className={styles.detailList}>
+              <dt>위도 / 경도</dt>
+              <dd>
+                {sample.locationSource === 'station'
+                  ? '고객 위치 미제공'
+                  : sample.lat !== null && sample.lon !== null
+                    ? `${sample.lat.toFixed(6)} / ${sample.lon.toFixed(6)}`
+                    : '미제공'}
+              </dd>
+              <dt>
+                {sample.locationSource === 'radio' ||
+                sample.locationSource === 'interpolated'
+                  ? '모델 불확실성 추정'
+                  : '위치 정확도'}
+              </dt>
+              <dd>
+                {sample.locationSource === 'gnss'
+                  ? '정확도 정보 없음'
+                  : value(sample.accuracyM, ' m')}
+              </dd>
+              {sample.locationSource === 'gnss' && (
+                <>
+                  <dt>GNSS 원본 좌표</dt>
+                  <dd>
+                    {sample.gnssCrs || '좌표계 미제공'}
+                    <br />X {value(sample.gnssX)} / Y {value(sample.gnssY)}
+                  </dd>
+                </>
+              )}
+            </dl>
+          </details>
+          <details className={styles.raw}>
+            <summary>기지국·망 정보</summary>
+            <dl className={styles.detailList}>
+              <dt>PCI</dt>
+              <dd>{value(sample.pci)}</dd>
+              <dt>Cell ID</dt>
+              <dd>{sample.cellId || '미제공'}</dd>
+              <dt>기지국 ID</dt>
+              <dd>{sample.baseStationId || '미제공'}</dd>
+              <dt>주파수 (원본)</dt>
+              <dd>{value(sample.frequency)}</dd>
+              <dt>망 / 사이트</dt>
+              <dd>
+                {sample.rat || '미제공'} / {sample.site || '미제공'}
+              </dd>
+            </dl>
+          </details>
+          <details className={styles.raw}>
             <summary>원본 관측 행 보기</summary>
+            <p>
+              원본 계약번호: {call?.contractId || '미제공'} · 관측 CI:{' '}
+              {sample.ci || '미제공'}
+            </p>
+            <p>
+              원본 UTMK: X {value(sample.gnssX)} / Y {value(sample.gnssY)}
+            </p>
             <pre>{JSON.stringify(sample.raw, null, 2)}</pre>
           </details>
         </>
       ) : (
         <p className={styles.empty}>이 통화에 관측 이벤트가 없습니다.</p>
       )}
-      <h4>통화 종료 코드</h4>
-      <dl className={styles.detailList}>
-        {(
-          [
-            ['종료 유형', call?.endType],
-            ['SIP', call?.sipCause],
-            ['Q.850', call?.q850Cause],
-            ['FC', call?.fc],
-          ] as const
-        ).map(([key, v]) => (
-          <React.Fragment key={key}>
-            <dt>{key}</dt>
-            <dd>{v || '미제공'}</dd>
-          </React.Fragment>
-        ))}
-      </dl>
+      <details className={styles.raw}>
+        <summary>원본·종료 코드</summary>
+        <h4>통화 종료 코드</h4>
+        <dl className={styles.detailList}>
+          {(
+            [
+              ['종료 유형', call?.endType],
+              ['SIP', call?.sipCause],
+              ['Q.850', call?.q850Cause],
+              ['FC', call?.fc],
+            ] as const
+          ).map(([key, v]) => (
+            <React.Fragment key={key}>
+              <dt>{key}</dt>
+              <dd>{v || '미제공'}</dd>
+            </React.Fragment>
+          ))}
+        </dl>
+      </details>
       <h4>관측 조건 · 선택 통화</h4>
       <ul className={styles.evidence}>
         <li>

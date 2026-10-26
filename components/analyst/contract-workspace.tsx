@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from 'react';
 import type { AnalystDay } from '../../lib/analyst/types';
 import { isPoorCall } from '../../lib/analyst/data';
+import { getMetricLegend } from '../../lib/analyst/map';
 import { AnalystMap } from './analyst-map';
 import { RadioTimeline } from './radio-timeline';
 import { ObservationDetails } from './observation-details';
@@ -31,6 +32,10 @@ export function ContractWorkspace({
     [estimates, setEstimates] = useState(true),
     [stations, setStations] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(true);
+  const [railOpen, setRailOpen] = useState(true);
+  const [focus, setFocus] = useState<'balanced' | 'map' | 'evidence'>(
+    'balanced',
+  );
   useEffect(() => {
     const media = window.matchMedia('(min-width:1501px)');
     const update = () => setDetailsOpen(media.matches);
@@ -129,67 +134,99 @@ export function ContractWorkspace({
           </p>
         </div>
       )}
-      <div className={styles.columns}>
-        <aside className={styles.callPanel}>
-          <div className={styles.panelHeading}>
-            <h3>통화 목록</h3>
-            <span>{calls.length}건</span>
-          </div>
-          <div className={styles.callTools}>
-            <label>
-              <input
-                type="checkbox"
-                checked={poorOnly}
-                onChange={(e) => setPoorOnly(e.target.checked)}
-              />{' '}
-              저품질만
-            </label>
-            <select
-              aria-label="통화 정렬"
-              value={sort}
-              onChange={(e) => setSort(e.target.value)}
-            >
-              <option value="time">시각순</option>
-              <option value="poor">저품질순</option>
-            </select>
-          </div>
-          <div className={styles.callList}>
-            {calls.length ? (
-              calls.map((c) => (
-                <button
-                  key={c.id}
-                  className={`${styles.callRow} ${c.id === callId ? styles.selected : ''}`}
-                  aria-pressed={c.id === callId}
-                  onClick={() => onSelectCall(c.id)}
-                >
-                  <span className={styles.callTime}>
-                    {c.start} <span>→ {c.end}</span>
-                  </span>
-                  <span className={styles.callMeta}>
-                    <span>{Math.max(0, c.endSecond - c.startSecond)}초</span>
-                    <span
-                      className={
-                        isPoorCall(c.qoe, threshold) ? styles.poor : ''
-                      }
-                    >
-                      QoE {c.qoe === null ? '미제공' : c.qoe.toFixed(2)}
+      <div className={styles.workspaceTools}>
+        <button
+          type="button"
+          aria-expanded={railOpen}
+          aria-controls="contract-call-rail"
+          onClick={() => setRailOpen(!railOpen)}
+        >
+          {railOpen ? '통화 목록 접기' : '통화 목록 펼치기'}
+        </button>
+        <span>작업 공간</span>
+        {(['balanced', 'map', 'evidence'] as const).map((view) => (
+          <button
+            type="button"
+            key={view}
+            aria-pressed={focus === view}
+            onClick={() => {
+              setFocus(view);
+              if (view === 'evidence') setDetailsOpen(true);
+            }}
+          >
+            {view === 'balanced'
+              ? '균형 보기'
+              : view === 'map'
+                ? '지도 중심'
+                : '근거 중심'}
+          </button>
+        ))}
+      </div>
+      <div
+        className={`${styles.columns} ${!railOpen ? styles.railCollapsed : ''} ${focus === 'map' ? styles.mapFocus : focus === 'evidence' ? styles.evidenceFocus : ''}`}
+      >
+        {railOpen && (
+          <aside id="contract-call-rail" className={styles.callPanel}>
+            <div className={styles.panelHeading}>
+              <h3>통화 목록</h3>
+              <span>{calls.length}건</span>
+            </div>
+            <div className={styles.callTools}>
+              <label>
+                <input
+                  type="checkbox"
+                  checked={poorOnly}
+                  onChange={(e) => setPoorOnly(e.target.checked)}
+                />{' '}
+                저품질만
+              </label>
+              <select
+                aria-label="통화 정렬"
+                value={sort}
+                onChange={(e) => setSort(e.target.value)}
+              >
+                <option value="time">시각순</option>
+                <option value="poor">저품질순</option>
+              </select>
+            </div>
+            <div className={styles.callList}>
+              {calls.length ? (
+                calls.map((c) => (
+                  <button
+                    key={c.id}
+                    className={`${styles.callRow} ${c.id === callId ? styles.selected : ''}`}
+                    aria-pressed={c.id === callId}
+                    onClick={() => onSelectCall(c.id)}
+                  >
+                    <span className={styles.callTime}>
+                      {c.start} <span>→ {c.end}</span>
                     </span>
-                  </span>
-                  <span className={styles.helper}>
-                    {c.qoe === null
-                      ? '평가 불가'
-                      : isPoorCall(c.qoe, threshold)
-                        ? '저품질'
-                        : '평가 가능'}{' '}
-                    · 관측 {c.sampleIndices.length}건
-                  </span>
-                </button>
-              ))
-            ) : (
-              <p className={styles.empty}>표시할 통화가 없습니다.</p>
-            )}
-          </div>
-        </aside>
+                    <span className={styles.callMeta}>
+                      <span>{Math.max(0, c.endSecond - c.startSecond)}초</span>
+                      <span
+                        className={
+                          isPoorCall(c.qoe, threshold) ? styles.poor : ''
+                        }
+                      >
+                        QoE {c.qoe === null ? '미제공' : c.qoe.toFixed(2)}
+                      </span>
+                    </span>
+                    <span className={styles.helper}>
+                      {c.qoe === null
+                        ? '평가 불가'
+                        : isPoorCall(c.qoe, threshold)
+                          ? '저품질'
+                          : '평가 가능'}{' '}
+                      · 관측 {c.sampleIndices.length}건
+                    </span>
+                  </button>
+                ))
+              ) : (
+                <p className={styles.empty}>표시할 통화가 없습니다.</p>
+              )}
+            </div>
+          </aside>
+        )}
         <main className={styles.center}>
           <section className={styles.mapPanel}>
             <div className={styles.panelHeading}>
@@ -260,6 +297,20 @@ export function ContractWorkspace({
                 source={day.source}
               />
             </div>
+            <div className={styles.legend} aria-label="지도 색상 수치 기준">
+              {getMetricLegend(metric, threshold).map((item) => (
+                <span key={item.kind}>
+                  <i
+                    className={styles.legendDot}
+                    style={{ backgroundColor: item.color }}
+                  />
+                  {item.label}
+                </span>
+              ))}
+              {metric === 'sinr' && (
+                <span>지도 색상 3 dB 기준 · 관측 탐색 0 dB 기준</span>
+              )}
+            </div>
             <div className={styles.legend}>
               <span>○ GNSS 관측</span>
               <span>◇ 보간·무선 추정</span>
@@ -268,6 +319,7 @@ export function ContractWorkspace({
             </div>
           </section>
           <RadioTimeline
+            key={`${day.customerId}/${day.date}/${callId}`}
             samples={samples}
             selectedIndex={sampleIndex}
             onSelectSample={onSelectSample}
