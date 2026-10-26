@@ -162,7 +162,7 @@ export function AnalystDashboard() {
   );
   const detailKey =
     resolved.view === 'contract' && entry
-      ? `detail-evidence-v1/${resolved.source}/${revision}/${resolved.date}/${resolved.customerId}`
+      ? `detail-compact-v2/${resolved.source}/${revision}/${resolved.date}/${resolved.customerId}`
       : null;
   const detailLoader = useCallback(
     (signal: AbortSignal) => loadDay(dataset!, entry!, resolved.source, signal),
@@ -253,6 +253,10 @@ export function AnalystDashboard() {
     setMessage('');
   };
   const submit = () => {
+    if (!searchOpen && customer) {
+      choose(customer);
+      return;
+    }
     const exact = results.find(
       (c) => getContractId(c)?.toLowerCase() === query.trim().toLowerCase(),
     );
@@ -264,6 +268,166 @@ export function AnalystDashboard() {
     }
   };
   const threshold = dataset?.meta.poorQoeThreshold ?? 2.5;
+  const toolbar = (
+    <div className={styles.toolbar}>
+      {dataset && (
+        <ContractPicker
+          dataset={dataset}
+          source={resolved.source}
+          date={resolved.date}
+          selectedId={resolved.customerId}
+          onSelect={choose}
+        />
+      )}
+      <div className={styles.search}>
+        <label htmlFor="contract-search">
+          {resolved.source === 'MDT'
+            ? '서비스 계약번호'
+            : '계약번호 / 고객'}{' '}
+        </label>
+        <div className={styles.searchLine}>
+          <input
+            id="contract-search"
+            role="combobox"
+            aria-autocomplete="list"
+            aria-expanded={searchOpen && results.length > 0}
+            aria-controls="contract-results"
+            aria-activedescendant={
+              searchOpen && results[highlight]
+                ? `contract-result-${highlight}`
+                : undefined
+            }
+            value={
+              searchOpen
+                ? query
+                : customer
+                  ? (getContractId(customer) ?? customer.displayName)
+                  : query
+            }
+            placeholder="계약번호 입력"
+            onFocus={() => {
+              if (!searchOpen && customer)
+                setQuery(getContractId(customer) ?? customer.displayName);
+              setSearchOpen(true);
+            }}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setHighlight(-1);
+              setSearchOpen(true);
+              setMessage('');
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'ArrowDown') {
+                e.preventDefault();
+                setSearchOpen(true);
+                setHighlight((i) => Math.min(results.length - 1, i + 1));
+              }
+              if (e.key === 'ArrowUp') {
+                e.preventDefault();
+                setHighlight((i) => Math.max(0, i - 1));
+              }
+              if (e.key === 'Escape') setSearchOpen(false);
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                if (searchOpen && results[highlight])
+                  choose(results[highlight]);
+                else submit();
+              }
+            }}
+          />
+          <button onClick={submit} aria-label="계약번호 찾기">
+            찾기
+          </button>
+          {customer && getContractId(customer) && (
+            <button
+              className={styles.copyButton}
+              aria-label="계약번호 복사"
+              title="계약번호 복사"
+              onClick={() =>
+                navigator.clipboard.writeText(getContractId(customer)!).then(
+                  () => setMessage('계약번호를 복사했습니다.'),
+                  () => setMessage('계약번호를 선택해 복사하세요.'),
+                )
+              }
+            >
+              ⧉
+            </button>
+          )}
+        </div>
+        {searchOpen && deferred && (
+          <div className={styles.results}>
+            <div
+              id="contract-results"
+              role="listbox"
+              aria-label="계약 검색 결과"
+            >
+              {results.map((c, i) => (
+                <button
+                  key={c.id}
+                  id={`contract-result-${i}`}
+                  role="option"
+                  aria-selected={i === highlight}
+                  onFocus={() => setHighlight(i)}
+                  onClick={() => choose(c)}
+                >
+                  <strong>{getContractId(c) ?? c.displayName}</strong>
+                  <span>
+                    {c.displayName} · {c.sampleCount.toLocaleString()}개 관측
+                  </span>
+                </button>
+              ))}
+              {!results.length && <p>일치하는 계약이 없습니다.</p>}
+            </div>
+            <p>최대 40건 표시 · 결과를 선택해야 분석 대상이 바뀝니다.</p>
+            <button onClick={() => setSearchOpen(false)}>검색 결과 닫기</button>
+          </div>
+        )}
+      </div>
+      <label className={styles.field}>
+        일자
+        <select
+          aria-label="분석 일자"
+          value={resolved.date}
+          onChange={(e) =>
+            navigate(
+              {
+                ...resolved,
+                date: e.target.value,
+                callId: null,
+                sampleIndex: null,
+              },
+              { ...initialFilters },
+            )
+          }
+        >
+          {(dataset?.meta.dates ?? []).map((date) => (
+            <option key={date}>{date}</option>
+          ))}
+        </select>
+      </label>
+      <label className={styles.field}>
+        데이터 출처
+        <select
+          aria-label="데이터 출처"
+          value={resolved.source}
+          onChange={(e) => {
+            navigate(
+              {
+                ...parseSelection(''),
+                source: e.target.value as AnalystSource,
+              },
+              { ...initialFilters },
+            );
+            setQuery('');
+            setSearchOpen(false);
+          }}
+        >
+          <option>MDT</option>
+          <option>실측</option>
+        </select>
+      </label>
+    </div>
+  );
   return (
     <div className={styles.shell}>
       <header className={styles.appbar}>
@@ -287,6 +451,7 @@ export function AnalystDashboard() {
             계약·통화 분석
           </button>
         </nav>
+        <span className={styles.headerSource}>{resolved.source} · Voice</span>
         <button
           className={styles.settingsButton}
           aria-expanded={settingsOpen}
@@ -296,179 +461,31 @@ export function AnalystDashboard() {
         </button>
       </header>
       <div className={styles.content}>
-        <div className={styles.toolbar}>
-          {dataset && (
-            <ContractPicker
-              dataset={dataset}
-              source={resolved.source}
-              date={resolved.date}
-              selectedId={resolved.customerId}
-              onSelect={choose}
-            />
-          )}
-          <div className={styles.search}>
-            <label htmlFor="contract-search">
-              {resolved.source === 'MDT'
-                ? '서비스 계약번호'
-                : '계약번호 / 고객'}{' '}
-              검색
-            </label>
-            <div className={styles.searchLine}>
-              <input
-                id="contract-search"
-                role="combobox"
-                aria-autocomplete="list"
-                aria-expanded={searchOpen && results.length > 0}
-                aria-controls="contract-results"
-                aria-activedescendant={
-                  searchOpen && results[highlight]
-                    ? `contract-result-${highlight}`
-                    : undefined
-                }
-                value={query}
-                placeholder="원본 번호 입력 후 결과 선택"
-                onFocus={() => setSearchOpen(true)}
-                onChange={(e) => {
-                  setQuery(e.target.value);
-                  setHighlight(-1);
-                  setSearchOpen(true);
-                  setMessage('');
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === 'ArrowDown') {
-                    e.preventDefault();
-                    setSearchOpen(true);
-                    setHighlight((i) => Math.min(results.length - 1, i + 1));
-                  }
-                  if (e.key === 'ArrowUp') {
-                    e.preventDefault();
-                    setHighlight((i) => Math.max(0, i - 1));
-                  }
-                  if (e.key === 'Escape') setSearchOpen(false);
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    if (searchOpen && results[highlight])
-                      choose(results[highlight]);
-                    else submit();
-                  }
-                }}
-              />
-              <button onClick={submit}>찾기</button>
+        {resolved.view === 'contract' && (
+          <>
+            <div className={styles.breadcrumb}>
+              <button
+                onClick={() => navigate({ ...current, view: 'overview' })}
+              >
+                품질 현황으로 돌아가기
+              </button>
+              <span>/ 계약 분석</span>
             </div>
-            {searchOpen && deferred && (
-              <div className={styles.results}>
-                <div
-                  id="contract-results"
-                  role="listbox"
-                  aria-label="계약 검색 결과"
-                >
-                  {results.map((c, i) => (
-                    <button
-                      key={c.id}
-                      id={`contract-result-${i}`}
-                      role="option"
-                      aria-selected={i === highlight}
-                      onFocus={() => setHighlight(i)}
-                      onClick={() => choose(c)}
-                    >
-                      <strong>{getContractId(c) ?? c.displayName}</strong>
-                      <span>
-                        {c.displayName} · {c.sampleCount.toLocaleString()}개
-                        관측
-                      </span>
-                    </button>
-                  ))}
-                  {!results.length && <p>일치하는 계약이 없습니다.</p>}
-                </div>
-                <p>최대 40건 표시 · 결과를 선택해야 분석 대상이 바뀝니다.</p>
-                <button onClick={() => setSearchOpen(false)}>
-                  검색 결과 닫기
-                </button>
-              </div>
-            )}
-          </div>
-          <label className={styles.field}>
-            일자
-            <select
-              aria-label="분석 일자"
-              value={resolved.date}
-              onChange={(e) =>
-                navigate(
-                  {
-                    ...resolved,
-                    date: e.target.value,
-                    callId: null,
-                    sampleIndex: null,
-                  },
-                  { ...initialFilters },
-                )
-              }
-            >
-              {(dataset?.meta.dates ?? []).map((date) => (
-                <option key={date}>{date}</option>
-              ))}
-            </select>
-          </label>
-          <label className={styles.field}>
-            데이터 출처
-            <select
-              aria-label="데이터 출처"
-              value={resolved.source}
-              onChange={(e) => {
-                navigate(
-                  {
-                    ...parseSelection(''),
-                    source: e.target.value as AnalystSource,
-                  },
-                  { ...initialFilters },
-                );
-                setQuery('');
-                setSearchOpen(false);
-              }}
-            >
-              <option>MDT</option>
-              <option>실측</option>
-            </select>
-          </label>
-          <span className={styles.sourceNote}>
-            Voice · 저품질 QoE &lt; {threshold}
-          </span>
-        </div>
-        {customer && (
-          <div className={styles.currentContract}>
-            <span>현재 선택</span>
-            <strong>{getContractId(customer) ?? customer.displayName}</strong>
-            <span>위 계약 선택 버튼에서 변경할 수 있습니다.</span>
-          </div>
+            <div className={styles.pageHeading}>
+              <h1>계약·통화 분석</h1>
+              <span>계약별 통화와 관측 근거를 비교합니다.</span>
+            </div>
+          </>
         )}
+        {!(
+          resolved.view === 'contract' &&
+          day &&
+          !detail.loading &&
+          !detail.error
+        ) && toolbar}
         <p className={styles.message} role="status">
           {message}
         </p>
-        {resolved.view === 'contract' && customer && (
-          <div className={styles.breadcrumb}>
-            <button onClick={() => navigate({ ...current, view: 'overview' })}>
-              품질 현황으로 돌아가기
-            </button>
-            <span>/</span>
-            <strong>{getContractId(customer) ?? customer.displayName}</strong>
-            {getContractId(customer) && (
-              <button
-                onClick={() => {
-                  navigator.clipboard.writeText(getContractId(customer)!).then(
-                    () => setMessage('계약번호를 복사했습니다.'),
-                    () =>
-                      setMessage(
-                        '복사하지 못했습니다. 표시된 계약번호를 선택해 복사하세요.',
-                      ),
-                  );
-                }}
-              >
-                계약번호 복사
-              </button>
-            )}
-            <span>/ {activeCall?.start ?? '통화 선택'}</span>
-          </div>
-        )}
         {settingsOpen && resolved.view === 'overview' && (
           <div className={styles.notice}>
             전체 요약은 선택한 일자·출처·시각 범위 기준입니다. 지도와 구역
@@ -540,6 +557,7 @@ export function AnalystDashboard() {
               ) : day ? (
                 <ContractWorkspace
                   day={day}
+                  toolbar={toolbar}
                   callId={activeCall?.id ?? null}
                   sampleIndex={activeSample?.index ?? null}
                   threshold={threshold}

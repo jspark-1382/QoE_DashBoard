@@ -15,6 +15,7 @@ export interface AnalystEstimationEvidence {
 export interface SourceCustomer { id:string; displayName:string; maskedPhone:string; dates:string[]; sampleCount:number; sourceContractId?:string; gnssSampleCount?:number; callCount?:number; }
 export interface SourceCall {
   id:string; ci?:string; start:string; end:string; startTimestamp?:string; endTimestamp?:string;
+  startCellId?:string; endCellId?:string;
   qoe:number|null; rsrp?:number|null; rsrq?:number|null; sinr?:number|null; mos?:number|null; pci?:number|null;
   site?:string; mdtCount?:number; radioCount?:number; qoeSampleCount?:number; hasMdt?:boolean;
   endType?:string; sipCause?:string; q850Cause?:string; fc?:string; direction?:string;
@@ -46,6 +47,8 @@ export interface AnalystSample {
 export interface AnalystCall {
   id:string; ci:string; customerId:string; contractId:string|null;
   start:string; end:string; startSecond:number; endSecond:number; qoe:number|null;
+  startCellId:string; endCellId:string;
+  durationSeconds?:number;
   rsrp:number|null; rsrq:number|null; sinr:number|null; mos:number|null; pci:number|null; site:string;
   sampleIndices:number[]; mdtCount:number; radioCount:number; hasMdt:boolean;
   gnssCount:number; validEventCount:number; locationSource:LocationSource;

@@ -194,6 +194,7 @@ def normalize(row):
         'end': end.strftime('%H:%M:%S') if end else '',
         'startTimestamp': start.isoformat() if start else None,
         'endTimestamp': end.isoformat() if end else None,
+        'startCellId': clean(fields.get('start_cell_id')), 'endCellId': clean(fields.get('fns_cell_id')),
         'endType': clean(fields.get('ccal_fns_type_cd')), 'sipCause': clean(fields.get('sip_cause')),
         'q850Cause': clean(fields.get('q850_cause')), 'fc': clean(fields.get('fc')),
         'direction': clean(fields.get('out_in_div_cd')), 'reportedMdtCount': numeric(fields.get('mdt_cnt')),
@@ -247,7 +248,7 @@ def _create_staging(connection):
 def _stage(connection, paths):
     source_rows, schemas = {}, set()
     duplicates, invalid_rows, invalid_timestamps = 0, 0, 0
-    revision = hashlib.sha256(b'mdt-v2.5-source-contract-confirmed-gnss')
+    revision = hashlib.sha256(b'mdt-v2.6-source-contract-confirmed-gnss-cdr-cells')
     known_calls = set()
     known_ims = set()
     for path in paths:

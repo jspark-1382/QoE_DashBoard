@@ -49,7 +49,9 @@ const shell = fs.readFileSync(
   'utf8',
 );
 assert.match(shell, /<ContractPicker/);
-assert.match(shell, /현재 선택/);
+assert.match(shell, /getContractId\(customer\)\s*\?\?\s*customer.displayName/);
+assert.match(shell, /if \(!searchOpen && customer\)/);
+assert.match(shell, /aria-label="계약번호 복사"/);
 const overview = fs.readFileSync(
   'components/analyst/quality-overview.tsx',
   'utf8',

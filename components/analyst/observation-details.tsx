@@ -9,13 +9,13 @@ import {
   estimationMethodLabel,
   estimationReason,
 } from '../../lib/analyst/estimation-evidence';
-import styles from './contract-workspace.module.css';
+import styles from './observation-details.module.css';
 const labels = {
   gnss: 'GNSS 관측',
-  interpolated: '보간',
+  interpolated: '보간 추정',
   radio: '무선 추정',
   station: '위치 근거 없음 (기지국 좌표만 제공)',
-  measured: '실측',
+  measured: '제공 좌표 (실측)',
   unavailable: '위치 근거 없음',
 };
 const value = (n: number | null | undefined, unit = '') =>
@@ -40,6 +40,23 @@ export function ObservationDetails({
   const rsrp = samples.filter((s) => s.rsrp !== null),
     sinr = samples.filter((s) => s.sinr !== null),
     both = samples.filter((s) => s.rsrp !== null && s.sinr !== null);
+  const conditions = [
+    {
+      label: 'RSRP −105 dBm 미만',
+      count: rsrp.filter((s) => s.rsrp! < -105).length,
+      total: rsrp.length,
+    },
+    {
+      label: 'SINR 0 dB 미만',
+      count: sinr.filter((s) => s.sinr! < 0).length,
+      total: sinr.length,
+    },
+    {
+      label: '두 조건 동시 발생',
+      count: both.filter((s) => s.rsrp! < -105 && s.sinr! < 0).length,
+      total: both.length,
+    },
+  ];
   return (
     <div className={styles.observation}>
       <h3>선택 관측 근거</h3>
@@ -59,6 +76,12 @@ export function ObservationDetails({
             <dd>{value(sample.rsrq, ' dB')}</dd>
             <dt>SINR</dt>
             <dd>{value(sample.sinr, ' dB')}</dd>
+            <dt>PCI</dt>
+            <dd>{value(sample.pci)}</dd>
+            <dt>Cell ID</dt>
+            <dd>{sample.cellId || '미제공'}</dd>
+            <dt>기지국 ID</dt>
+            <dd>{sample.baseStationId || '미제공'}</dd>
             {source === '실측' && sample.mos !== null && (
               <>
                 <dt>MOS</dt>
@@ -66,12 +89,40 @@ export function ObservationDetails({
               </>
             )}
           </dl>
+        </>
+      ) : (
+        <p className={styles.empty}>이 통화에 관측 이벤트가 없습니다.</p>
+      )}
+      <section className={styles.conditions} aria-label="관측 조건 · 선택 통화">
+        <h4>관측 조건 · 선택 통화</h4>
+        <ul className={styles.conditionList}>
+          {conditions.map(({ label, count, total }) => (
+            <li key={label}>
+              <span>{label}</span>
+              <b>
+                {count}/{total}건
+              </b>
+              {total > 0 ? (
+                <progress
+                  aria-label={`${label} 관측 비율`}
+                  value={count}
+                  max={total}
+                />
+              ) : (
+                <span className={styles.noEvidence}>관측값 없음</span>
+              )}
+            </li>
+          ))}
+        </ul>
+      </section>
+      {sample && (
+        <>
           {source === 'MDT' && (
-            <section
+            <details
               className={styles.estimationStatus}
               aria-label="선택 관측 위치 추정 근거"
             >
-              <h4>자동 위치 추정 근거</h4>
+              <summary>자동 위치 추정 근거</summary>
               <p>{estimationReason(sample)}</p>
               {sample.estimation && (
                 <>
@@ -147,7 +198,7 @@ export function ObservationDetails({
                   </p>
                 </>
               )}
-            </section>
+            </details>
           )}
           <details className={styles.raw}>
             <summary>위치 근거</summary>
@@ -185,12 +236,6 @@ export function ObservationDetails({
           <details className={styles.raw}>
             <summary>기지국·망 정보</summary>
             <dl className={styles.detailList}>
-              <dt>PCI</dt>
-              <dd>{value(sample.pci)}</dd>
-              <dt>Cell ID</dt>
-              <dd>{sample.cellId || '미제공'}</dd>
-              <dt>기지국 ID</dt>
-              <dd>{sample.baseStationId || '미제공'}</dd>
               <dt>주파수 (원본)</dt>
               <dd>{value(sample.frequency)}</dd>
               <dt>망 / 사이트</dt>
@@ -211,8 +256,6 @@ export function ObservationDetails({
             <pre>{JSON.stringify(sample.raw, null, 2)}</pre>
           </details>
         </>
-      ) : (
-        <p className={styles.empty}>이 통화에 관측 이벤트가 없습니다.</p>
       )}
       <details className={styles.raw}>
         <summary>원본·종료 코드</summary>
@@ -233,35 +276,14 @@ export function ObservationDetails({
           ))}
         </dl>
       </details>
-      <h4>관측 조건 · 선택 통화</h4>
-      <ul className={styles.evidence}>
-        <li>
-          RSRP −105 dBm 미만{' '}
-          <b>
-            {rsrp.filter((s) => s.rsrp! < -105).length}/{rsrp.length}건
-          </b>
-        </li>
-        <li>
-          SINR 0 dB 미만{' '}
-          <b>
-            {sinr.filter((s) => s.sinr! < 0).length}/{sinr.length}건
-          </b>
-        </li>
-        <li>
-          두 조건 동시 발생{' '}
-          <b>
-            {both.filter((s) => s.rsrp! < -105 && s.sinr! < 0).length}/
-            {both.length}건
-          </b>
-        </li>
-      </ul>
-      <p className={styles.helper}>
-        분모는 해당 무선값이 있는 이벤트입니다. 조건 건수는 원인 판정이
-        아닙니다.
-      </p>
-      <p className={styles.helper}>
-        QoE는 원본 통화 단위 값입니다. 시점별 무선값과 별도로 표시합니다.
-      </p>
+      <details className={styles.raw}>
+        <summary>관측 집계 기준</summary>
+        <p className={styles.helper}>
+          분모는 해당 무선값이 있는 이벤트입니다. 조건 건수는 원인 판정이
+          아닙니다. QoE는 원본 통화 단위 값입니다. 시점별 무선값과 별도로
+          표시합니다.
+        </p>
+      </details>
     </div>
   );
 }

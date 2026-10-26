@@ -238,6 +238,17 @@ export function normalizeDay(
           : sources.includes('radio')
             ? 'radio'
             : 'unavailable';
+    const startSecond = timeToSecond(call.start),
+      endSecond = timeToSecond(call.end),
+      startTimestamp = Date.parse(call.startTimestamp ?? ''),
+      endTimestamp = Date.parse(call.endTimestamp ?? '');
+    // Full dates preserve multiday duration; clocks alone can establish at most one midnight crossing.
+    const durationSeconds =
+      Number.isFinite(startTimestamp) &&
+      Number.isFinite(endTimestamp) &&
+      endTimestamp >= startTimestamp
+        ? (endTimestamp - startTimestamp) / 1000
+        : endSecond - startSecond + (endSecond < startSecond ? 86400 : 0);
     return {
       id: call.id,
       ci: call.ci ?? rows[0]?.ci ?? '',
@@ -245,8 +256,11 @@ export function normalizeDay(
       contractId,
       start: call.start,
       end: call.end,
-      startSecond: timeToSecond(call.start),
-      endSecond: timeToSecond(call.end),
+      startCellId: str(call.startCellId),
+      endCellId: str(call.endCellId),
+      startSecond,
+      endSecond,
+      durationSeconds,
       qoe: num(call.qoe),
       rsrp: num(call.rsrp) ?? average(rows.map((s) => s.rsrp)),
       rsrq: num(call.rsrq) ?? average(rows.map((s) => s.rsrq)),

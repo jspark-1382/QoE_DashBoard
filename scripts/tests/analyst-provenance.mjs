@@ -143,6 +143,62 @@ try {
   assert(automatic.includes('2개 기지국 가중중심 1건'));
   assert(automatic.includes('무선 추정 시점으로 이동 (1건)'));
   assert(automatic.includes('추정 근거 보기'));
+  assert.match(automatic, /<table[^>]*aria-label="계약 통화 목록"/);
+  assert.match(automatic, /aria-label="MDT 관측 여부"/);
+  assert.match(automatic, /<details[^>]*aria-label="지도 옵션"[^>]*>/);
+  assert.doesNotMatch(
+    automatic,
+    /<details[^>]*aria-label="지도 옵션"[^>]*open/,
+  );
+  assert.doesNotMatch(
+    automatic,
+    /균형 보기|지도 중심|근거 중심|관측 근거 펼치기/,
+  );
+  const cdr = renderToStaticMarkup(
+    React.createElement(ContractWorkspace, {
+      day: {
+        source: 'MDT',
+        customerId: 'synthetic',
+        date: '2026-01-01',
+        samples: [],
+        baseStations: [],
+        calls: [
+          {
+            id: 'cdr',
+            start: '23:59:50',
+            end: '00:00:10',
+            startSecond: 86390,
+            endSecond: 10,
+            qoe: null,
+            hasMdt: false,
+            mdtCount: 0,
+            sampleIndices: [],
+            startCellId: '001234',
+            endCellId: '005678',
+          },
+        ],
+      },
+      callId: 'cdr',
+      sampleIndex: null,
+      threshold: 2.5,
+      onSelectCall: () => {},
+      onSelectSample: () => {},
+    }),
+  );
+  assert.match(cdr, /CDR만 · MDT 없음/);
+  assert.match(cdr, /Cell-ID 001234/);
+  assert.match(cdr, /Cell-ID 005678/);
+  assert.match(cdr, /Cell 위치 미제공/);
+  assert.match(
+    cdr,
+    /<td>00:20<\/td>/,
+    'Clock-only overnight calls show elapsed time',
+  );
+  assert.doesNotMatch(
+    cdr,
+    /data-map-threshold/,
+    'No arbitrary map/trajectory for unmapped CDR cells',
+  );
   console.log(
     'Contract GNSS provenance unknown/known-zero and map threshold tests passed',
   );

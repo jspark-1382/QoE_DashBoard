@@ -17,7 +17,7 @@ try {
       'const {estimationReason, estimationMethodLabel} = globalThis.__analystEstimationEvidence;',
     )
     .replace(
-      "import styles from './contract-workspace.module.css';",
+      /import styles from ['"]\.\/[^'"]+\.module\.css['"];?/,
       'const styles={};',
     );
   await fs.writeFile(
@@ -43,6 +43,8 @@ try {
     sinr: -2,
     raw: [123, 456],
     cellId: 'cell-A',
+    pci: 101,
+    baseStationId: 'base-original',
   };
   const html = renderToStaticMarkup(
     React.createElement(ObservationDetails, {
@@ -83,6 +85,71 @@ try {
       source: 'MDT',
     }),
   );
+  // A long estimator block or hidden original radio identifiers breaks the
+  // compact, immediately inspectable observation contract.
+  const primaryContent = (markup) => {
+    let depth = 0;
+    return markup
+      .split(/(<\/?details\b[^>]*>)/)
+      .filter((part) => {
+        if (part.startsWith('<details')) {
+          depth++;
+          return false;
+        }
+        if (part.startsWith('</details')) {
+          depth--;
+          return false;
+        }
+        return depth === 0;
+      })
+      .join('');
+  };
+  const primary = primaryContent(evidenceHtml);
+  assert(
+    !primary.includes('거리 모델 잔차'),
+    'Estimator diagnostics are closed initially',
+  );
+  for (const text of [
+    '12:00:01',
+    'RSRP',
+    '-110 dBm',
+    'RSRQ',
+    '-12 dB',
+    'SINR',
+    '-2 dB',
+    'PCI',
+    '101',
+    'cell-A',
+    'base-original',
+  ])
+    assert(primary.includes(text), `${text} remains directly visible`);
+  assert.match(primary, /<progress[^>]*value="1"[^>]*max="1"/);
+  assert(
+    ![...evidenceHtml.matchAll(/<details\b([^>]*)>/g)].some((match) =>
+      /\bopen(?:\s|=|$)/.test(match[1]),
+    ),
+  );
+  for (const source of ['gnss', 'measured', 'radio', 'unavailable']) {
+    const rendered = renderToStaticMarkup(
+      React.createElement(ObservationDetails, {
+        sample: { ...sample, locationSource: source },
+        call: null,
+        samples: [sample],
+        source: 'MDT',
+      }),
+    );
+    const content = primaryContent(rendered);
+    assert(
+      content.includes(
+        {
+          gnss: 'GNSS 관측',
+          measured: '제공 좌표',
+          radio: '무선 추정',
+          unavailable: '위치 근거 없음',
+        }[source],
+      ),
+    );
+  }
   for (const text of [
     '2개 기지국 가중중심',
     'base-A',
@@ -156,6 +223,30 @@ try {
     }),
   );
   assert.match(gnss, /정확도 정보 없음/);
+  const missingRadio = renderToStaticMarkup(
+    React.createElement(ObservationDetails, {
+      sample: { ...sample, rsrp: null, sinr: null },
+      call: null,
+      samples: [{ ...sample, rsrp: null, sinr: null }],
+      source: 'MDT',
+    }),
+  );
+  assert.equal((missingRadio.match(/0\/0건/g) || []).length, 3);
+  assert.doesNotMatch(
+    missingRadio,
+    /<progress\b/,
+    'Missing denominators never become a measured zero-rate bar',
+  );
+  const empty = renderToStaticMarkup(
+    React.createElement(ObservationDetails, {
+      sample: null,
+      call: null,
+      samples: [],
+      source: 'MDT',
+    }),
+  );
+  assert.match(empty, /이 통화에 관측 이벤트가 없습니다/);
+  assert.doesNotMatch(empty, /<progress\b/);
   console.log(
     'Observation primary evidence, grouped original comparison and GNSS unknown tests passed',
   );

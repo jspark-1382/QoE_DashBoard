@@ -24,7 +24,7 @@ const source = (
 );
 const compiled = ts.transpileModule(
   source.replace(
-    "import styles from './contract-workspace.module.css';",
+    /import styles from ['"]\.\/[^'"]+\.module\.css['"];?/,
     'const styles = {};',
   ),
   {
@@ -106,6 +106,49 @@ try {
     [81, 81, 81],
     'Next button, ArrowRight and full-call slider emit the same original index beyond zoom',
   );
+  // Reproduce the browser's SVG viewport mapping at a wide/short chart size.
+  // Default xMidYMid meet inserts horizontal gutters, so chart points and the
+  // full-button hit test disagree unless the SVG fills its viewport.
+  selections.length = 0;
+  elements.length = 0;
+  walk(
+    ZoomTimeline({
+      samples: [0, 10, 20, 30, 40, 50, 60].map((second, position) => ({
+        ...zoomSamples[0],
+        second,
+        index: [19, 40, 81, 120, 141, 182, 199][position],
+      })),
+      selectedIndex: 120,
+      onSelectSample: (index) => selections.push(index),
+    }),
+  );
+  for (const label of ['RSRP (', 'SINR (']) {
+    const chart = elements.find((node) =>
+      node.props?.['aria-label']?.startsWith(label),
+    );
+    const svg = chart.props.children;
+    const width = 1000,
+      height = 54,
+      left = 25;
+    const scale = Math.min(width / 760, height / 80);
+    for (const viewX of [42, 158.66666666666666, 392, 742]) {
+      const renderedX =
+        svg.props.preserveAspectRatio === 'none'
+          ? (viewX * width) / 760
+          : (width - 760 * scale) / 2 + viewX * scale;
+      chart.props.onClick({
+        clientX: left + renderedX,
+        currentTarget: {
+          getBoundingClientRect: () => ({ left, width, height }),
+        },
+      });
+    }
+  }
+  assert.deepEqual(
+    selections,
+    [19, 40, 120, 199, 19, 40, 120, 199],
+    'Clicking rendered chart points at wide aspect ratios must select their original indices',
+  );
   const recentred = renderToStaticMarkup(
     React.createElement(ZoomTimeline, {
       samples: zoomSamples,
@@ -135,6 +178,28 @@ try {
     }),
   );
   assert.match(html, /RSRP/);
+  const tools = html.match(
+    /<details\b[^>]*><summary>시간축 도구<\/summary>[\s\S]*?<\/details>/,
+  )?.[0];
+  assert(
+    tools,
+    'Secondary investigation controls are grouped in closed timeline tools',
+  );
+  assert.doesNotMatch(
+    tools.slice(0, tools.indexOf('>') + 1),
+    /\bopen(?:\s|=|>)/,
+  );
+  const primary = html.replace(tools, '');
+  assert.match(primary, /RSRP \(dBm\)/);
+  assert.match(primary, /SINR \(dB\)/);
+  assert.doesNotMatch(
+    primary,
+    /RSRQ|시간축 표시 범위|다음 조건 관측|다음 Cell 변경|다음 30초/,
+  );
+  assert.match(primary, /이전 관측/);
+  assert.match(primary, /12:00:04 · 3\/3/);
+  assert.match(primary, /다음 관측/);
+  assert.equal((primary.match(/<svg\b/g) || []).length, 2);
   assert.match(html, /dBm/);
   assert.match(html, /SINR/);
   assert.match(html, /시간축 표시 범위/);
@@ -145,6 +210,18 @@ try {
   assert.match(html, /원인 판정 아님/);
   assert.match(html, /value="2"/);
   assert.doesNotMatch(html, /MOS/);
+  const measured = renderToStaticMarkup(
+    React.createElement(RadioTimeline, {
+      samples: samples.map((sample) => ({ ...sample, mos: 3.5 })),
+      selectedIndex: 0,
+      onSelectSample() {},
+    }),
+  );
+  const measuredTools = measured.match(
+    /<details\b[^>]*><summary>시간축 도구<\/summary>[\s\S]*?<\/details>/,
+  )?.[0];
+  assert.match(measuredTools, /MOS/);
+  assert.doesNotMatch(measured.replace(measuredTools, ''), /MOS/);
   // A missing middle RSRP event must produce two isolated path moves, never a line across it.
   assert.match(html, /d="M42\.00,40\.80 /);
   assert.match(html, /d="M742\.00,40\.80 /);

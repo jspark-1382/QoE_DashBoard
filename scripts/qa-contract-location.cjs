@@ -60,6 +60,23 @@ const urlFor = ({ customer, day, sample }) =>
     const page = await browser.newPage({
       viewport: { width: 1920, height: 1080 },
     });
+    const openMapOptions = async () => {
+      const options = page.getByLabel('지도 옵션', { exact: true });
+      await options.waitFor({ timeout: 30000 });
+      if ((await options.getAttribute('open')) === null)
+        await options.locator('summary').click();
+    };
+    const openEvidence = async () => {
+      const details = page.getByLabel('선택 관측 위치 추정 근거');
+      await details.waitFor({ timeout: 30000 });
+      if ((await details.getAttribute('open')) === null)
+        await details.locator('summary').click();
+    };
+    const setEvidence = async (checked) => {
+      await openMapOptions();
+      await page.getByLabel('추정 근거 보기', { exact: true }).setChecked(checked);
+      await page.getByLabel('지도 옵션', { exact: true }).locator('summary').click();
+    };
     page.on('pageerror', (error) => errors.push(error.message));
     page.on('request', (request) => {
       if (request.url().includes('/mdt-data/'))
@@ -126,6 +143,7 @@ const urlFor = ({ customer, day, sample }) =>
         exact: true,
       })
       .click();
+    await openMapOptions();
     await page.getByLabel('자동 위치 추정 상태').waitFor({ timeout: 30000 });
     assert.equal(
       new URL(page.url()).searchParams.get('customer'),
@@ -140,6 +158,8 @@ const urlFor = ({ customer, day, sample }) =>
     await page.goto(urlFor(target), { waitUntil: 'domcontentloaded' });
     const evidence = page.getByLabel('선택 관측 위치 추정 근거');
     await evidence.waitFor({ timeout: 30000 });
+    await openEvidence();
+    await openMapOptions();
     assert((await evidence.innerText()).includes('3개 이상 기지국'));
     assert((await evidence.innerText()).includes('삼변·다변측량'));
     assert(
@@ -147,7 +167,7 @@ const urlFor = ({ customer, day, sample }) =>
         'GNSS 0건',
       ),
     );
-    await page.getByLabel('추정 근거 보기', { exact: true }).check();
+    await setEvidence(true);
     await page
       .getByRole('button', {
         name: '위치 추정 근거 기지국으로 지도 이동',
@@ -169,6 +189,7 @@ const urlFor = ({ customer, day, sample }) =>
       fullPage: true,
     });
     const beforeSample = new URL(page.url()).searchParams.get('sample');
+    await openMapOptions();
     await page
       .getByRole('button', { name: /^무선 추정 시점으로 이동/ })
       .click();
@@ -176,14 +197,14 @@ const urlFor = ({ customer, day, sample }) =>
       (before) => new URL(location.href).searchParams.get('sample') !== before,
       beforeSample,
     );
-    await page.getByLabel('추정 근거 보기', { exact: true }).uncheck();
+    await setEvidence(false);
     await page.waitForFunction(
       () =>
         document.querySelectorAll('[aria-label^="추정 근거 기지국 "]')
           .length === 0,
     );
     await page.setViewportSize({ width: 1366, height: 768 });
-    await page.getByRole('button', { name: '근거 중심', exact: true }).click();
+    await openEvidence();
     assert.equal(
       await page.evaluate(
         () => document.documentElement.scrollWidth > innerWidth + 1,
@@ -198,19 +219,21 @@ const urlFor = ({ customer, day, sample }) =>
     await page.goto(urlFor(candidates.WEIGHTED_2_SITE), {
       waitUntil: 'domcontentloaded',
     });
+    await openMapOptions();
     await page.getByLabel('자동 위치 추정 상태').waitFor({ timeout: 30000 });
-    await page.getByRole('button', { name: '근거 중심', exact: true }).click();
+    await openEvidence();
     assert((await evidence.innerText()).includes('2개 기지국 가중중심'));
     await page.goto(urlFor(candidates.CELL_SITE), {
       waitUntil: 'domcontentloaded',
     });
+    await openMapOptions();
     await page.getByLabel('자동 위치 추정 상태').waitFor({ timeout: 30000 });
-    await page.getByRole('button', { name: '근거 중심', exact: true }).click();
+    await openEvidence();
     const singleText = await evidence.innerText();
     assert(singleText.includes('고객 위치 보류'));
     assert(singleText.includes('임시 좌표는 고객 위치에서 제외'));
     assert(!singleText.includes('단일 Site 좌표를 임시 위치로 사용'));
-    await page.getByLabel('추정 근거 보기', { exact: true }).check();
+    await setEvidence(true);
     await page
       .getByRole('button', {
         name: '위치 추정 근거 기지국으로 지도 이동',

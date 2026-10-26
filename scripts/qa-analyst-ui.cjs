@@ -35,7 +35,7 @@ const missingEntry=manifest.days.find(d=>d.sampleCount===0);
  await page.setViewportSize({width:1366,height:768});await page.screenshot({path:output+'/overview-1366.png',fullPage:true});
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false,'Overview no horizontal overflow');
  // Contract search does not switch target until the exact result is selected.
- await page.setViewportSize({width:1920,height:1080});const search=page.getByRole('combobox',{name:'서비스 계약번호 검색'});
+ await page.setViewportSize({width:1920,height:1080});const search=page.getByRole('combobox',{name:'서비스 계약번호'});
  const before=new URL(page.url()).searchParams.get('view');await search.fill(rich.sourceContractId);await page.getByRole('option').filter({hasText:rich.sourceContractId}).waitFor();
  assert.equal(new URL(page.url()).searchParams.get('view'),before);
  await page.getByRole('option').filter({hasText:rich.sourceContractId}).click();
@@ -67,7 +67,7 @@ const missingEntry=manifest.days.find(d=>d.sampleCount===0);
  // Measured inline source is still usable; no nonexistent MOS/GNSS provenance is invented.
  await page.getByLabel('데이터 출처',{exact:true}).selectOption('실측');await page.getByLabel('전체 분석 요약').waitFor();
  const measured=JSON.parse(fs.readFileSync('public/executive-data.json','utf8')),customer=measured.customers[0];
- await page.getByRole('combobox',{name:'계약번호 / 고객 검색'}).fill(customer.displayName);await page.getByRole('option').filter({hasText:customer.displayName}).first().click();
+ await page.getByRole('combobox',{name:'계약번호 / 고객'}).fill(customer.displayName);await page.getByRole('option').filter({hasText:customer.displayName}).first().click();
  await page.getByLabel('선택 통화 무선 시간축').waitFor();assert((await page.locator('body').textContent()).replace(/\s/g,'').includes('GNSS확보율미제공'));
  await page.screenshot({path:output+'/measured-1366.png',fullPage:true});
  assert.deepEqual(errors,[]);console.log(JSON.stringify({browserErrors:errors,overviewWithoutPartitionRequests:true,globalDenominator:true,regionToCallAndBack:true,hourInvestigation:true,missingLocationList:true,originalContractSearch:true,gnssEvidence:true,sampleSelection:true,rendererStable:true,lateCustomerResponseGuard:true,noEventCall:true,measuredRegression:true,desktopFits:true,partitionRequests:requests.length}));

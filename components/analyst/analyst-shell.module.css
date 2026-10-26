@@ -274,18 +274,140 @@
   padding: 0;
 }
 
-.currentContract {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 12px;
-  padding: 10px 14px;
-  margin-top: 10px;
-  border: 1px solid #bfdbfe;
-  border-radius: 7px;
-  background: #eff6ff;
-  color: #1e3a8a;
+.content {
+  max-width: 1900px;
+  padding: 14px 20px 18px;
 }
-.currentContract span {
+.brand {
+  font-size: 19px;
+}
+.headerSource {
+  margin-left: auto;
   font-size: 12px;
+  color: #73808d;
+  white-space: nowrap;
+}
+.settingsButton {
+  margin-left: 0;
+  border: 0 !important;
+  font-size: 12px !important;
+  padding: 5px 0 !important;
+  color: #5d6978 !important;
+}
+.pageHeading {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: 4px 0 16px;
+}
+.pageHeading h1 {
+  font-size: 23px;
+  font-weight: 700;
+  margin: 0;
+}
+.pageHeading > span {
+  font-size: 12px;
+  color: #6d7885;
+}
+.breadcrumb {
+  padding: 0 0 3px;
+  gap: 6px;
+  font-size: 11px;
+  color: #7a8592;
+}
+.breadcrumb button {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: #667689;
+  font-size: 11px;
+}
+.toolbar {
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+.toolbar > button {
+  order: 1;
+  padding: 6px 8px;
+  font-size: 12px;
+}
+.search {
+  width: 315px;
+  max-width: none;
+  gap: 7px;
+  order: 0;
+}
+.search > label {
+  font-size: 11px;
+  white-space: nowrap;
+}
+.searchLine {
+  gap: 4px;
+}
+.searchLine input {
+  width: 145px;
+  padding: 6px 8px;
+  font-size: 12px;
+}
+.searchLine button {
+  padding: 6px 7px;
+  font-size: 12px;
+}
+.searchLine .copyButton {
+  padding: 4px 6px;
+  border: 0;
+  color: #71808f;
+  font-size: 17px;
+}
+.field {
+  order: 2;
+  gap: 5px;
+  font-size: 11px;
+}
+.field select {
+  min-width: 0;
+  width: 116px;
+  padding: 6px 7px;
+  font-size: 12px;
+}
+.field:last-of-type select {
+  width: 76px;
+}
+@media (max-width: 760px) {
+  .content {
+    padding: 12px;
+  }
+  .toolbar {
+    gap: 8px;
+  }
+  .search {
+    width: calc(100% - 78px);
+    flex: 1;
+    min-width: 230px;
+  }
+  .toolbar > button {
+    flex: 0 0 auto;
+  }
+  .pageHeading h1 {
+    font-size: 21px;
+  }
+  .pageHeading {
+    gap: 4px;
+    margin-bottom: 12px;
+  }
+  .pageHeading > span {
+    width: 100%;
+  }
+  .headerSource {
+    display: none;
+  }
+  .settingsButton {
+    margin-left: auto;
+  }
+  .field {
+    flex: 0 1 auto;
+  }
 }

@@ -53,6 +53,7 @@ export function ContractPicker({
     <>
       <button
         ref={trigger}
+        aria-label="계약 목록 / 계약 선택"
         className={styles.trigger}
         onClick={() => {
           setQuery('');
@@ -61,7 +62,7 @@ export function ContractPicker({
           dialog.current?.showModal();
         }}
       >
-        계약 목록 / 계약 선택
+        계약 목록
       </button>
       <dialog
         ref={dialog}

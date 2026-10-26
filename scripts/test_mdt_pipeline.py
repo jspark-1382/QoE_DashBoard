@@ -161,6 +161,40 @@ class PipelineTest(unittest.TestCase):
         self.assertEqual(day['samples'][0][12], 0)
         self.assertIsNone(day['samples'][0][21]['phr'])
 
+    def test_cdr_cell_ids_survive_without_mdt_events_or_customer_coordinates(self):
+        write_xlsx(self.source / 'a.xlsx', [report(
+            svc_cont_id='00001234', start_cell_id='000123456789', fns_cell_id='000987654321',
+            occ_dt='', rsrp='', rsrq='', nsinr='', mdt_cnt='0')])
+        manifest = self.extract()
+        day = self.details(manifest)[0]
+        call = day['calls'][0]
+        self.assertEqual((call.get('startCellId'), call.get('endCellId')),
+                         ('000123456789', '000987654321'))
+        self.assertEqual(day['sourceContractId'], '00001234')
+        self.assertEqual(day['samples'], [])
+        self.assertEqual(day['baseStations'], [])
+        self.assertFalse(call['hasMdt'])
+        self.assertEqual(call['mdtCount'], 0)
+        self.assertIsNone(call['qoe'])
+        self.assertEqual(manifest['meta']['unscoredCalls'], 1)
+        published_path = self.root / 'public' / manifest['days'][0]['dataPath']
+        published_bytes = published_path.read_bytes()
+        write_xlsx(self.source / 'a.xlsx', [report(
+            svc_cont_id='00001234', start_cell_id='000123456780', fns_cell_id='000987654321',
+            occ_dt='', rsrp='', rsrq='', nsinr='', mdt_cnt='0')])
+        revised = self.extract()
+        self.assertNotEqual(revised['meta']['revision'], manifest['meta']['revision'])
+        self.assertEqual(self.details(revised)[0]['calls'][0]['startCellId'], '000123456780')
+        self.assertEqual(published_path.read_bytes(), published_bytes)
+
+    def test_missing_cdr_cell_ids_are_empty_strings_even_when_mdt_has_a_cell(self):
+        write_xlsx(self.source / 'a.xlsx', [report(start_cell_id='NULL', fns_cell_id='_')])
+        day = self.details(self.extract())[0]
+        call = day['calls'][0]
+        self.assertEqual((call.get('startCellId'), call.get('endCellId')), ('', ''))
+        self.assertEqual(day['samples'][0][21]['cellId'], 'CELL-1')
+        self.assertTrue(call['hasMdt'])
+
     def test_default_prefers_new_folder_and_explicit_legacy_directory_uses_csv(self):
         write_xlsx(self.source / 'a.xlsx', [report()])
         legacy_source = self.root / 'data/MDT'
