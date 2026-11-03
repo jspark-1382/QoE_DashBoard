@@ -6,6 +6,7 @@ import { createRequire } from 'node:module';
 const { load } = createRequire(import.meta.url)('../analyst-ts-loader.cjs');
 const evidenceHelper = load('lib/analyst/estimation-evidence.ts');
 globalThis.__analystEstimationEvidence = evidenceHelper;
+globalThis.__analystDurationFormatter = load('lib/analyst/call-duration.ts').formatCallDuration;
 import { renderToStaticMarkup } from 'react-dom/server';
 const helperFile = new URL('./.analyst-map-helper.mjs', import.meta.url);
 await fs.writeFile(
@@ -32,6 +33,10 @@ let code = ts.transpileModule(
     },
   },
 ).outputText;
+code = code.replace(
+  /import\s+\{[^}]+\}\s+from ['"]\.\.\/\.\.\/lib\/analyst\/call-duration['"];?/s,
+  'const formatCallDuration=globalThis.__analystDurationFormatter;',
+);
 code = code.replace('../../lib/analyst/map', './.analyst-map-helper.mjs');
 code = code.replace(
   /import\s+\{[^}]+\}\s+from ['"]\.\.\/\.\.\/lib\/analyst\/data['"];?/s,
@@ -54,6 +59,10 @@ code = code
     /import styles from ['"]\.\/contract-workspace.module.css['"];?/,
     'const styles={};',
   );
+code = code.replace(
+  /import\s+\{[^}]+\}\s+from ['"]\.\/mos-call-investigation['"];?/s,
+  'const MosCallInvestigation=()=>null;',
+);
 const file = new URL('./.analyst-provenance-test.mjs', import.meta.url);
 await fs.writeFile(file, code);
 try {
@@ -143,7 +152,7 @@ try {
   assert(automatic.includes('2개 기지국 가중중심 1건'));
   assert(automatic.includes('무선 추정 시점으로 이동 (1건)'));
   assert(automatic.includes('추정 근거 보기'));
-  assert.match(automatic, /<table[^>]*aria-label="계약 통화 목록"/);
+  assert.match(automatic, /<table[^>]*aria-label="고객 통화 목록"/);
   assert.match(automatic, /aria-label="MDT 관측 여부"/);
   assert.match(automatic, /<details[^>]*aria-label="지도 옵션"[^>]*>/);
   assert.doesNotMatch(
@@ -191,7 +200,7 @@ try {
   assert.match(cdr, /Cell 위치 미제공/);
   assert.match(
     cdr,
-    /<td>00:20<\/td>/,
+    /<td(?:\s[^>]*)?>00:20<\/td>/,
     'Clock-only overnight calls show elapsed time',
   );
   assert.doesNotMatch(

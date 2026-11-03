@@ -9,7 +9,7 @@ const metricRules = {
   rsrp: { label: 'RSRP', threshold: -105, unit: 'dBm' },
   rsrq: { label: 'RSRQ', threshold: -15, unit: 'dB' },
   sinr: { label: 'SINR', threshold: 3, unit: 'dB' },
-  qoe: { label: 'QoE', threshold: 2.5, unit: '' },
+  qoe: { label: 'MOS', threshold: 3.0, unit: '' },
 };
 const measurementColors = {
   poor: '#b64536',
@@ -46,6 +46,18 @@ export function overviewRateColor(rate: number | null): string {
       : rate < 25
         ? '#c47867'
         : '#b64536';
+}
+/** Administrative MDT is a low-MOS-selected subset, so area rates are not representative. */
+export function overviewPoorCountColor(count: number | null): string {
+  return count == null || count <= 0 ? '#9ba6ad' : count < 3 ? '#d7ada4' : count < 10 ? '#c47867' : '#b64536';
+}
+export function getOverviewPoorCountLegend(): { label: string; color: string }[] {
+  return [
+    { label: '위치 연계 통화 없음', color: overviewPoorCountColor(0) },
+    { label: '1~2건', color: overviewPoorCountColor(1) },
+    { label: '3~9건', color: overviewPoorCountColor(3) },
+    { label: '10건 이상', color: overviewPoorCountColor(10) },
+  ];
 }
 export function getOverviewRateLegend(): { label: string; color: string }[] {
   return [

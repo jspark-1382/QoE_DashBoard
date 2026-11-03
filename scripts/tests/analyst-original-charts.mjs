@@ -62,7 +62,7 @@ const mos = {
   experience: [
     {
       id: 'affected',
-      label: '저품질 경험 계약',
+      label: '저품질 경험 고객',
       count: 4,
       total: 20,
       percent: 20,
@@ -73,7 +73,7 @@ const mos = {
     },
     {
       id: 'repeat',
-      label: '반복 불량 계약',
+      label: '반복 불량 고객',
       count: 0,
       total: 20,
       percent: 0,
@@ -82,7 +82,7 @@ const mos = {
     },
     {
       id: 'consecutive',
-      label: '연속 불량 계약',
+      label: '연속 불량 고객',
       count: null,
       total: 20,
       percent: null,
@@ -113,6 +113,14 @@ try {
   assert.match(html, /aria-pressed="true"/);
   assert.match(html, /5\.00.*72통화/);
   const distributionNodes = descendants(distributionTree);
+  const compositionOrder = distributionNodes
+    .filter((node) => node.type === 'button' && node.props['data-composition-band'])
+    .map((node) => node.props['data-composition-band']);
+  assert.deepEqual(compositionOrder, ['poor', 'fair', 'good']);
+  const compositionColors = distributionNodes
+    .filter((node) => node.type === 'button' && node.props['data-composition-band'])
+    .map((node) => node.props.style.backgroundColor);
+  assert.deepEqual(compositionColors, ['#e16868', '#f1c847', '#23a86e']);
   const fairButton = distributionNodes.find(
     (node) =>
       node.type === 'button' && node.props['data-composition-band'] === 'fair',
@@ -267,7 +275,7 @@ try {
   });
   const experienceHTML = renderToStaticMarkup(experienceTree);
   assert.match(experienceHTML, /고객 체감 품질/);
-  assert.match(experienceHTML, /0계약/);
+  assert.match(experienceHTML, /0고객/);
   assert.match(experienceHTML, /0\.0%/);
   assert.match(experienceHTML, /미제공/);
   assert.doesNotMatch(experienceHTML, /전일|대비|▲|▼/);
@@ -307,8 +315,8 @@ try {
     descendants(series).filter((node) => node.type === 'rect').length,
     24,
   );
-  assert.match(renderToStaticMarkup(series), /08시.*3계약/);
-  assert.match(renderToStaticMarkup(series), /09시.*1계약/);
+  assert.match(renderToStaticMarkup(series), /08시.*3고객/);
+  assert.match(renderToStaticMarkup(series), /09시.*1고객/);
   assert.match(experienceHTML, /시간 내/);
   console.log(
     'Original charts SSR: metric bands, exact percentages, accessible scoped toggles, empty/zero/unknown and actual hourly series passed',

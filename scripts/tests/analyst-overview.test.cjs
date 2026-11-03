@@ -66,6 +66,7 @@ const { QualityOverview } = load(
     '../../lib/analyst/overview': api,
     '../../lib/analyst/overview-analytics': analytics,
     './quality-distribution': { QualityDistribution: 'QualityDistribution' },
+    './mos-summary-strip': { MosSummaryStrip: 'MosSummaryStrip' },
     './customer-experience': { CustomerExperience: 'CustomerExperience' },
     '../../lib/analyst/data': data,
     './analyst-map': { AnalystMap: 'AnalystMap' },
@@ -161,7 +162,7 @@ test('keeps raw contract zeros and score zero; analyzes only explicit selected r
   const r = render();
   assert.match(text(r.tree), /0000123/);
   assert.match(text(r.tree), /0\.00/);
-  assert.match(text(r.tree), /계약번호 미제공/);
+  assert.match(text(r.tree), /고객번호 미제공/);
   assert.equal(r.analyzed.length, 0);
   r.all
     .find((n) => n.props?.['aria-label'] === '0000123 08:00:00 통화 분석')
@@ -224,7 +225,7 @@ test('QoE fair investigation filters rows and keeps the same global denominator'
 
 test('MOS projects all summaries and rows consistently without changing original QoE', () => {
   calls[0].mos = 4.2;
-  calls[1].mos = 3.2;
+  calls[1].mos = 2.8;
   try {
     const r = render({ scoreMetric: 'mos', poorOnly: true });
     assert.equal(
@@ -235,7 +236,7 @@ test('MOS projects all summaries and rows consistently without changing original
     const summary = text(
       r.all.find((n) => n.props?.['aria-label'] === '전체 분석 요약'),
     );
-    assert.match(summary, /평균 MOS3\.70/);
+    assert.match(summary, /평균 MOS3\.50/);
     assert.match(summary, /50\.0%/);
     const rows = r.all.filter((n) =>
       n.props?.['aria-label']?.endsWith('통화 분석'),
@@ -275,7 +276,7 @@ test('hour investigation narrows map while global summary stays fixed; selection
     1,
   );
   const hourButton = r.all.find((n) =>
-    n.props?.['aria-label']?.startsWith('8시 저품질'),
+    n.props?.['aria-label']?.startsWith('08시 · 전체 품질 통화'),
   );
   hourButton.props.onClick();
   assert.equal(r.updates[0].hour, null);
@@ -309,7 +310,7 @@ test('unlocated link clears selected grid and lists unlocated poor calls only', 
     n.props?.['aria-label']?.endsWith('통화 분석'),
   );
   assert.equal(analysis.length, 1);
-  assert.match(analysis[0].props['aria-label'], /계약번호 미제공/);
+  assert.match(analysis[0].props['aria-label'], /고객번호 미제공/);
 });
 
 test('unavailable consecutive selection with missing or tied chronology withholds investigation and tells user to clear it', () => {
@@ -457,29 +458,103 @@ test('rank selection requests explicit scoped map focus with raw coordinate titl
   assert.match(request.key, /MDT-2026-10-24:/);
   assert.equal(request.lon, 127);
 });
-test('rate chart exposes evaluated denominator and unavailable hours; view switch preserves filters', () => {
-  const r = render({ hour: 8 }, ['list', 'rate']);
-  const emptyHour = r.all.find((n) =>
-    n.props?.['aria-label']?.startsWith('0시 저품질'),
+test('hourly stacked chart totals assessed calls without double counting poor calls', () => {
+  const r = render({ hour: 8 }, ['list']);
+  const zero = r.all.find((n) =>
+    n.props?.['aria-label']?.startsWith('00시 · 전체 품질 통화'),
   );
-  assert.match(emptyHour.props.title, /평가 불가.*통화 없음/);
-  assert.match(emptyHour.props['aria-label'], /평가 불가/);
+  assert.match(zero.props.title, /전체 품질 통화 0건 \(그 외 0건 \+ 저품질 통화 0건\)/);
   const eight = r.all.find((n) =>
-    n.props?.['aria-label']?.startsWith('8시 저품질'),
+    n.props?.['aria-label']?.startsWith('08시 · 전체 품질 통화'),
   );
-  assert.match(eight.props.title, /100.0%.*평가 가능 1 \/ 전체 2/);
-  assert.match(eight.props['aria-label'], /100.0%/);
+  assert.match(eight.props.title, /전체 품질 통화 1건 \(그 외 0건 \+ 저품질 통화 1건\) · MOS 미평가 1건/);
+  assert.equal(eight.props['aria-pressed'], true);
+  const chart = r.all.find((n) => n.props?.['aria-label'] === '시간대별 통화 내역');
+  assert.equal(
+    nodes(chart).filter((n) => n.type === 'span' && n.props?.className === 'barStack').length,
+    24,
+    '24 hours show one stack each',
+  );
+  const segments = nodes(chart).filter((n) => n.type === 'span' &&
+    (n.props?.className === 'bar barOther' || n.props?.className === 'bar barPoor'));
+  assert.equal(segments.length, 48, 'each stack has mutually exclusive poor and other segments');
+  const eightPoor = nodes(eight).find((n) => n.props?.className === 'bar barPoor');
+  const eightOther = nodes(eight).find((n) => n.props?.className === 'bar barOther');
+  assert.equal(eightPoor.props.style.height, '82px');
+  assert.equal(eightOther.props.style.height, '0px');
+  eight.props.onClick();
+  assert.equal(r.updates[0].hour, null, 'selected hour can be removed');
+
+  const mix = render({}, [], {
+    ...overview,
+    calls: calls.map((call) => call.id === 'c' ? { ...call, qoe: 4 } : call),
+  });
+  const mixedEight = mix.all.find((n) =>
+    n.props?.['aria-label']?.startsWith('08시 · 전체 품질 통화'),
+  );
+  assert.match(mixedEight.props.title, /전체 품질 통화 2건 \(그 외 1건 \+ 저품질 통화 1건\)/);
+  const mixedPoor = nodes(mixedEight).find((n) => n.props?.className === 'bar barPoor');
+  const mixedOther = nodes(mixedEight).find((n) => n.props?.className === 'bar barOther');
+  assert.equal(mixedPoor.props.style.height, '41px');
+  assert.equal(mixedOther.props.style.height, '41px');
+  assert.equal(parseFloat(mixedPoor.props.style.height) + parseFloat(mixedOther.props.style.height), 82);
+
   r.all
     .find((n) => n.type === 'button' && text(n) === '지도 중심')
     .props.onClick();
-  assert.equal(r.updates.length, 0);
   assert.equal(stateUpdates[0].next, 'map');
+});
+
+test('administrative-dong SHP regions replace grid markers and keep district selection interactive', () => {
+  const region = {
+    id: 'adm:11230710', label: '개포4동', lat: 37.478, lon: 127.055,
+    coordinates: [[[[127.05,37.47],[127.06,37.47],[127.06,37.48],[127.05,37.47]]]],
+  };
+  const regionSource = {
+    ...overview,
+    spatialUnit: 'administrative-dong',
+    boundaryBaseDate: '20250630',
+    administrativeDongs: [region],
+    callLocations: [{
+      callId: 'a', areaId: region.id, lat: 37.4779, lon: 127.0548,
+      evidence: 'gnss', start: '08:00:00', mos: 2.4,
+    }],
+    cells: [{
+      id: region.id, lat: region.lat, lon: region.lon,
+      label: region.label, callIds: ['a','c'],
+      gnssCalls: 1, estimatedCalls: 1,
+    }],
+    calls: calls.map((call) => ({
+      ...call,
+      gridIds: call.gridIds.length ? [region.id] : [],
+    })),
+  };
+  const view = render({}, [], regionSource);
+  assert.match(text(view.tree), /행정동별 품질/);
+  assert.match(text(view.tree), /행정동별 저품질 순위/);
+  assert.match(text(view.tree), /개포4동/);
+  assert.match(text(view.tree), /GNSS 1 \/ 추정 1/);
+  assert.match(text(view.tree), /저품질 통화 발생 건수/);
+  assert.match(text(view.tree), /행정동별 전체 저품질 비율을 산출하지 않습니다/);
+  assert.doesNotMatch(text(view.tree), /색상: 저품질 비율/);
+  assert.doesNotMatch(text(view.tree), /60m 격자/);
+  const map = view.all.find((n) => n.type === 'AnalystMap');
+  assert.deepEqual(map.props.administrativeDongs,[region]);
+  assert.equal(map.props.callLocations.length,1);
+  assert.deepEqual(map.props.callLocations[0],regionSource.callLocations[0]);
+  map.props.onCallLocationSelect('a');
+  assert.equal(view.analyzed.length,1, 'occurrence-point click should open exact call detail');
+  assert.equal(view.analyzed[0].id,'a');
+  map.props.onCellSelect(region.id);
+  assert.equal(view.updates[0].cellId,region.id);
+  const ranked = view.all.find((n) => n.type === 'button' && text(n) === '개포4동');
+  assert(ranked,'district list should include SHP area name');
 });
 
 test('overview legend uses the same discrete colors as map rendering', () => {
   const r = render();
   const colors = r.all
-    .filter((n) => n.type === 'i')
+    .filter((n) => n.type === 'i' && n.props?.style?.background)
     .map((n) => n.props.style.background);
   assert.equal(colors.join(','), '#9ba6ad,#d7ada4,#c47867,#b64536');
 });

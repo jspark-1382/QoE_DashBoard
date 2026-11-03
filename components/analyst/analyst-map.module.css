@@ -114,3 +114,81 @@
   line-height: 18px;
   text-align: center;
 }
+
+/* Original call occurrence coordinates, kept above lightly shaded dong polygons. */
+.occurrenceIcon {
+  background: transparent;
+  border: 0;
+}
+.occurrenceIcon > span {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 1px 5px #172c4a55;
+}
+.occurrenceGnss {
+  background: #c2343d;
+  border: 2px solid #fff;
+}
+.occurrenceByeCell {
+  background: #335f7c;
+  border: 2px solid #fff;
+  border-radius: 6px !important;
+}
+.occurrenceTrilat {
+  background: #7058c8;
+  border: 2px solid #fff;
+}
+.occurrenceEstimate {
+  background: #bb761d;
+  border: 2px dashed #fff;
+}
+.occurrencePopup {
+  min-width: 200px;
+  max-height: 260px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-size: 12px;
+}
+.occurrencePopup > strong {
+  font-size: 13px;
+}
+.occurrencePopup > p {
+  margin: 0;
+  color: #536679;
+  font-size: 11px;
+}
+.occurrencePopup > button {
+  text-align: left;
+  color: #2459a6;
+  background: #f4f8fd;
+  border: 1px solid #d3e1ee;
+  padding: 6px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.occurrencePopup > button:hover {
+  background: #e7f2fd;
+}
+
+/* Proposal 3-only marker clustering. Zoom >= 17 displays actual point pins. */
+.occurrenceIcon > .occurrenceGrouped{width:34px;height:34px;background:#496fc0;border:2px solid #fff;box-shadow:0 2px 8px #234b7e70;font-weight:800;}
+
+/* Only enabled for the customer/call map; main administrative map stays unchanged. */
+.sourceDiamond span{width:14px;height:14px;box-shadow:0 1px 4px rgba(25,42,67,.25);border:1.5px solid #fff}
+
+/* Validated BYE serving site, never a UE coordinate. */
+.byeStationIcon{color:#fff;background:#ba6b1d;border:2px solid #fff;box-shadow:0 0 0 2px #ba6b1d,0 2px 8px #212b3755;font-size:18px;line-height:19px;border-radius:50%;font-weight:750}
+
+/* GNSS observed earlier than the BYE-end proxy: NOT an end-time UE fix. */
+.occurrenceGnssReference{background:#e2f6f2!important;color:#146b60!important;border:2px dashed #078e82!important}

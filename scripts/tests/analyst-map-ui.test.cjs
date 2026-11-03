@@ -53,6 +53,18 @@ test('overview legend exposes the discrete percentage steps used by the map', ()
   assert.match(legend[2].label, /25/);
 });
 
+test('administrative dong occurrence shades use poor counts, never biased area percentages', () => {
+  assert.equal(typeof api.overviewPoorCountColor, 'function');
+  assert.equal(typeof api.getOverviewPoorCountLegend, 'function');
+  const legend = api.getOverviewPoorCountLegend();
+  assert.equal(legend.length, 4);
+  for (const [count,index] of [[null,0],[0,0],[1,1],[2,1],[3,2],[9,2],[10,3],[100,3]]) {
+    assert.equal(api.overviewPoorCountColor(count), legend[index].color);
+  }
+  assert.match(legend[0].label, /위치 연계 통화 없음/);
+  assert.match(legend[3].label, /10건 이상/);
+});
+
 test('estimation map evidence belongs only to the selected non-GNSS observation', () => {
   assert.equal(typeof api.getSelectedEstimationSites, 'function');
   const site = {

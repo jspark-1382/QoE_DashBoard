@@ -303,10 +303,18 @@ def _match_station(mdt, stations, indices, schema=None):
     station_candidates = by_station.get(mdt['baseStationId'], [])
     # TXT station matching does not assert any independent cell/frequency identity.
     exact_station = [index for index in station_candidates if stations[index].get('matchLevel') == 'station'] if schema != 'legacy' else []
+    if schema == 'new':
+        # Metro LTE inventory: both RU and CellID must identify the same
+        # source row. CellID alone is often shared by multiple RU sites.
+        cell_exact = [index for index in station_candidates
+                      if stations[index].get('cellId') == mdt['cellId']
+                      and stations[index].get('matchLevel') != 'station']
+        if cell_exact:
+            return cell_exact if len(cell_exact) == 1 else []
+        # Legacy RU-only coordinates remain a provenance-limited fallback.
+        return exact_station if len(exact_station) == 1 else []
     if exact_station:
         return exact_station if len(exact_station) == 1 else []
-    if schema == 'new':
-        return []
     candidates = by_cell.get(mdt['cellId'], [])
     matched = [index for index in candidates if (not mdt['baseStationId'] or stations[index]['baseStationId'] == mdt['baseStationId'])
                and (stations[index]['frequency'] is None or mdt['frequency'] is None or stations[index]['frequency'] == mdt['frequency'])]

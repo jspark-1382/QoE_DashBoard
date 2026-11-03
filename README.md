@@ -1,5 +1,35 @@
 # QoE 분석 플랫폼 — 로컬 실행
 
+## 현재 운영 데이터 (2026-11-03 업데이트)
+
+**데이터 입력은 `data/MDT_New`의 `261026_1030_SIP_Call_All_1 (개포동 전체)_전달용_v1.xlsx` 및 `261026_1030_VoLTE+MDT_강남구 개포동_전달용.xlsx`로 변경되었습니다.** 2026-10-26부터 2026-10-30까지 날짜별 MOS(v5)·CDR·MDT 위치 요약을 제공합니다. 총 184,232 CDR 통화, 고객 ID 46,640개, 행정동 기준 종료 대표 위치 34,381건 (최근 GNSS 180초 참고 적용) (2026-11-03 검증 보류 적용)입니다. 기본 날짜는 10/30이고 품질현황/개선1~4안에서 날짜를 선택할 수 있습니다.
+
+최근 GNSS + 후속 MDT + BYE Cell 보수적 융합 정책: [docs/gnss-bye-temporal-policy.md](docs/gnss-bye-temporal-policy.md). 마지막 GNSS 관측 좌표와 BYE 시점은 같지 않으며 위치 오차는 가정 영역으로 표시합니다.
+
+데이터 검증·일별 집계·매핑 신뢰성: [docs/data-1026-1030-review.md](docs/data-1026-1030-review.md). 과거 아래에 적힌 **10/30 단독 자료의 기지국/MDT 건수는 이전 빌드 기록**이며 현재 5일 통합 자료의 10/30 위치 근거 수(7,318건)와 다릅니다. 기존 원본 품질현황 코드는 유지합니다.
+
+## 현재 기본 입력: 2026-10-30 CDR + VoLTE MDT, RTCP MOS(v5)
+
+현재 기본 분석 화면은 2026-10-30 SIP CDR의 `140. RTCP MOS(v5)`를 대표 지표로 사용합니다.
+
+- **불량:** MOS 3.0 미만 / **주의:** 3.0 이상 3.5 미만 / **양호:** 3.5 이상
+- `_` 등 원본 MOS 미제공 값은 별도 미평가로 표시합니다. 기존 RSRP 기반 추정 QoE는 대표 지표로 사용하지 않습니다.
+- 입력은 10/30 CDR·VoLTE MDT Excel과 기지국 Master(수도권_LTE_261103.xlsx의 RU+CellID 정확 매칭 우선, BaseStation_new.txt는 RU 단독 보조 근거)입니다. 과거 실측·MDT 파일은 기본 분석에서 제외합니다.
+- **2026-11-03 BYE Cell 대체 매핑:** MDT GNSS → 모델 기본 조건 통과 3사이트 이상 위치추정 → 유일한 BYE Cell 기지국 좌표. 중복/미등록 Cell은 위치 미확인. 기지국 좌표는 단말 위치가 아닙니다. 전체 위치 연결 7,218건(28/21/7,169), 그중 저MOS 위치 연결 93건(28/21/44). 원본 MOS 및 고객별 이동경로 변경 없음.
+- 새 데이터 변환: `npm.cmd run data:voice1030` → `npm.cmd run data:overview -- MDT` → `npm.cmd run build` → `npm.cmd run preview:mos`
+- 신규 기지국 데이터 검증: docs/lte-261103-station-matching-review.md. MDT 없는 CDR은 3개 독립 기지국 RSRP가 없어 3변 측량하지 않습니다.
+- 세부 구조 및 통화 매칭 제약: [`docs/voice-1030-development.md`](docs/voice-1030-development.md)
+- **MOS 종합 현황**: 기존 요약 카드와 MOS 분포 차트에서 품질을 확인하고, 등급을 선택해 통화를 필터링합니다. 별도의 'RTCP MOS(v5) 품질등급' 카드 영역은 표시하지 않습니다.
+- **행정동 지도 + 발생 위치**: `data/행정동경계/BND_ADM_DONG_PG.shp`의 행정동 경계(2025-06-30)에 더해 저MOS 통화의 실제 원본 위치 좌표를 숫자 마커로 표시합니다. GNSS(빨간색 원), 3사이트 이상 추정(보라색), 2사이트 근사(주황색)를 구분하고, 근접한 좌표의 통화는 한 마커 안에 건수를 표시합니다. 마커를 클릭하면 통화 시작시각·MOS·개별 통화 분석을 선택할 수 있습니다. CDR 종료 시각(BYE 대용) 60초 이내의 GNSS 우선 대표 위치 1개를 통화당 최대 하나 사용하며, 위치가 있는 통화는 종료 행정동 한 곳에만 집계합니다. **CDR MOS(v5)는 통화 단위 지표이므로, 마커는 '저MOS 통화의 위치 근거'이며 특정 순간에 MOS가 떨어진 정확한 장애 지점이라는 뜻은 아닙니다.** 위치 없는 통화는 행정동에 임의 배정하지 않습니다. 경계 변환에 PC Python의 `shapely` 패키지가 필요합니다.
+- **통화별 원인 근거 분석**: CDR RTP Loss·Jitter와 MDT RSRP·SINR를 나란히 표시합니다. 인과관계는 확정하지 않습니다.
+- **MOS 모델 비교 연구실**: `/qoe/mos-lab`에서 실제 개선 모델 결과 JSON을 업로드하여 원본 v5와 같은 통화의 점수·등급 변화를 비교합니다. 업로드 전에 해당 파일의 데이터 범위와 개인정보 취급을 확인하세요.
+- **UI 개선1안 / 개선2안 / 개선3안 / 개선4안 (별도 탭)**: `/qoe/overview-proposal-1`, `/qoe/overview-proposal-2`, `/qoe/overview-proposal-3`, `/qoe/overview-proposal-4`. 4안은 두 번째 선택 디자인 시안을 참고한 네이비·민트 전문 관제형 화면으로, 실제 CDR/MOS·행정동 SHP·통화 상세 데이터를 사용합니다. 상세: [`docs/quality-proposal-4.md`](docs/quality-proposal-4.md). 제공한 2개 컨셉 이미지를 참고해 네이비 모니터링형과 밝은 고객체감형 두 화면을 만들었으며 MOS 그래프·지도·행정동 순위·통화 근거 카드에 실제 CDR 자료만 사용합니다. **기존 품질현황 본문 및 CSS는 변경하지 않았고 보호 테스트를 추가했습니다.** 상세: [`docs/quality-proposals-1-2.md`](docs/quality-proposals-1-2.md).
+- **품질현황_개선 (이전 비교판, URL 유지)**: `/qoe/overview-improved`. 기존 `품질 현황` 탭 오른쪽이 아닌 **`MOS 알고리즘 비교` 오른쪽**에 링크를 추가했습니다. 기존 품질 현황 컴포넌트는 변경하지 않습니다. 같은 10/30 SIP CDR·MDT 행정동 자료로 KPI, 행정동 경계+개별 저MOS 위치, GNSS/무선 추정 필터, 행정동 순위, 시간대별 누적 차트, 통화 목록, 개별 RTP·무선 원인 분석을 연결합니다. 새 화면에서 기존 화면으로 돌아가 비교할 수 있습니다. 검증: `npm.cmd run test:improved`.
+- 검증 명령: `npm.cmd run test:analyst`, `npm.cmd run test:voice1030`(행정동 SHP 공간매핑 검증 포함), `npm.cmd run test:mos-lab`, `npm.cmd run build`.
+- **Windows 개발 서버(3001)에서 Vinext 내부 500 오류 발생 시:** `npm.cmd run build` 후 `npm.cmd run preview:mos`를 실행하고 `http://127.0.0.1:3014/qoe/` 또는 `http://127.0.0.1:3014/qoe/mos-lab`로 접속할 수 있습니다. 미리보기는 PC 로컬에서만 접근하도록 바인딩합니다.
+
+> 아래의 기존 자료 설명은 이전 테스트·비교용 기능의 기록입니다. 현재 기본 화면은 10월 30일 MOS 분석을 사용합니다.
+
 이 폴더 안에서만 동작하는 로컬 웹 대시보드입니다. 배포 서비스와 연결되지 않습니다.
 
 ## 분석가 작업 화면

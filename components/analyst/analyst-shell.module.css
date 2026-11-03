@@ -59,6 +59,16 @@
   padding: 0 4px;
   background: transparent;
 }
+.appbar nav .navLab {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+  color: #2459a6;
+  white-space: nowrap;
+  font-weight: 650;
+  border-bottom: 3px solid transparent;
+}
+.appbar nav .navLab:hover { border-bottom-color: #2459a6; }
 .appbar nav .active {
   color: #2459a6;
   border-bottom-color: #2459a6;

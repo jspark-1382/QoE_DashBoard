@@ -1,4 +1,7 @@
 import { estimateAdaptive } from '../location-estimation/adaptive';
+import { reviewAdaptivePosition } from '../location-estimation/review';
+import { latestGnssReference } from '../location-estimation/gnss-reference';
+import { distanceM } from '../location-estimation/geo';
 import { normalizeStartTimestamp } from './call-time';
 import type {
   AnalystDataset,
@@ -164,6 +167,17 @@ export function normalizeDay(
     grouped.set(sample.callId, list);
   }
   for (const [callId, rows] of grouped) {
+    // An anchor MUST be from a PREVIOUS original GNSS observation in this same call.
+    // Never put the anchor coordinate into later MDT rows as a fabricated route.
+    const fixes=rows.filter(s=>s.locationSource==='gnss'||
+      s.locationSource==='measured');
+    if(source==='MDT'&&fixes.length){
+      for(const sample of rows){
+        if(sample.lat!=null)continue;
+        const anchor=latestGnssReference(fixes,sample.timestamp);
+        if(anchor)sample.gnssReference=anchor;
+      }
+    }
     // The existing estimator is isolated to this call. Single-site fallback is never a customer point.
     if (source !== 'MDT' || !rows.some((s) => s.lat == null)) continue;
     const observedStations = baseStations.filter((station) =>
@@ -193,7 +207,28 @@ export function normalizeDay(
     const byIndex = new Map(rows.map((s) => [s.index, s]));
     for (const estimate of estimates.positions) {
       const sample = byIndex.get(estimate.sample.sampleIndex)!;
+      const review = estimate.method === 'MEASURED'
+        ? undefined : reviewAdaptivePosition(estimate);
+      // GNSS provides a hard temporal plausibility check for an otherwise
+      // review-passing radio candidate. It does NOT become a new MDT fix.
+      const anchor=sample.gnssReference;
+      if(review?.accepted&&anchor&&estimate.estimatedLat!=null&&estimate.estimatedLon!=null){
+        const displacement=distanceM(
+          {latitude:anchor.lat,longitude:anchor.lon},
+          {latitude:estimate.estimatedLat,longitude:estimate.estimatedLon},
+        );
+        if(displacement>anchor.movementRadiusM){
+          review.accepted=false;
+          review.reasons.push(
+            '최근 GNSS 기준 이동 가능 범위 이탈 · '+
+            Math.round(displacement)+'m > '+anchor.movementRadiusM+'m',
+          );
+        }
+      }
       sample.estimation = {
+        review,
+        candidateLat: estimate.estimatedLat,
+        candidateLon: estimate.estimatedLon,
         method: estimate.method,
         siteCount: estimate.siteCount,
         windowSec: estimate.windowSec,
@@ -214,10 +249,15 @@ export function normalizeDay(
         jump: estimate.jump,
         warnings: [...estimate.warnings],
       };
+      // Always preserve diagnostics even when the modeled UE position is withheld.
+      // GNSS (sample.lat/lon) remains the higher-priority observed evidence.
+      if (sample.lat == null) {
+        sample.confidence = estimate.confidenceScore;
+        sample.accuracyM = estimate.estimatedAccuracyM;
+      }
       if (
         sample.lat != null ||
-        estimate.siteCount < 2 ||
-        estimate.method === 'CELL_SITE' ||
+        !review?.accepted ||
         estimate.estimatedLat == null ||
         estimate.estimatedLon == null
       )
@@ -225,8 +265,6 @@ export function normalizeDay(
       sample.lat = estimate.estimatedLat;
       sample.lon = estimate.estimatedLon;
       sample.locationSource = 'radio';
-      sample.confidence = estimate.confidenceScore;
-      sample.accuracyM = estimate.estimatedAccuracyM;
     }
   }
   const calls = [...callRecords.values()].map((call) => {
@@ -252,6 +290,12 @@ export function normalizeDay(
       endTimestamp >= startTimestamp
         ? (endTimestamp - startTimestamp) / 1000
         : endSecond - startSecond + (endSecond < startSecond ? 86400 : 0);
+    const endGnssReference=Number.isFinite(endTimestamp)
+      ? latestGnssReference(
+          rows.filter(s=>s.locationSource==='gnss'||s.locationSource==='measured'),
+          endTimestamp,
+        )
+      : null;
     return {
       id: call.id,
       ci: call.ci ?? rows[0]?.ci ?? '',
@@ -269,7 +313,13 @@ export function normalizeDay(
       startSecond,
       endSecond,
       durationSeconds,
+      ...(endGnssReference?{endGnssReference}:{}),
       qoe: num(call.qoe),
+      mosV5Original: num(call.mosV5Original),
+      mosStatus: call.mosStatus,
+      matchStatus: call.matchStatus,
+      matchDeltaSec: call.matchDeltaSec,
+      rtp: call.rtp,
       rsrp: num(call.rsrp) ?? average(rows.map((s) => s.rsrp)),
       rsrq: num(call.rsrq) ?? average(rows.map((s) => s.rsrq)),
       sinr: num(call.sinr) ?? average(rows.map((s) => s.sinr)),

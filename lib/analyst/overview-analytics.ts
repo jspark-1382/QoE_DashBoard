@@ -60,8 +60,8 @@ export function getScoreBand(
   metric: ScoreMetric,
   threshold: number,
 ): ScoreBand {
-  const poorLimit = metric === 'mos' ? 3.5 : threshold;
-  const goodLimit = Math.max(4, poorLimit);
+  const poorLimit = threshold;
+  const goodLimit = metric === 'mos' ? 3.5 : Math.max(4, poorLimit);
   return value < poorLimit ? 'poor' : value < goodLimit ? 'fair' : 'good';
 }
 
@@ -142,7 +142,7 @@ export function getOverviewAnalytics(
   metric: ScoreMetric,
   threshold: number,
 ): OverviewAnalytics {
-  threshold = metric === 'mos' ? 3.5 : threshold;
+  threshold = metric === 'mos' ? 3.0 : threshold;
   const all = [...new Map(calls.map((call) => [call.id, call])).values()];
   const rows: ScoredCall[] = all.map((call) => ({
     call,
@@ -151,7 +151,7 @@ export function getOverviewAnalytics(
   }));
   const values = rows.flatMap((row) => (row.value == null ? [] : [row.value]));
   const bands: ScoreBand[] = ['good', 'fair', 'poor'];
-  const labels = { good: '양호', fair: '보통', poor: '불량' };
+  const labels = { good: '양호', fair: metric === 'mos' ? '주의' : '보통', poor: '불량' };
   const bins = Array.from({ length: 20 }, (_, i) => {
     const from = i / 4,
       to = (i + 1) / 4;

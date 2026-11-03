@@ -1,4 +1,5 @@
 import type { BaseStation } from '../location-estimation/types';
+import type { GnssReference } from '../location-estimation/gnss-reference';
 
 export type AnalystSource = 'MDT' | '실측';
 export type LocationSource = 'gnss' | 'interpolated' | 'radio' | 'station' | 'measured' | 'unavailable';
@@ -8,6 +9,9 @@ export interface AnalystEstimationSite {
   cellIds:string[]; residualM:number;
 }
 export interface AnalystEstimationEvidence {
+  review?:import('../location-estimation/review').PositionReview;
+  /** Withheld solver coordinates are diagnostic only, NEVER customer-map coordinates. */
+  candidateLat?:number|null; candidateLon?:number|null;
   method:'MEASURED'|'MULTILATERATION'|'WEIGHTED_2_SITE'|'CELL_SITE'|'INVALID';
   siteCount:number; windowSec:number; usedSites:AnalystEstimationSite[];
   residualErrorM:number|null; geometry:number; jump:boolean; warnings:string[];
@@ -16,6 +20,10 @@ export interface SourceCustomer { id:string; displayName:string; maskedPhone:str
 export interface SourceCall {
   id:string; ci?:string; start:string; end:string; startTimestamp?:string; endTimestamp?:string;
   startCellId?:string; endCellId?:string;
+  mosV5Original?:number|null; mosStatus?:'VALID'|'MISSING'|'INVALID';
+  mosAlgorithmVersion?:string;
+  matchStatus?:'MATCHED'|'AMBIGUOUS'|'UNMATCHED'; matchDeltaSec?:number;
+  rtp?:{txJitter:number|null;rxJitter:number|null;txPacketLoss:number|null;rxPacketLoss:number|null;txLossCount:number|null;rxLossCount:number|null};
   qoe:number|null; rsrp?:number|null; rsrq?:number|null; sinr?:number|null; mos?:number|null; pci?:number|null;
   site?:string; mdtCount?:number; radioCount?:number; qoeSampleCount?:number; hasMdt?:boolean;
   endType?:string; sipCause?:string; q850Cause?:string; fc?:string; direction?:string;
@@ -42,6 +50,8 @@ export interface AnalystSample {
   gnssCrs:string|null; gnssX:number|null; gnssY:number|null;
   stationLat:number|null; stationLon:number|null; confidence:number|null; accuracyM:number|null;
   estimation?:AnalystEstimationEvidence;
+  /** Latest PREVIOUS same-call observed GNSS, independent of any modeled UE point. */
+  gnssReference?:GnssReference;
   raw:readonly unknown[];
 }
 export interface AnalystCall {
@@ -49,10 +59,15 @@ export interface AnalystCall {
   start:string; end:string; startTimestamp?:string; startSecond:number; endSecond:number; qoe:number|null;
   startCellId:string; endCellId:string;
   durationSeconds?:number;
+  /** Last actual GNSS FIX at call end, with age and movement envelope, not a BYE fix. */
+  endGnssReference?:GnssReference;
   rsrp:number|null; rsrq:number|null; sinr:number|null; mos:number|null; pci:number|null; site:string;
   sampleIndices:number[]; mdtCount:number; radioCount:number; hasMdt:boolean;
   gnssCount:number; validEventCount:number; locationSource:LocationSource;
   endType:string; sipCause:string; q850Cause:string; fc:string; direction:string;
+  mosV5Original?:number|null; mosStatus?:'VALID'|'MISSING'|'INVALID';
+  matchStatus?:'MATCHED'|'AMBIGUOUS'|'UNMATCHED'; matchDeltaSec?:number;
+  rtp?:{txJitter:number|null;rxJitter:number|null;txPacketLoss:number|null;rxPacketLoss:number|null;txLossCount:number|null;rxLossCount:number|null};
 }
 export interface AnalystDay {
   source:AnalystSource; customerId:string; contractId:string|null; date:string;
@@ -60,15 +75,52 @@ export interface AnalystDay {
 }
 export interface OverviewCall {
   id:string; rawCallId?:string; customerId:string; contractId:string|null; start:string; end:string; startSecond:number;
-  startTimestamp?:string; mos?:number|null;
+  startTimestamp?:string; mos?:number|null; endCellId?:string;
   endType?:string; sipCause?:string; q850Cause?:string; fc?:string;
   qoe:number|null; locationSource:LocationSource; gridIds:string[]; site:string;
+  /** Evidence of a geographic join; radio estimates are not verified GNSS. */
+  spatialEvidence?:'gnss'|'estimated'|'bye-cell'|'unavailable';
 }
-export interface OverviewCell { id:string; lat:number; lon:number; label:string; callIds:string[]; }
+export interface OverviewCell { id:string; lat:number; lon:number; label:string; callIds:string[]; gnssCalls?:number; estimatedCalls?:number; byeCellCalls?:number; }
+export interface OverviewCallLocation {
+  callId:string; areaId:string; lat:number; lon:number;
+  /** GNSS observed vs radio-derived approximate location. */
+  evidence:'gnss'|'estimated'|'bye-cell'; start:string; mos:number|null;
+  /** One BYE-proxy nearest point per located CDR call; original track lives in day.samples. */
+  representativeBasis?:'cdr-end-nearest'|'bye-cell-site';
+  /** BYE Cell fallback is an LTE site coordinate, not a device location. */
+  byeCellId?:string; byeRuId?:string; byeInventory?:string;
+  /** Supporting BYE tower coordinate separate from actual GNSS observation point. */
+  byeStationLat?:number; byeStationLon?:number;
+  /** Distance/time envelope from the last observed GNSS; not an accuracy radius. */
+  gnssReferenceAgeSec?:number; possibleRadiusM?:number;
+  referenceBasis?:'last-known-gnss'|'direct-gnss'|'reviewed-radio'|'bye-station';
+  observedAt?:string; cdrEndAt?:string; secondsBeforeEnd?:number;
+  /** Radio estimate metadata. Model uncertainty is NOT validated location error. */
+  positionQuality?:'gnss-observed'|'gnss-last-known'|'trilateration-reviewable'|'trilateration-weak'|'two-site-approximation'|'other-approximation'|'bye-cell-site';
+  estimationMethod?:string|null; usedSiteCount?:number|null;
+  geometry?:number|null; residualErrorM?:number|null;
+  modelUncertaintyM?:number|null; modelConfidenceScore?:number|null;
+  estimationWindowSec?:number|null;
+}
+export interface AdministrativeDongBoundary {
+  id:string; label:string; lat:number; lon:number;
+  /** MultiPolygon GeoJSON coordinates in WGS84 [longitude, latitude] order. */
+  coordinates:number[][][][];
+}
 export interface AnalystOverview {
   schemaVersion:'analyst-overview-v1'; source:AnalystSource; date:string; sourceRevision?:string;
   analyticsVersion?:'overview-analytics-v1';
   gridSizeM:60; calls:OverviewCall[]; cells:OverviewCell[];
+  spatialUnit?:'administrative-dong'|'grid60';
+  administrativeDongs?:AdministrativeDongBoundary[];
+  /** At most one CDR-end-nearest original GNSS/radio coordinate per call. */
+  callLocations?:OverviewCallLocation[];
+  representativeLocationBasis?:'cdr-end-nearest-or-bye-cell-site';
+  representativeMaxAgeSeconds?:number;
+  representativeAfterEndToleranceSeconds?:number;
+  boundarySource?:string; boundaryBaseDate?:string;
+  administrativeMappingAudit?:Record<string,number>;
 }
 export interface OverviewCellRow extends OverviewCell {
   total:number; evaluated:number; poor:number; affectedCustomers:number; poorRate:number|null;

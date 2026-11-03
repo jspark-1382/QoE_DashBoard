@@ -14,21 +14,21 @@ interface Props {
 }
 const appearances = {
   affected: {
-    label: '저품질 경험 계약',
+    label: '저품질 경험 고객',
     icon: UsersRound,
     color: '#a344d4',
     background: '#f6eafa',
     subtitle: '1회 이상',
   },
   repeat: {
-    label: '반복 불량 계약',
+    label: '반복 불량 고객',
     icon: Repeat2,
     color: '#ee9636',
     background: '#fff3e4',
     subtitle: '2회 이상',
   },
   consecutive: {
-    label: '연속 불량 계약',
+    label: '연속 불량 고객',
     icon: PhoneOff,
     color: '#e65a69',
     background: '#fdecef',
@@ -45,7 +45,7 @@ export function CustomerExperience({
     <section className={styles.panel} aria-label="고객 체감 품질">
       <header className={styles.heading}>
         <h3>고객 체감 품질</h3>
-        <span>고유 계약 기준</span>
+        <span>고유 고객 기준</span>
       </header>
       <div className={styles.tiles}>
         {analytics.experience.map((group) => {
@@ -54,7 +54,7 @@ export function CustomerExperience({
           const maximum = Math.max(1, ...(group.hourly ?? []));
           const available = group.count !== null;
           const value = available
-            ? `${group.count!.toLocaleString('ko-KR')}계약`
+            ? `${group.count!.toLocaleString('ko-KR')}고객`
             : '미제공';
           const rate =
             group.percent === null ? '—' : `${group.percent.toFixed(1)}%`;
@@ -69,7 +69,7 @@ export function CustomerExperience({
               disabled={!available}
               title={
                 available
-                  ? `${group.total.toLocaleString('ko-KR')}개 계약 중 ${value} · 시간 내 조건 충족 계약 수 (시간 간 중복 가능)`
+                  ? `${group.total.toLocaleString('ko-KR')}개 고객 중 ${value} · 시간 내 조건 충족 고객 수 (시간 간 중복 가능)`
                   : '정확한 통화 순서를 확인할 수 없어 연속 불량을 집계하지 않습니다.'
               }
               onClick={() =>
@@ -100,9 +100,9 @@ export function CustomerExperience({
                   data-hourly-series={group.id}
                   viewBox="0 0 96 32"
                   preserveAspectRatio="none"
-                  aria-label={`${group.label}, 00시부터 23시 시간 내 조건 충족 계약 수`}
+                  aria-label={`${group.label}, 00시부터 23시 시간 내 조건 충족 고객 수`}
                 >
-                  <title>{`${group.label}, 00시부터 23시 시간 내 조건 충족 계약 수`}</title>
+                  <title>{`${group.label}, 00시부터 23시 시간 내 조건 충족 고객 수`}</title>
                   {group.hourly.map((amount, hour) => {
                     const height = (amount / maximum) * 29;
                     return (
@@ -115,7 +115,7 @@ export function CustomerExperience({
                         fill={appearance.color}
                         opacity={amount === maximum ? 1 : 0.65}
                       >
-                        <title>{`${String(hour).padStart(2, '0')}시 · ${amount.toLocaleString('ko-KR')}계약 · 시간 내 조건 충족`}</title>
+                        <title>{`${String(hour).padStart(2, '0')}시 · ${amount.toLocaleString('ko-KR')}고객 · 시간 내 조건 충족`}</title>
                       </rect>
                     );
                   })}

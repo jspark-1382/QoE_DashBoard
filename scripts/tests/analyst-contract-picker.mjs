@@ -51,14 +51,14 @@ const shell = fs.readFileSync(
 assert.match(shell, /<ContractPicker/);
 assert.match(shell, /getContractId\(customer\)\s*\?\?\s*customer.displayName/);
 assert.match(shell, /if \(!searchOpen && customer\)/);
-assert.match(shell, /aria-label="계약번호 복사"/);
+assert.match(shell, /aria-label="고객번호 복사"/);
 const overview = fs.readFileSync(
   'components/analyst/quality-overview.tsx',
   'utf8',
 );
 assert.match(
   overview,
-  /onClick=\{\(\) => onAnalyze\(call\)\}[\s\S]*?통화 열기[\s\S]*?\{call.contractId \?\? '계약번호 미제공'\}/,
+  /onClick=\{\(\) => onAnalyze\(call\)\}[\s\S]*?통화 열기[\s\S]*?\{call.contractId \?\? '고객번호 미제공'\}/,
 );
 console.log(
   'Contract picker metadata, dates, leading zeros, pagination and wiring passed',

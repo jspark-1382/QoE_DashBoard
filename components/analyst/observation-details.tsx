@@ -66,6 +66,38 @@ export function ObservationDetails({
           <p className={styles.locationLabel}>
             {labels[sample.locationSource]}
           </p>
+          <div className={styles.sourceIdentity} data-location-source={sample.locationSource}>
+            <b>{['gnss','measured'].includes(sample.locationSource)
+              ? 'GNSS / 실측 관측 위치'
+              : ['radio','interpolated'].includes(sample.locationSource)
+                ? sample.lat!=null&&sample.lon!=null
+                  ? sample.locationSource==='radio'?'고객 추정 위치 · 무선 측량':'고객 추정 위치 · 보간'
+                  : '고객 위치 계산 불가 · 무선 근거만'
+                : '고객 위치 미확인 · 기지국은 별개'}</b>
+            <span>{['radio','interpolated'].includes(sample.locationSource)
+              ? 'GNSS 좌표가 아니며 계산 정확도가 검증되지 않았습니다.'
+              : ['gnss','measured'].includes(sample.locationSource)
+                ? '제공된 관측 좌표입니다. 측정 오차는 미제공입니다.'
+                : '이 관측값만으로 고객의 실제 위치를 확정할 수 없습니다.'}</span>
+          </div>
+          {sample.gnssReference&&<div className={styles.gnssReferenceEvidence}
+              aria-label="선택 관측의 이전 GNSS 기준">
+              <strong>이전 GNSS 기준점 확인됨</strong>
+              <p>관측 시각보다 {sample.gnssReference.ageSeconds.toFixed(1)}초 전 GNSS가 존재합니다.
+                이동 가능 범위 반경 약 {sample.gnssReference.movementRadiusM.toLocaleString()}m
+                (속도 120km/h·기본 GNSS 오차 250m 가정).</p>
+              <span>이는 이전 실측 위치를 참고하는 영역이며, 현재 관측 시점의 새 GNSS 좌표가 아닙니다.</span>
+            </div>}
+          {sample.estimation?.review&&!sample.estimation.review.accepted&&sample.lat==null&&
+            <output className={styles.positionReviewWarning} aria-label="추정 위치 품질검토 결과">
+              <strong>고객 위치 추정 보류 · 지도 좌표 미표시</strong>
+              <p>{sample.estimation.review.reasons.join(' · ')}</p>
+              <span>모델 신뢰 점수 {sample.confidence??'미확인'}점과 별개로 좌표 품질 심사에서 제외됐습니다.
+                {sample.estimation.review.cappedSites>0
+                  ? ' 거리 상한 도달 '+sample.estimation.review.cappedSites+'/'+sample.estimation.siteCount+'사이트.'
+                  : ''}
+                {' '}실제 고객 위치는 확인되지 않았습니다.</span>
+            </output>}
           <p className={styles.helper}>
             원본 관측 #{sample.index} · {source}
           </p>
@@ -147,7 +179,15 @@ export function ObservationDetails({
                     <dd>{modelValue(sample.accuracyM, ' m', 0)}</dd>
                     <dt>모델 신뢰 점수</dt>
                     <dd>{value(sample.confidence)} (위치 정확도 % 아님)</dd>
+                    {sample.estimation.review&&<>
+                      <dt>고객 좌표 채택 심사</dt>
+                      <dd>{sample.estimation.review.accepted?'기본 품질 조건 통과 (실측 정확도 보증 아님)':'추정 보류 · 지도에서 제외'}</dd>
+                      <dt>거리 포화 / 시간차</dt>
+                      <dd>{sample.estimation.review.cappedSites}/{sample.estimation.siteCount}사이트 · 최대 {modelValue(sample.estimation.review.maxSiteOffsetSec,'초',1)}</dd>
+                    </>}
                   </dl>
+                  {sample.estimation.review&&!sample.estimation.review.accepted&&
+                    <p className={styles.positionReviewReasons}>추정 보류 사유: {sample.estimation.review.reasons.join(' · ')}</p>}
                   <p>
                     진단:{' '}
                     {sample.estimation.warnings
@@ -247,7 +287,7 @@ export function ObservationDetails({
           <details className={styles.raw}>
             <summary>원본 관측 행 보기</summary>
             <p>
-              원본 계약번호: {call?.contractId || '미제공'} · 관측 CI:{' '}
+              원본 고객번호: {call?.contractId || '미제공'} · 관측 CI:{' '}
               {sample.ci || '미제공'}
             </p>
             <p>

@@ -1,0 +1,31 @@
+.panel{border:1px solid #dce1e7;background:#fff;border-radius:7px;padding:17px 18px;color:#20252b;margin-top:12px}
+.heading{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:15px}
+.heading h3{font-size:16px;margin:0 0 5px;font-weight:700}
+.heading p,.radioNote{font-size:12px;color:#607085;margin:0}
+.grade{white-space:nowrap;border-radius:5px;padding:5px 12px;font-size:12px;font-weight:700}
+.poor{color:#b54836;background:#fbecea}
+.warning{color:#9b680f;background:#fff4d9}
+.good{color:#26704c;background:#e6f5ec}
+.unavailable{color:#687687;background:#eef1f4}
+.topGrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.score{border:1px solid #e1e7ed;border-radius:6px;background:#fafbfd;padding:12px;display:flex;flex-direction:column;gap:7px}
+.score>span{font-size:12px;color:#596779}
+.score strong{font-size:24px;font-variant-numeric:tabular-nums}
+.score strong small{font-size:12px;margin-left:4px;color:#64748b}
+.score>small{font-size:11px;color:#68778b;line-height:1.45}
+.note{display:block;background:#f3f7fb;border-left:3px solid #5281aa;margin:15px 0;padding:11px 14px;font-size:12px;color:#324965}
+.note p{font-size:11px;margin:5px 0 0;color:#586779}
+.columns{display:grid;grid-template-columns:1.4fr 1fr;gap:18px}
+.columns h4{font-size:13px;font-weight:700;margin:0 0 10px}
+.metrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.metric{border:1px solid #e5eaf0;border-radius:4px;padding:9px}
+.metric>div{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px}
+.metric span{font-size:12px;color:#536176}
+.metric strong{font-size:13px;font-variant-numeric:tabular-nums}
+.metric small{font-size:11px;color:#798596;display:block;margin-top:5px;line-height:1.45}
+.metric small.attention{color:#b3542f}
+.radioNote{margin-top:10px}
+.labLink{display:inline-block;margin-top:12px;padding:6px 10px;border:1px solid #8caed1;color:#2459a6;border-radius:4px;text-decoration:none;font-size:12px}
+.labLink:hover{background:#eaf3fc}
+@media(max-width:1200px){.columns{grid-template-columns:1fr}}
+@media(max-width:700px){.topGrid{grid-template-columns:1fr}.metrics{grid-template-columns:1fr}}

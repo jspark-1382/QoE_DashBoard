@@ -20,7 +20,7 @@ export function loadDataset(
   signal?: AbortSignal,
 ): Promise<AnalystDataset> {
   return json(
-    `/qoe/${source === 'MDT' ? 'mdt-data' : 'executive-data'}.json`,
+    `/qoe/${source === 'MDT' ? 'voice-1030' : 'executive-data'}.json`,
     signal,
   );
 }
@@ -39,7 +39,7 @@ export async function loadDay(
     : entry;
   signal?.throwIfAborted();
   if (detail.customerId !== entry.customerId || detail.date !== entry.date)
-    throw new Error('계약 상세의 대상 또는 일자가 일치하지 않습니다.');
+    throw new Error('고객 상세의 대상 또는 일자가 일치하지 않습니다.');
   return normalizeDay(dataset, detail, source);
 }
 export async function loadOverview(

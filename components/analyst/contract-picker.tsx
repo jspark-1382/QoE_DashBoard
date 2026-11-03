@@ -53,7 +53,7 @@ export function ContractPicker({
     <>
       <button
         ref={trigger}
-        aria-label="계약 목록 / 계약 선택"
+        aria-label="고객 목록 / 고객 선택"
         className={styles.trigger}
         onClick={() => {
           setQuery('');
@@ -62,7 +62,7 @@ export function ContractPicker({
           dialog.current?.showModal();
         }}
       >
-        계약 목록
+        고객 목록
       </button>
       <dialog
         ref={dialog}
@@ -83,16 +83,16 @@ export function ContractPicker({
         }}
       >
         <div className={styles.header}>
-          <h2 id="contract-picker-title">계약 선택</h2>
-          <button onClick={close} aria-label="계약 목록 닫기">
+          <h2 id="contract-picker-title">고객 선택</h2>
+          <button onClick={close} aria-label="고객 목록 닫기">
             닫기
           </button>
         </div>
         <p>
-          {source} · {date} · 해당 일자의 계약 목록
+          {source} · {date} · 해당 일자의 고객 목록
         </p>
         <label className={styles.search}>
-          계약번호 / 고객 검색
+          고객번호 / 고객 검색
           <input
             autoFocus
             value={query}
@@ -114,7 +114,7 @@ export function ContractPicker({
                   setPage(0);
                 }}
               />{' '}
-              GNSS 없는 계약만 (0건 확인)
+              GNSS 없는 고객만 (0건 확인)
             </label>
           )}
           <label>
@@ -132,14 +132,14 @@ export function ContractPicker({
           </label>
         </div>
         <output className={styles.resultCount}>
-          {result.total.toLocaleString()}개 계약 · 통화 / 관측 / GNSS는 해당
+          {result.total.toLocaleString()}개 고객 · 통화 / 관측 / GNSS는 해당
           일자 기준, 미제공은 0건과 다릅니다.
         </output>
         <div className={styles.table}>
           <table>
             <thead>
               <tr>
-                <th>원본 계약번호 / 고객</th>
+                <th>원본 고객번호 / 고객</th>
                 <th>통화</th>
                 <th>관측</th>
                 <th>GNSS</th>
@@ -154,9 +154,9 @@ export function ContractPicker({
                 >
                   <td>
                     <strong>
-                      {row.customer.sourceContractId ?? '계약번호 미제공'}
+                      {row.customer.sourceContractId ?? '고객번호 미제공'}
                     </strong>
-                    <small>{row.customer.displayName}</small>
+                    <small>{row.customer.displayName.replace(/^계약\s+/, '고객 ')}</small>
                     {selectedId === row.customer.id && <span>현재 선택</span>}
                   </td>
                   <td>{count(row.callCount)}</td>
@@ -177,7 +177,7 @@ export function ContractPicker({
               ))}
             </tbody>
           </table>
-          {!result.total && <p>조건에 맞는 계약이 없습니다.</p>}
+          {!result.total && <p>조건에 맞는 고객이 없습니다.</p>}
         </div>
         <div className={styles.footer}>
           <button

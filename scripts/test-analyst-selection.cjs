@@ -12,6 +12,12 @@ assert.equal(parseSelection('?sample=-1').sampleIndex,null);
 assert.equal(parseSelection('?date=bad').source,'MDT');
 assert.equal(parseSelection(selectionQuery(initial)).callId,'call-1');
 assert.equal(parseSelection('?view=contract').view,'contract');
+const multiDayDs={meta:{dates:['2026-10-26','2026-10-27','2026-10-28','2026-10-29','2026-10-30']},
+ customers:[{id:'one',dates:['2026-10-28','2026-10-26']}],days:[]};
+assert.equal(resolveSelection(parseSelection('?source=MDT&view=overview'),multiDayDs).date,'2026-10-30');
+assert.equal(resolveSelection(parseSelection('?source=MDT&view=contract&customer=one&date=2026-10-30'),multiDayDs).date,'2026-10-28');
+assert.equal(resolveSelection(parseSelection('?source=MDT&view=contract&customer=one&date=2026-10-26'),multiDayDs).date,'2026-10-26');
+
 assert.equal(metricColor(null,'qoe',2.5),'#87929d');assert.equal(metricColor(2.49,'qoe',2.5),'#b64536');assert.notEqual(metricColor(2.5,'qoe',2.5),'#b64536');
 const sample={index:0,second:0,timestamp:0,lat:37.48,lon:127.05,callId:'a',locationSource:'gnss'};
 assert.equal(visiblePoints([sample,{...sample,index:1,locationSource:'station'}],true,true).length,1);

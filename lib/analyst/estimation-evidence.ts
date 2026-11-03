@@ -13,6 +13,9 @@ export function estimationMethodLabel(
 export function estimationReason(sample: AnalystSample): string {
   if (sample.locationSource === 'gnss')
     return 'GNSS 관측 좌표를 우선 사용합니다.';
+  if (sample.estimation?.review && !sample.estimation.review.accepted)
+    return '고객 위치 추정 보류 · ' + sample.estimation.review.reasons.join(' · ') +
+      ' · BYE Cell 기지국 위치는 단말 좌표가 아닙니다.';
   if (sample.lat != null && sample.lon != null)
     return sample.estimation
       ? estimationMethodLabel(sample.estimation.method)
@@ -37,6 +40,11 @@ export function estimationSummary(samples: AnalystSample[]) {
         s.estimation?.method === 'WEIGHTED_2_SITE',
     ).length,
     unavailable: samples.filter((s) => s.lat == null || s.lon == null).length,
+    withheld: samples.filter((s) => s.estimation?.review && !s.estimation.review.accepted && s.lat == null).length,
+    saturated: samples.filter((s) => (s.estimation?.review?.cappedSites??0)>=2).length,
+    withheldIndices: samples
+      .filter(s=>s.estimation?.review&&!s.estimation.review.accepted&&s.lat==null)
+      .map(s=>s.index),
     radioIndices: samples
       .filter(
         (s) => s.locationSource === 'radio' && s.lat != null && s.lon != null,

@@ -21,10 +21,26 @@ try {
       compilerOptions: options,
     }).outputText,
   );
+  const documentLinkPath = new URL(
+    './.document-link-test.mjs',
+    import.meta.url,
+  );
+  files.push(documentLinkPath);
+  await fs.writeFile(
+    documentLinkPath,
+    ts.transpileModule(
+      await fs.readFile('components/analyst/document-link.tsx', 'utf8'),
+      { compilerOptions: options },
+    ).outputText,
+  );
   let code = ts.transpileModule(
     await fs.readFile('components/analyst/analyst-dashboard.tsx', 'utf8'),
     { compilerOptions: options },
   ).outputText;
+  code = code.replace(
+    /import Link from ['"]\.\/document-link['"];?/,
+    'import Link from "./.document-link-test.mjs";',
+  );
   code = code.replace(
     /import\s+\{[^}]+\}\s+from\s+['"]\.\.\/\.\.\/lib\/analyst\/data-loader['"];?/s,
     'const loadDataset=()=>Promise.reject(new Error("SSR must not fetch")),loadDay=loadDataset,loadOverview=loadDataset;',
@@ -89,6 +105,16 @@ try {
   assert.match(html, /QoE 분석/);
   assert.match(html, /role="combobox"/);
   assert.doesNotMatch(html, /SSR must not fetch/);
+  assert.deepEqual(
+    [...html.matchAll(/<a\b[^>]*href="([^"]+)"/g)].map((match) => match[1]),
+    [
+      '/qoe/mos-lab',
+      '/qoe/overview-proposal-1',
+      '/qoe/overview-proposal-2',
+      '/qoe/overview-proposal-3',
+      '/qoe/overview-proposal-4',
+    ],
+  );
   console.log(
     'Analyst shell SSR initial loading and search accessibility tests passed',
   );

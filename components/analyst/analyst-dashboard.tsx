@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import Link from './document-link';
 import {
   loadDataset,
   loadDay,
@@ -34,7 +35,7 @@ const initialFilters: OverviewFilters = {
   poorOnly: true,
   sort: 'poor',
   page: 0,
-  scoreMetric: 'qoe',
+  scoreMetric: 'mos',
   scoreBand: null,
   experienceGroup: null,
 };
@@ -188,7 +189,7 @@ export function AnalystDashboard() {
   );
   const detail = useResource(detailKey, detailLoader);
   const overviewKey =
-    dataset && resolved.view === 'overview' && resolved.date
+    dataset && (resolved.view === 'overview' || (resolved.view === 'contract' && resolved.source === 'MDT')) && resolved.date
       ? `overview-analytics-v1/${resolved.source}/${revision}/${resolved.date}/overview`
       : null;
   const overviewLoader = useCallback(
@@ -282,10 +283,10 @@ export function AnalystDashboard() {
     else if (results.length === 1) choose(results[0]);
     else {
       setSearchOpen(true);
-      setMessage('검색 결과에서 조사할 계약을 선택하세요.');
+      setMessage('검색 결과에서 조사할 고객을 선택하세요.');
     }
   };
-  const threshold = dataset?.meta.poorQoeThreshold ?? 2.5;
+  const threshold = dataset?.meta.poorQoeThreshold ?? 3.0;
   const toolbar = (
     <div className={styles.toolbar}>
       {dataset && (
@@ -300,8 +301,8 @@ export function AnalystDashboard() {
       <div className={styles.search}>
         <label htmlFor="contract-search">
           {resolved.source === 'MDT'
-            ? '서비스 계약번호'
-            : '계약번호 / 고객'}{' '}
+            ? '서비스 고객번호'
+            : '고객번호 / 고객'}{' '}
         </label>
         <div className={styles.searchLine}>
           <input
@@ -322,7 +323,7 @@ export function AnalystDashboard() {
                   ? (getContractId(customer) ?? customer.displayName)
                   : query
             }
-            placeholder="계약번호 입력"
+            placeholder="고객번호 입력"
             onFocus={() => {
               if (!searchOpen && customer)
                 setQuery(getContractId(customer) ?? customer.displayName);
@@ -353,18 +354,18 @@ export function AnalystDashboard() {
               }
             }}
           />
-          <button onClick={submit} aria-label="계약번호 찾기">
+          <button onClick={submit} aria-label="고객번호 찾기">
             찾기
           </button>
           {customer && getContractId(customer) && (
             <button
               className={styles.copyButton}
-              aria-label="계약번호 복사"
-              title="계약번호 복사"
+              aria-label="고객번호 복사"
+              title="고객번호 복사"
               onClick={() =>
                 navigator.clipboard.writeText(getContractId(customer)!).then(
-                  () => setMessage('계약번호를 복사했습니다.'),
-                  () => setMessage('계약번호를 선택해 복사하세요.'),
+                  () => setMessage('고객번호를 복사했습니다.'),
+                  () => setMessage('고객번호를 선택해 복사하세요.'),
                 )
               }
             >
@@ -377,7 +378,7 @@ export function AnalystDashboard() {
             <div
               id="contract-results"
               role="listbox"
-              aria-label="계약 검색 결과"
+              aria-label="고객 검색 결과"
             >
               {results.map((c, i) => (
                 <button
@@ -390,11 +391,11 @@ export function AnalystDashboard() {
                 >
                   <strong>{getContractId(c) ?? c.displayName}</strong>
                   <span>
-                    {c.displayName} · {c.sampleCount.toLocaleString()}개 관측
+                    {c.displayName.replace(/^계약\s+/, '고객 ')} · {c.sampleCount.toLocaleString()}개 관측
                   </span>
                 </button>
               ))}
-              {!results.length && <p>일치하는 계약이 없습니다.</p>}
+              {!results.length && <p>일치하는 고객이 없습니다.</p>}
             </div>
             <p>최대 40건 표시 · 결과를 선택해야 분석 대상이 바뀝니다.</p>
             <button onClick={() => setSearchOpen(false)}>검색 결과 닫기</button>
@@ -441,7 +442,7 @@ export function AnalystDashboard() {
           }}
         >
           <option>MDT</option>
-          <option>실측</option>
+          {dataset?.meta.qoeBasis !== 'rtcp-mos-v5' && <option>실측</option>}
         </select>
       </label>
     </div>
@@ -453,7 +454,7 @@ export function AnalystDashboard() {
           className={styles.brand}
           onClick={() => navigate({ ...current, view: 'overview' })}
         >
-          QoE 분석
+          QoE 분석 · MOS 음성품질
         </button>
         <nav aria-label="분석 화면">
           <button
@@ -466,8 +467,13 @@ export function AnalystDashboard() {
             className={resolved.view === 'contract' ? styles.active : ''}
             onClick={() => navigate({ ...current, view: 'contract' })}
           >
-            계약·통화 분석
+            고객·통화 분석
           </button>
+          <Link className={styles.navLab} href="/mos-lab">MOS 알고리즘 비교</Link>
+          <Link className={styles.navLab} href="/overview-proposal-1">개선1안</Link>
+          <Link className={styles.navLab} href="/overview-proposal-2">개선2안</Link>
+          <Link className={styles.navLab} href="/overview-proposal-3">개선3안</Link>
+          <Link className={styles.navLab} href="/overview-proposal-4">개선4안</Link>
         </nav>
         <span className={styles.headerSource}>{resolved.source} · Voice</span>
         <button
@@ -482,7 +488,7 @@ export function AnalystDashboard() {
         {resolved.view === 'overview' && (
           <div className={styles.pageHeading}>
             <h1>품질 현황</h1>
-            <span>지역·시간·계약별 저품질을 조사합니다.</span>
+            <span>지역·시간·고객별 저품질을 조사합니다.</span>
           </div>
         )}
         {resolved.view === 'contract' && (
@@ -493,11 +499,11 @@ export function AnalystDashboard() {
               >
                 품질 현황으로 돌아가기
               </button>
-              <span>/ 계약 분석</span>
+              <span>/ 고객 분석</span>
             </div>
             <div className={styles.pageHeading}>
-              <h1>계약·통화 분석</h1>
-              <span>계약별 통화와 관측 근거를 비교합니다.</span>
+              <h1>고객·통화 분석</h1>
+              <span>고객별 통화와 관측 근거를 비교합니다.</span>
             </div>
           </>
         )}
@@ -546,6 +552,7 @@ export function AnalystDashboard() {
                 ) : overview.data ? (
                   <QualityOverview
                     overview={overview.data}
+                    mosOnly={dataset.meta.qoeBasis === 'rtcp-mos-v5'}
                     toolbar={toolbar}
                     threshold={threshold}
                     filters={filters}
@@ -567,16 +574,16 @@ export function AnalystDashboard() {
                 )
               ) : !resolved.customerId ? (
                 <div className={styles.state}>
-                  계약 목록에서 계약을 선택하거나 서비스 계약번호를 검색하세요.
+                  고객 목록에서 고객을 선택하거나 서비스 고객번호를 검색하세요.
                 </div>
               ) : !entry ? (
                 <div className={styles.state}>
-                  선택한 계약의 해당 일자 자료가 없습니다. 다른 일자를
+                  선택한 고객의 해당 일자 자료가 없습니다. 다른 일자를
                   선택하세요.
                 </div>
               ) : detail.loading ? (
                 <div className={styles.state} role="status">
-                  선택한 계약의 통화 자료를 불러오는 중입니다…
+                  선택한 고객의 통화 자료를 불러오는 중입니다…
                 </div>
               ) : detail.error ? (
                 <div className={styles.state} role="alert">
@@ -586,6 +593,7 @@ export function AnalystDashboard() {
               ) : day ? (
                 <ContractWorkspace
                   day={day}
+                  byeLocation={overview.data?.callLocations?.find(point=>point.callId===day.customerId+':'+(activeCall?.id??''))}
                   toolbar={toolbar}
                   callId={activeCall?.id ?? null}
                   sampleIndex={activeSample?.index ?? null}

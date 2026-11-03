@@ -1,18 +1,22 @@
 'use client';
 import React, { useState } from 'react';
-import type { AnalystCall, AnalystDay } from '../../lib/analyst/types';
+import type { AnalystCall, AnalystDay, OverviewCallLocation } from '../../lib/analyst/types';
+import type { BaseStation } from '../../lib/location-estimation/types';
 import {
   estimationReason,
   estimationSummary,
 } from '../../lib/analyst/estimation-evidence';
 import { isPoorCall } from '../../lib/analyst/data';
-import { getMetricLegend } from '../../lib/analyst/map';
+import { getMetricLegend, hasCustomerPoint } from '../../lib/analyst/map';
+import { formatCallDuration } from '../../lib/analyst/call-duration';
 import { AnalystMap } from './analyst-map';
+import { MosCallInvestigation } from './mos-call-investigation';
 import { RadioTimeline } from './radio-timeline';
 import { ObservationDetails } from './observation-details';
 import styles from './contract-workspace.module.css';
 type Props = {
   day: AnalystDay;
+  byeLocation?: OverviewCallLocation;
   callId: string | null;
   sampleIndex: number | null;
   threshold: number;
@@ -28,12 +32,11 @@ const duration = (c: AnalystCall) => {
   const s =
     c.durationSeconds ??
     (clockSeconds < 0 ? clockSeconds + 86400 : clockSeconds);
-  return `${Math.floor(s / 60)
-    .toString()
-    .padStart(2, '0')}:${(s % 60).toString().padStart(2, '0')}`;
+  return formatCallDuration(s);
 };
 export function ContractWorkspace({
   day,
+  byeLocation,
   callId,
   sampleIndex,
   threshold,
@@ -50,7 +53,7 @@ export function ContractWorkspace({
   );
   const [gnss, setGnss] = useState(true),
     [estimates, setEstimates] = useState(true),
-    [stations, setStations] = useState(false);
+    [stations, setStations] = useState(true);
   const [showEstimationEvidence, setShowEstimationEvidence] = useState(false);
   const call = day.calls.find((c) => c.id === callId) ?? null;
   const samples = call
@@ -58,6 +61,25 @@ export function ContractWorkspace({
     : [];
   const sample = samples.find((s) => s.index === sampleIndex) ?? null;
   const positionSummary = estimationSummary(samples);
+  const observedPoints=samples.filter(s=>hasCustomerPoint(s)&&
+    ['gnss','measured'].includes(s.locationSource));
+  const radioPoints=samples.filter(s=>hasCustomerPoint(s)&&s.locationSource==='radio');
+  const interpolatedPoints=samples.filter(s=>hasCustomerPoint(s)&&s.locationSource==='interpolated');
+  const modeledCount=radioPoints.length+interpolatedPoints.length;
+  const withheldCount=positionSummary.withheld;
+  const selectedReview=sample?.estimation?.review;
+  const endReference=call?.endGnssReference;
+  const mapReference=sample?.gnssReference??endReference;
+  const activeReferenceLabel=sample?.gnssReference?'선택 MDT 관측 시각':'통화 종료 시각';
+  const selectedPosition=selectedReview&&!selectedReview.accepted&&sample?.lat==null
+    ? '위치 추정 보류 · '+selectedReview.reasons.slice(0,3).join(' · ')
+    : sample&&hasCustomerPoint(sample)
+    ? ['gnss','measured'].includes(sample.locationSource)
+      ? 'GNSS 관측 · 실제 제공 좌표'
+      : sample.locationSource==='radio'
+        ? '고객 위치 추정 · 무선 측량 (검증 전)'
+        : '고객 위치 추정 · 보간 (검증 전)'
+    : '위치 없음 · 무선 관측값만 제공';
   const evaluated = day.calls.filter(
       (c) => c.qoe !== null && Number.isFinite(c.qoe),
     ),
@@ -104,18 +126,41 @@ export function ContractWorkspace({
     samples.flatMap((s) => [s.baseStationId, s.cellId]).filter(Boolean),
   );
   const cdrOnly = day.source === 'MDT' && call !== null && !hasMdt(call);
+  // CDR-only call: use ONLY a validated unique BYE serving RU from the
+  // administrative overview; never repurpose a station as a UE coordinate.
+  const byeEntry=byeLocation&&byeLocation.byeCellId===call?.endCellId &&
+    byeLocation.byeRuId&&
+    (byeLocation.evidence==='bye-cell'||
+     (byeLocation.byeStationLat!=null&&byeLocation.byeStationLon!=null))
+      ? byeLocation:null;
+  const byeStation:BaseStation|null=byeEntry
+    ? {baseStationId:byeEntry.byeRuId!,cellId:byeEntry.byeCellId!,
+       latitude:byeEntry.evidence==='bye-cell'?byeEntry.lat:byeEntry.byeStationLat!,
+       longitude:byeEntry.evidence==='bye-cell'?byeEntry.lon:byeEntry.byeStationLon!,
+       frequency:null,isVirtual:false,provenanceUnknown:true}
+    : null;
+  const callStations=day.baseStations.filter(s=>
+    stationKeys.has(s.baseStationId)||stationKeys.has(s.cellId));
+  const stationMarkers=cdrOnly?(byeStation?[byeStation]:[]):[
+    ...callStations,
+    ...(byeStation&&!callStations.some(site=>site.baseStationId===byeStation.baseStationId&&
+      site.cellId===byeStation.cellId)?[byeStation]:[]),
+  ];
+  const activeByeStation=byeStation && stationMarkers.some(s=>
+    s.baseStationId===byeStation.baseStationId&&s.cellId===byeStation.cellId)
+    ? byeStation : null;
   return (
     <div className={styles.workspace}>
       <div className={styles.contextBar}>
         {toolbar}
-        <div className={styles.summary} aria-label="현재 계약 일자 요약">
+        <div className={styles.summary} aria-label="현재 고객 일자 요약">
           <span>
             통화 <b>{day.calls.length}</b>건
           </span>
           <span>
             평가 가능 <b>{evaluated.length}</b>건
           </span>
-          <span title={`저품질 QoE < ${threshold}`}>
+          <span title={`저품질 ${day.source === 'MDT' ? 'MOS' : 'QoE'} < ${threshold}`}>
             저품질{' '}
             <b className={styles.poor}>
               {poor.length} / {evaluated.length}
@@ -193,12 +238,12 @@ export function ContractWorkspace({
             )}
           </div>
           <div className={styles.callList}>
-            <table aria-label="계약 통화 목록">
+            <table aria-label="고객 통화 목록">
               <thead>
                 <tr>
                   <th>시작 시각</th>
-                  <th>통화 시간</th>
-                  <th>QoE</th>
+                  <th title="원본 시간을 초 단위로 반올림">통화 시간</th>
+                  <th>{day.source === 'MDT' ? 'MOS' : 'QoE'}</th>
                   <th>자료</th>
                 </tr>
               </thead>
@@ -219,7 +264,7 @@ export function ContractWorkspace({
                         {c.start}
                       </button>
                     </td>
-                    <td>{duration(c)}</td>
+                    <td className={styles.durationCell} title={Number.isFinite(c.durationSeconds)?'원본 '+c.durationSeconds!.toFixed(3)+'초 · 표시 초 단위 반올림':'초 단위 반올림'}>{duration(c)}</td>
                     <td
                       className={
                         isPoorCall(c.qoe, threshold) ? styles.poor : ''
@@ -268,7 +313,7 @@ export function ContractWorkspace({
             </p>
           )}
           <div className={styles.callFoot}>
-            <i className={styles.poorDot} /> 저품질: QoE &lt; {threshold}
+            <i className={styles.poorDot} /> 저품질: {day.source === 'MDT' ? 'MOS' : 'QoE'} &lt; {threshold}
           </div>
         </aside>
         <main className={styles.center}>
@@ -281,7 +326,7 @@ export function ContractWorkspace({
                     : '통화를 선택하세요'}
                 </h3>
                 <span>
-                  QoE{' '}
+                  {day.source === 'MDT' ? 'MOS' : 'QoE'}{' '}
                   <b
                     className={
                       call && isPoorCall(call.qoe, threshold) ? styles.poor : ''
@@ -290,6 +335,10 @@ export function ContractWorkspace({
                     {call?.qoe != null ? call.qoe.toFixed(2) : '평가 불가'}
                   </b>
                 </span>
+                {day.source === 'MDT' && call && <span className={styles.mapSource}>
+                  등급 {call.mos === null ? '미평가' : call.mos < 3 ? '불량' : call.mos < 3.5 ? '주의' : '양호'}
+                  {' · '}MDT {call.matchStatus === 'MATCHED' ? '시간기준 단독후보' : call.matchStatus === 'AMBIGUOUS' ? '매칭 모호' : '미매칭'}
+                </span>}
                 <span className={styles.mapSource}>
                   {cdrOnly
                     ? 'CDR만 · MDT 없음'
@@ -306,7 +355,7 @@ export function ContractWorkspace({
                       checked={gnss}
                       onChange={(e) => setGnss(e.target.checked)}
                     />
-                    {day.source === 'MDT' ? 'GNSS' : '실측'}
+                    {day.source === 'MDT' ? 'GNSS 실측' : '실측 좌표'}
                   </label>
                   <label>
                     <input
@@ -314,7 +363,7 @@ export function ContractWorkspace({
                       checked={estimates}
                       onChange={(e) => setEstimates(e.target.checked)}
                     />
-                    추정 위치
+                    고객 위치 추정
                   </label>
                   <label>
                     <input
@@ -322,16 +371,16 @@ export function ContractWorkspace({
                       checked={stations}
                       onChange={(e) => setStations(e.target.checked)}
                     />
-                    기지국
+                    기지국 위치
                   </label>
                 </div>
                 <details className={styles.mapOptions} aria-label="지도 옵션">
                   <summary>지도 옵션</summary>
                   <div className={styles.optionBody}>
                     <label className={styles.metricField}>
-                      색상{' '}
+                      저하 강조 기준{' '}
                       <select
-                        aria-label="지도 색상 지표"
+                        aria-label="지도 저하 강조 지표"
                         value={metric}
                         onChange={(e) =>
                           setMetric(e.target.value as typeof metric)
@@ -340,11 +389,11 @@ export function ContractWorkspace({
                         <option value="rsrp">RSRP (dBm)</option>
                         <option value="rsrq">RSRQ (dB)</option>
                         <option value="sinr">SINR (dB)</option>
-                        <option value="qoe">통화 QoE</option>
+                        <option value="qoe">통화 {day.source === 'MDT' ? 'MOS' : 'QoE'}</option>
                       </select>
                     </label>
                     <div
-                      aria-label="지도 색상 수치 기준"
+                      aria-label="지도 품질 저하 수치 기준"
                       className={styles.colorLegend}
                     >
                       {getMetricLegend(metric, threshold).map((item) => (
@@ -354,6 +403,7 @@ export function ContractWorkspace({
                         </span>
                       ))}
                     </div>
+                    <p>지도 마커의 본체 색은 위치 근거를 나타내며, 빨간 테두리는 선택 지표의 기준 미달 관측입니다.</p>
                     {metric === 'sinr' && (
                       <p>지도 색상 3 dB 기준 · 관측 탐색 0 dB 기준</p>
                     )}
@@ -367,7 +417,8 @@ export function ContractWorkspace({
                           GNSS {positionSummary.gnss}건 · 3개 이상 기지국
                           삼변·다변측량 {positionSummary.multi}건 · 2개 기지국
                           가중중심 {positionSummary.two}건 · 위치 보류{' '}
-                          {positionSummary.unavailable}건
+                          {positionSummary.unavailable}건 · 검토 보류{' '}
+                          {positionSummary.withheld}건
                         </p>
                         <label>
                           <input
@@ -394,10 +445,19 @@ export function ContractWorkspace({
                           무선 추정 시점으로 이동 (
                           {positionSummary.radioIndices.length}건)
                         </button>
+                        {positionSummary.withheldIndices.length>0&&<button type="button"
+                          onClick={()=>{
+                            setShowEstimationEvidence(true);
+                            const next=positionSummary.withheldIndices.find(index=>index>(sampleIndex??-1))
+                              ??positionSummary.withheldIndices[0];
+                            onSelectSample(next);
+                          }}>
+                          추정 보류 관측 확인 ({positionSummary.withheldIndices.length}건)
+                        </button>}
                         {sample && <p>{estimationReason(sample)}</p>}
                         <p>
-                          GNSS 우선 · 기지국 2개는 가중중심, 1개는 고객 위치를
-                          보류합니다.
+                          GNSS 우선 · 고객 추정 좌표는 검토를 통과한 3개 이상 독립 기지국만 표시합니다.
+                          2개 이하 기지국, 거리 포화, 높은 모델 불확실성 등은 보류합니다.
                         </p>
                       </div>
                     )}
@@ -405,6 +465,44 @@ export function ContractWorkspace({
                 </details>
               </div>
             </div>
+            {call&&<div className={styles.positionSummary} aria-label="고객 위치 출처 요약">
+              <div className={styles.positionSummaryTitle}>
+                <b>이동 위치 근거</b>
+                <span>GNSS는 관측 좌표, 추정은 계산값입니다. 기지국은 고객 위치가 아닙니다.</span>
+              </div>
+              <div className={styles.positionBadges}>
+                <span className={styles.positionObserved}><i className={styles.gnssSymbol}/> GNSS 관측 <b>{observedPoints.length}건</b></span>
+                <span className={styles.positionModel}><i className={styles.modelSymbol}/> 무선 추정 <b>{radioPoints.length}건</b></span>
+                <span className={styles.positionInterpolation}><i className={styles.interpolatedSymbol}/> 보간 추정 <b>{interpolatedPoints.length}건</b></span>
+                <span className={styles.positionStation}><i className={styles.stationSymbol}/> 기지국 <b>{stationMarkers.length}곳</b></span>
+                {withheldCount>0&&<span className={styles.positionWithheld}> <i className={styles.withheldSymbol}/> 추정 보류 <b>{withheldCount}건</b></span>}
+              </div>
+              {sample&&<p className={styles.selectedPositionStatus}><b>선택 관측 #{sample.index}</b> · {selectedPosition}</p>}
+              {mapReference&&<div className={styles.gnssReference} aria-label="최근 GNSS 기반 종료 위치 참고 영역">
+                <strong>마지막 GNSS 실측 기준점 + {activeReferenceLabel} 참고</strong>
+                <span>GNSS 관측 {new Date(mapReference.observedAt).toLocaleTimeString('ko-KR',{timeZone:'Asia/Seoul',hour12:false})}
+                  {' '}· 경과 {mapReference.ageSeconds.toFixed(1)}초
+                  {' '}· 이동 가능 범위 반경 약 {mapReference.movementRadiusM.toLocaleString()}m</span>
+                <small>GNSS 위치는 실제 관측한 좌표이나 이후 MDT/BYE 시점의 실측 위치는 아닙니다.
+                  속도 120km/h와 기본 위치 오차 250m를 가정한 참고 범위이며,
+                  실제 위치 정확도·고객 이동경로·기지국 서비스 반경을 보증하지 않습니다.
+                  {activeByeStation
+                    ? ' BYE 종료 기지국 '+activeByeStation.baseStationId+'은 별도 위치 관계로 표시합니다.'
+                    : ' BYE Cell의 기지국이 유일하게 확인되지 않으면 기지국 거리 제약은 적용하지 않습니다.'}
+                </small>
+              </div>}
+              {endReference&&sample?.gnssReference&&endReference.observedAt!==sample.gnssReference.observedAt&&
+                <p className={styles.selectedPositionStatus}>통화 종료 시점의 가장 최근 GNSS는 별도 관측이며,
+                  종료 기준 경과 {endReference.ageSeconds.toFixed(1)}초 · 범위 반경 약 {endReference.movementRadiusM.toLocaleString()}m입니다.</p>}
+              {withheldCount>0&&<output className={styles.noGnssWarning}>
+                무선 계산 후보 {withheldCount}건은 거리 포화·모델 불확실성·관측 시간차 등의 검토를 통과하지 못해 고객 좌표를 표시하지 않습니다.
+                {activeByeStation
+                  ? ' BYE 종료 기지국 '+activeByeStation.baseStationId+' (Cell '+activeByeStation.cellId+')만 별도 강조합니다. 기지국은 단말의 위치가 아닙니다.'
+                  : ' 유일한 BYE Cell 기지국을 확인하지 못한 경우에는 기지국 참고 위치만 표시합니다.'}
+              </output>}
+              {modeledCount>0&&observedPoints.length===0&&
+                <p className={styles.noGnssWarning}>이 통화에는 GNSS 관측 위치가 없습니다. 지도에 표시된 고객 위치는 무선 측량 또는 보간으로 추정한 좌표입니다.</p>}
+            </div>}
             {cdrOnly ? (
               <div className={styles.cdrOnly} aria-label="CDR 통화 위치 정보">
                 <strong>CDR만 있는 통화</strong>
@@ -425,42 +523,59 @@ export function ContractWorkspace({
                     </dd>
                   </div>
                 </dl>
-                <p>
-                  Cell 위치 미제공 · Cell-ID와 기지국 좌표를 연결하는 매핑
-                  정보가 필요합니다.
-                </p>
+                <p>{byeStation
+                  ? 'BYE Cell과 유일하게 일치하는 기지국을 지도에 표시합니다. 기지국 좌표는 고객 단말 위치가 아닙니다.'
+                  : 'Cell 위치 미제공 · BYE Cell 기지국을 유일하게 확인할 수 없어 단말 위치를 표시하지 않습니다.'}</p>
               </div>
-            ) : (
+            ) : null}
+            {stationMarkers.length>0&&<div className={styles.stationSummary} aria-label="선택 통화의 기지국 연결">
+              <strong>선택 통화 기지국 {stationMarkers.length}개</strong>
+              <span>{stationMarkers.map(s=>s.baseStationId+' (Cell '+(s.cellId||'미제공')+')').join(' · ')}</span>
+              <small>{activeByeStation
+                ? '종료 BYE 기지국 '+activeByeStation.baseStationId+' / Cell '+activeByeStation.cellId+' · 기지국 좌표이며 단말 위치 아님'
+                : withheldCount>0&&call?.endCellId
+                  ? 'CDR 종료 Cell '+call.endCellId+'은 단일 RU로 확정되지 않음 (중복/미등록 가능) · 아래는 MDT 기지국 참고 위치이며 단말 위치 아님'
+                  : 'MDT에 연결된 기지국 참고 위치 · 단말 위치 아님'}</small>
+              {!stations&&<button type="button" onClick={()=>setStations(true)}>지도에 기지국 표시</button>}
+            </div>}
+            {(!cdrOnly||byeStation)&&(
               <div className={styles.map}>
                 <AnalystMap
                   threshold={threshold}
                   samples={samples}
                   selectedIndex={sampleIndex}
                   onSampleSelect={onSelectSample}
-                  stations={day.baseStations.filter(
-                    (s) =>
-                      stationKeys.has(s.baseStationId) ||
-                      stationKeys.has(s.cellId),
-                  )}
+                  stations={stationMarkers}
+                  byeSiteCellId={activeByeStation?.cellId}
+                  byeSiteRuId={activeByeStation?.baseStationId}
+                  gnssReference={mapReference}
                   metric={metric}
                   showGnss={gnss}
                   showEstimates={estimates}
                   showStations={stations}
                   showEstimationEvidence={showEstimationEvidence}
+                  emphasizeLocationSource
                   focusKey={`${day.customerId}/${day.date}/${callId}`}
                   source={day.source}
                 />
               </div>
             )}
-            <div className={styles.legend}>
-              <span>○ {day.source === 'MDT' ? 'GNSS 관측' : '실측 관측'}</span>
-              <span>◇ 추정 위치</span>
-              <span>△ 기지국</span>
+            <div className={styles.legend} aria-label="지도 위치 출처 범례">
+              <span><i className={styles.gnssSymbol}/> GNSS 실측</span>
+              {mapReference&&<span><i className={styles.gnssReferenceSymbol}/> 최근 GNSS 기반 이동 가능 범위 (실제 경로 아님)</span>}
+              <span><i className={styles.modelSymbol}/> 무선 측량 추정</span>
+              <span><i className={styles.interpolatedSymbol}/> 보간 추정</span>
+              <span><i className={styles.stationSymbol}/> 기지국 (단말 아님)</span>
+              {activeByeStation&&<span><i className={styles.byeStationSymbol}/> BYE 종료 기지국 (단말 아님)</span>}
+              {withheldCount>0&&<span><i className={styles.withheldSymbol}/> 추정 보류 (지도 좌표 없음)</span>}
               <span className={styles.legendNote}>
-                위치 출처는 모양 · 품질은 색상
+                위치 출처는 색상·모양으로 구분 · 빨간 테두리는 선택 품질 지표 저하
               </span>
             </div>
           </section>
+          {day.source === 'MDT' && call && (
+            <MosCallInvestigation call={call} samples={samples} />
+          )}
           <RadioTimeline
             key={`${day.customerId}/${day.date}/${callId}`}
             samples={samples}
@@ -479,9 +594,9 @@ export function ContractWorkspace({
       </div>
       <p className={styles.footer}>
         {day.source === 'MDT'
-          ? 'MDT QoE는 통화별 무선 기반 추정값'
+          ? '통화 품질은 SIP CDR 원본 RTCP MOS(v5) 기준 · MDT는 무선 관측 근거'
           : '실측 자료 기준'}{' '}
-        · 현재 계약 / 선택 일자 기준
+        · 현재 고객 / 선택 일자 기준
       </p>
     </div>
   );

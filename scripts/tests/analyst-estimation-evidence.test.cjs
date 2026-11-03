@@ -3,6 +3,7 @@ const assert = require('node:assert/strict');
 const { load } = require('../analyst-ts-loader.cjs');
 const { normalizeDay } = load('lib/analyst/data.ts');
 const { estimateAdaptive } = load('lib/location-estimation/adaptive.ts');
+const {reviewAdaptivePosition}=load('lib/location-estimation/review.ts');
 const { estimationMethodLabel, estimationReason, estimationSummary } = load(
   'lib/analyst/estimation-evidence.ts',
 );
@@ -94,14 +95,18 @@ for (const [count, method] of [
         ),
       ),
     );
-    assert.equal(s.lat, count >= 2 ? e.estimatedLat : null);
-    assert.equal(s.lon, count >= 2 ? e.estimatedLon : null);
+    const reviewed=reviewAdaptivePosition(e);
+    assert.deepEqual(s.estimation.review,reviewed);
+    assert.equal(s.estimation.candidateLat,e.estimatedLat);
+    assert.equal(s.estimation.candidateLon,e.estimatedLon);
+    assert.equal(s.lat,reviewed.accepted?e.estimatedLat:null);
+    assert.equal(s.lon,reviewed.accepted?e.estimatedLon:null);
     assert.equal(s.qoe, 1.8);
   });
   assert.equal(normalized.calls[0].qoe, 1.8);
   assert.equal(
     estimationSummary(rows).unavailable,
-    count < 2 ? rows.length : 0,
+    rows.filter(row=>row.lat==null||row.lon==null).length,
   );
   if (count < 2) assert.match(estimationReason(rows[0]), /고객 위치/);
 }
@@ -135,5 +140,5 @@ const indices = estimationSummary([
 ]).radioIndices;
 assert.deepEqual(indices, [77]);
 console.log(
-  'Estimation evidence: 3/2/1/0 sites, unchanged engine coordinates/QoE, GNSS priority, original indices passed',
+  'Estimation evidence: 3/2/1/0 sites, original candidate diagnostics retained, only review-passing UE locations shown, GNSS/QoE preserved',
 );

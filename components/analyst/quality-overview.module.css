@@ -193,6 +193,13 @@
 .rankTable td {
   height: 42px;
 }
+.locationHint {
+  display: block;
+  margin: 1px 0 6px;
+  font-size: 10px;
+  color: #617186;
+  white-space: nowrap;
+}
 .overview .cellButton {
   border: 0;
   background: transparent;
@@ -230,31 +237,55 @@
   background: transparent;
   color: #4d5c6e;
 }
+.hourlyLegend {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: #536176;
+}
+.hourlyLegend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.totalSwatch,
+.poorSwatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  background: #2877c7;
+}
+.poorSwatch { background: #d64d48; }
 .barZone {
-  height: 97px;
+  height: 100px;
   display: flex;
   flex-direction: column-reverse;
-  align-items: center;
+  align-items: stretch;
   border-bottom: 1px solid #aeb8c5;
   padding-bottom: 1px;
 }
+.barStack {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  height: 86px;
+  width: 66%;
+  margin-inline: auto;
+}
 .bar {
-  width: 80%;
-  background: #9eacbe;
-  border-radius: 2px 2px 0 0;
-  min-width: 3px;
+  width: 100%;
+  border-radius: 0;
+  flex-shrink: 0;
 }
-.barValue {
-  font-size: 11px;
-  line-height: 20px;
-}
+.barOther { background: #2877c7; }
+.barPoor { background: #d64d48; }
 .overview .activeBin {
   background: #eaf1fc;
   color: #2459a6;
   box-shadow: inset 0 0 0 1px #2459a6;
-}
-.activeBin .bar {
-  background: #2459a6;
 }
 .investigation {
   display: flex;
@@ -627,12 +658,15 @@
   line-height: 16px;
 }
 .analyticsRow .bar {
-  background: #99bce0;
-  border-radius: 1px 1px 0 0;
-  width: 84%;
+  width: 100%;
 }
-.analyticsRow .activeBin .bar {
-  background: #df6b64;
+.analyticsRow .barOther,
+.analyticsRow .activeBin .barOther {
+  background: #2877c7;
+}
+.analyticsRow .barPoor,
+.analyticsRow .activeBin .barPoor {
+  background: #d64d48;
 }
 .analyticsRow .footnote {
   padding: 5px 10px;

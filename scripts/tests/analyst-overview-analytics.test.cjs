@@ -83,7 +83,7 @@ test('unique calls retain finite QoE including zero and outside-domain scores in
   assert.equal(api.getScoreBand(2.5, 'qoe', 2.5), 'fair');
   assert.equal(api.getScoreBand(2.4, 'qoe', 2.5), 'poor');
 });
-test('MOS validates 1..5 and uses 3.5/4 boundaries regardless of QoE threshold', () => {
+test('MOS validates 1..5 and uses 3.0/3.5 boundaries regardless of QoE threshold', () => {
   const result = api.getOverviewAnalytics(
     [0, 0.99, 1, 3.49, 3.5, 4, 5, 5.01, null, NaN].map((mos, i) =>
       call(String(i), 1, { mos }),
@@ -91,7 +91,7 @@ test('MOS validates 1..5 and uses 3.5/4 boundaries regardless of QoE threshold',
     'mos',
     2.5,
   );
-  assert.equal(result.threshold, 3.5);
+  assert.equal(result.threshold, 3.0);
   assert.equal(result.total, 10);
   assert.equal(result.evaluated, 5);
   assert.equal(result.unscored, 5);
@@ -100,13 +100,14 @@ test('MOS validates 1..5 and uses 3.5/4 boundaries regardless of QoE threshold',
   assert.deepEqual(
     result.bands.map((b) => [b.id, b.count, b.percent]),
     [
-      ['good', 2, 40],
+      ['good', 3, 60],
       ['fair', 1, 20],
-      ['poor', 2, 40],
+      ['poor', 1, 20],
     ],
   );
-  assert.equal(api.getScoreBand(3.5, 'mos', 0), 'fair');
-  assert.equal(api.getScoreBand(4, 'mos', 0), 'good');
+  assert.equal(api.getScoreBand(3.0, 'mos', 3.0), 'fair');
+  assert.equal(api.getScoreBand(3.5, 'mos', 3.0), 'good');
+  assert.equal(api.getScoreBand(4, 'mos', 3.0), 'good');
 });
 
 test('QoE fair boundaries preserve the configured poor threshold and histogram colors', () => {

@@ -25,8 +25,8 @@ import {
   isPoorCall,
 } from '../../lib/analyst/data';
 import { AnalystMap } from './analyst-map';
-import { getAreaLabels, getHourlyDisplay } from '../../lib/analyst/overview-ui';
-import { getOverviewRateLegend } from '../../lib/analyst/map';
+import { getAreaLabels } from '../../lib/analyst/overview-ui';
+import { getOverviewRateLegend, getOverviewPoorCountLegend } from '../../lib/analyst/map';
 import styles from './quality-overview.module.css';
 
 export interface OverviewFilters {
@@ -45,6 +45,7 @@ export interface OverviewFilters {
 interface Props {
   toolbar?: ReactNode;
   overview: AnalystOverview;
+  mosOnly?: boolean;
   threshold: number;
   onAnalyze: (call: OverviewCall) => void;
   filters: OverviewFilters;
@@ -83,6 +84,7 @@ function applyChartFilters(
 }
 export function QualityOverview({
   overview,
+  mosOnly = false,
   threshold: qoeThreshold,
   toolbar,
   onAnalyze,
@@ -101,7 +103,7 @@ export function QualityOverview({
     [overview],
   );
   const unsupportedMetric =
-    requestedFilters.scoreMetric === 'mos' && !mosAvailable;
+    requestedFilters.scoreMetric === 'mos' && !mosAvailable && !mosOnly;
   const filters = useMemo(
     () =>
       unsupportedMetric
@@ -119,15 +121,17 @@ export function QualityOverview({
     if (unsupportedMetric) onFiltersChange(filters);
   }, [filters, onFiltersChange, unsupportedMetric]);
   const metric: ScoreMetric =
-    filters.scoreMetric === 'mos' && mosAvailable ? 'mos' : 'qoe';
+    mosOnly || (filters.scoreMetric === 'mos' && mosAvailable) ? 'mos' : 'qoe';
   const metricName = metric === 'mos' ? 'MOS' : 'QoE';
-  const threshold = metric === 'mos' ? 3.5 : qoeThreshold;
+  const administrative = overview.spatialUnit === 'administrative-dong';
+  const boundaryDate = overview.boundaryBaseDate?.replace(/^(\d{4})(\d{2})(\d{2})$/, '$1-$2-$3') ?? '미제공';
+  const threshold = metric === 'mos' ? 3.0 : qoeThreshold;
   const scoredOverview = useMemo(
     () => projectOverviewMetric(overview, metric),
     [overview, metric],
   );
   const [viewMode, setViewMode] = useState<'map' | 'list'>('map');
-  const [hourMode, setHourMode] = useState<'count' | 'rate'>('count');
+
   const [focusTarget, setFocusTarget] = useState<{
     key: string;
     lat: number;
@@ -194,24 +198,37 @@ export function QualityOverview({
       })),
     [overview, investigation, threshold, labels],
   );
+  // Keep the map's occurrence pins in the same time/score investigation
+  // scope as the list. District selection narrows visible pins further.
+  const visibleCallLocations = useMemo(() => {
+    const ids = new Set(investigation.map((call) => call.id));
+    return (overview.callLocations ?? []).filter((point) =>
+      ids.has(point.callId) &&
+      (!filters.cellId || point.areaId === filters.cellId),
+    );
+  }, [overview.callLocations, investigation, filters.cellId]);
+  const callById = useMemo(
+    () => new Map(scoredOverview.calls.map((call) => [call.id, call])),
+    [scoredOverview.calls],
+  );
+  const effectiveRankSort = administrative && rankSort === 'rate' ? 'poor' : rankSort;
   const ranked = useMemo(
     () =>
       [...cells].sort(
         (a, b) =>
-          (rankSort === 'rate'
+          (effectiveRankSort === 'rate'
             ? (b.poorRate ?? -1) - (a.poorRate ?? -1)
-            : rankSort === 'customers'
+            : effectiveRankSort === 'customers'
               ? b.affectedCustomers - a.affectedCustomers
               : b.poor - a.poor) || a.id.localeCompare(b.id),
       ),
-    [cells, rankSort],
+    [cells, effectiveRankSort],
   );
   const hourly = useMemo(
     () => getHourlyCalls(globalCalls, threshold),
     [globalCalls, threshold],
   );
-  const maximum =
-    hourMode === 'rate' ? 100 : Math.max(1, ...hourly.map((bin) => bin.poor));
+  const maximum = Math.max(1, ...hourly.map((bin) => bin.evaluated));
   const selected = cells.find((cell) => cell.id === filters.cellId);
   const areaCalls = useMemo(
     () =>
@@ -316,9 +333,9 @@ export function QualityOverview({
               })
             }
           >
-            <option value="qoe">QoE</option>
-            <option value="mos" disabled={!mosAvailable}>
-              MOS{!mosAvailable ? ' (미제공)' : ''}
+            {!mosOnly && <option value="qoe">QoE</option>}
+            <option value="mos" disabled={!mosAvailable && !mosOnly}>
+              MOS{!mosAvailable && !mosOnly ? ' (미제공)' : ''}
             </option>
           </select>
         </label>
@@ -369,13 +386,13 @@ export function QualityOverview({
           <small>종료 분류 기준 미설정</small>
         </div>
         <div>
-          <span>영향 계약</span>
+          <span>영향 고객</span>
           <strong>{count(summary.affectedCustomers)}</strong>
-          <small>분석 {count(summary.customers)}계약 기준</small>
+          <small>분석 {count(summary.customers)}고객 기준</small>
         </div>
         <footer className={styles.summaryNote}>
           <span>
-            전체 분석 범위 · {overview.date} · {overview.source} · 분석 계약{' '}
+            전체 분석 범위 · {overview.date} · {overview.source} · 분석 고객{' '}
             {count(summary.customers)}
           </span>
           <button
@@ -395,41 +412,38 @@ export function QualityOverview({
           </button>
         </footer>
       </section>
+      
       <div className={styles.analyticsRow} aria-label="품질 분포와 고객 체감">
         <QualityDistribution
           analytics={analytics}
           selectedBand={filters.scoreBand ?? null}
           onBandSelect={(band) => change({ scoreBand: band, poorOnly: false })}
         />
-        <section className={styles.panel} aria-label="시간대별 저품질 통화">
+        <section className={styles.panel} aria-label="시간대별 통화 내역">
           <div className={styles.panelHead}>
-            <h2>시간대별 저품질 통화</h2>
-
-            <div>
-              <button
-                aria-pressed={hourMode === 'count'}
-                onClick={() => setHourMode('count')}
-              >
-                건수
-              </button>
-              <button
-                aria-pressed={hourMode === 'rate'}
-                onClick={() => setHourMode('rate')}
-              >
-                비율
-              </button>
+            <h2>시간대별 통화 내역</h2>
+            <div className={styles.hourlyLegend} aria-label="시간대별 막대 색상 구분">
+              <span><i className={styles.totalSwatch} aria-hidden="true" />그 외 통화</span>
+              <span><i className={styles.poorSwatch} aria-hidden="true" />저품질 통화</span>
             </div>
           </div>
           <div className={styles.chart}>
             {hourly.map((bin) => {
-              const display = getHourlyDisplay(bin, hourMode);
+              const other = bin.evaluated - bin.poor;
+              const totalHeight = (bin.evaluated / maximum) * 82;
+              // A minimum 2px makes rare poor calls visible without increasing the total bar height.
+              const poorHeight = bin.poor > 0
+                ? Math.min(totalHeight, Math.max(2, (bin.poor / maximum) * 82))
+                : 0;
+              const otherHeight = Math.max(0, totalHeight - poorHeight);
+              const details = `${String(bin.hour).padStart(2, '0')}시 · 전체 품질 통화 ${count(bin.evaluated)}건 (그 외 ${count(other)}건 + 저품질 통화 ${count(bin.poor)}건) · MOS 미평가 ${count(bin.total - bin.evaluated)}건`;
               return (
                 <button
                   key={bin.hour}
                   className={`${styles.bin} ${filters.hour === bin.hour ? styles.activeBin : ''}`}
-                  title={`${bin.hour}시 · ${display.label}${hourMode === 'count' ? '통화' : ''} · ${display.context}`}
+                  title={details}
                   aria-pressed={filters.hour === bin.hour}
-                  aria-label={`${bin.hour}시 저품질 ${bin.poor}통화, 평가 가능 ${bin.evaluated}통화${hourMode === 'rate' ? `, 비율 ${display.label}` : ''}${filters.hour === bin.hour ? ', 선택 해제' : ''}`}
+                  aria-label={`${details}${filters.hour === bin.hour ? ' · 선택 해제' : ' · 시간대 선택'}`}
                   onClick={() =>
                     change({
                       hour: filters.hour === bin.hour ? null : bin.hour,
@@ -437,16 +451,17 @@ export function QualityOverview({
                   }
                 >
                   <span className={styles.barZone}>
-                    <span
-                      className={styles.bar}
-                      style={{
-                        height: `${((display.value ?? 0) / maximum) * 70 + (display.value ? 3 : 0)}px`,
-                      }}
-                    />
-                    <span className={styles.barValue}>
-                      {hourMode === 'rate' && display.value === null
-                        ? '—'
-                        : display.label}
+                    <span className={styles.barStack}>
+                      <span
+                        className={`${styles.bar} ${styles.barPoor}`}
+                        style={{ height: `${poorHeight}px` }}
+                        aria-hidden="true"
+                      />
+                      <span
+                        className={`${styles.bar} ${styles.barOther}`}
+                        style={{ height: `${otherHeight}px` }}
+                        aria-hidden="true"
+                      />
                     </span>
                   </span>
                   <span>{String(bin.hour).padStart(2, '0')}시</span>
@@ -455,8 +470,10 @@ export function QualityOverview({
             })}
           </div>
           <p className={styles.footnote}>
-            비율 = 같은 시간대 저품질 / 평가 가능 · — 평가 불가. 시간 선택은
-            조사 조건에 적용됩니다.
+            누적 막대 전체는 유효 MOS 통화입니다. 파랑은 MOS 3.0 이상(그 외 통화),
+            빨강은 MOS 3.0 미만(저품질 통화)이며 미평가 통화는 제외합니다.
+            빨강이 너무 적어 보이지 않도록 최소 2px를 확보하되 전체 막대 높이는 유지합니다.
+            시간대를 선택하면 조사 조건에 적용됩니다.
           </p>
         </section>
 
@@ -471,9 +488,9 @@ export function QualityOverview({
       <div className={styles.spatial}>
         <section className={styles.panel} aria-label="지역별 품질 지도">
           <div className={styles.panelHead}>
-            <h2>지역별 품질</h2>
+            <h2>{administrative ? '행정동별 품질' : '지역별 품질'}</h2>
             <span>
-              60m 격자 · 위치 확보 저품질{' '}
+              {administrative ? '행정동 경계' : '60m 격자'} · 위치 확보 저품질{' '}
               {count(getOverviewSummary(investigation, threshold).locatedPoor)}
               통화
             </span>
@@ -481,6 +498,12 @@ export function QualityOverview({
           <div className={styles.map}>
             <AnalystMap
               cells={cells}
+              administrativeDongs={overview.administrativeDongs}
+              callLocations={visibleCallLocations}
+              onCallLocationSelect={(id) => {
+                const call = callById.get(id);
+                if (call) onAnalyze(call);
+              }}
               focusTarget={
                 focusTarget?.key.startsWith(
                   `${overview.source}-${overview.date}:`,
@@ -497,11 +520,18 @@ export function QualityOverview({
             />
           </div>
           <div className={styles.legend}>
+            {administrative && (
+              <span><i style={{ background: '#c2343d', width: 12, height: 12, borderRadius: '50%' }} />GNSS 관측
+                <i style={{ background: '#bb761d', width: 12, height: 12, borderRadius: '50%' }} />무선 추정
+              </span>
+            )}
             <span>
-              원 크기: 저품질 통화 수 · 작음 ● → <b>●</b> 많음
+              {administrative
+                ? '행정동 경계 위에 실제 통화 발생 지점 표시 · GNSS(빨강) / 무선 추정(주황)'
+                : <>원 크기: 저품질 통화 수 · 작음 ● → <b>●</b> 많음</>}
             </span>
-            <span>색상: 저품질 비율</span>
-            {getOverviewRateLegend().map((item) => (
+            <span>{administrative ? '색상: 저품질 통화 발생 건수' : '색상: 저품질 비율'}</span>
+            {(administrative ? getOverviewPoorCountLegend() : getOverviewRateLegend()).map((item) => (
               <span key={item.label}>
                 <i style={{ background: item.color }} />
                 {item.label}
@@ -511,25 +541,25 @@ export function QualityOverview({
         </section>
         <section className={styles.panel} aria-label="조사할 구역 순위">
           <div className={styles.panelHead}>
-            <h2>조사할 구역</h2>
+            <h2>{administrative ? '행정동별 저품질 순위' : '조사할 구역'}</h2>
             <select
-              aria-label="구역 순위 정렬"
-              value={rankSort}
+              aria-label={administrative ? "행정동 순위 정렬" : "구역 순위 정렬"}
+              value={effectiveRankSort}
               onChange={(e) => setRankSort(e.target.value as typeof rankSort)}
             >
               <option value="poor">저품질 통화 순</option>
-              <option value="rate">저품질 비율 순</option>
-              <option value="customers">영향 계약 순</option>
+              {!administrative && <option value="rate">저품질 비율 순</option>}
+              <option value="customers">영향 고객 순</option>
             </select>
           </div>
           <div className={styles.rankScroll}>
             <table className={styles.rankTable}>
               <thead>
                 <tr>
-                  <th>구역</th>
-                  <th>저품질 / 평가</th>
-                  <th>비율</th>
-                  <th>영향 계약</th>
+                  <th>{administrative ? '행정동' : '구역'}</th>
+                  <th>{administrative ? '저품질 통화' : '저품질 / 평가'}</th>
+                  <th>{administrative ? '위치 근거' : '비율'}</th>
+                  <th>영향 고객</th>
                 </tr>
               </thead>
               <tbody>
@@ -558,10 +588,14 @@ export function QualityOverview({
                       </button>
                     </td>
                     <td>
-                      <b className={styles.poor}>{count(cell.poor)}</b> /{' '}
-                      {count(cell.evaluated)}
+                      <b className={styles.poor}>{count(cell.poor)}</b>
+                      {!administrative && <> / {count(cell.evaluated)}</>}
                     </td>
-                    <td>{rate(cell.poorRate)}</td>
+                    <td>
+                      {administrative
+                        ? <>GNSS {count(cell.gnssCalls ?? 0)} / 추정 {count(cell.estimatedCalls ?? 0)}</>
+                        : rate(cell.poorRate)}
+                    </td>
                     <td>{count(cell.affectedCustomers)}</td>
                   </tr>
                 ))}
@@ -574,10 +608,23 @@ export function QualityOverview({
             )}
           </div>
           <p className={styles.footnote}>
-            지도와 같은 60m 격자 · 반복 관측은 통화별 1건
-            <br />
-            여러 격자에 걸친 통화는 격자별 중복 포함 · 평가 불가 통화는 비율
-            분모에서 제외
+            {administrative ? (
+              <>
+                행정동 경계 기준일 {boundaryDate} ·
+                원본 GNSS 위치 {count(overview.administrativeMappingAudit?.locatedGnssCalls ?? 0)}통화 ·
+                무선 추정 위치 {count(overview.administrativeMappingAudit?.locatedEstimatedCalls ?? 0)}통화(정확도 미검증).
+                <br />
+                MDT의 위치 자료는 MOS 3.0 미만 통화 중심의 부분표본이므로,
+                행정동별 전체 저품질 비율을 산출하지 않습니다.
+                여러 행정동에 걸친 통화는 행정동별 중복 집계됩니다.
+              </>
+            ) : (
+              <>
+                지도와 같은 60m 격자 · 반복 관측은 통화별 1건
+                <br />
+                여러 격자에 걸친 통화는 격자별 중복 포함 · 평가 불가 통화는 비율 분모에서 제외
+              </>
+            )}
           </p>
         </section>
       </div>
@@ -688,8 +735,8 @@ export function QualityOverview({
             {filters.missingLocation
               ? '위치 없는 저품질 통화'
               : filters.cellId
-                ? '선택 구역의 통화'
-                : '전체 구역의 통화'}
+                ? (administrative ? '선택 행정동의 통화' : '선택 구역의 통화')
+                : (administrative ? '전체 행정동의 통화' : '전체 구역의 통화')}
           </h2>
           {(filters.cellId || filters.missingLocation) && (
             <button
@@ -705,9 +752,9 @@ export function QualityOverview({
           <span>
             평가 {count(area.evaluated)} ·{' '}
             <b className={styles.poor}>
-              저품질 {count(area.poor)} ({rate(area.poorRate)})
+              저품질 {count(area.poor)}{!administrative && <> ({rate(area.poorRate)})</>}
             </b>{' '}
-            · 영향 계약 {count(area.affectedCustomers)}
+            · 영향 고객 {count(area.affectedCustomers)}
           </span>
           <div className={styles.tabs}>
             <button
@@ -749,7 +796,7 @@ export function QualityOverview({
             </select>
           </label>
           <span>
-            평가 불가 {count(area.unscored)}통화 · 위치 없는 통화는 격자에
+            평가 불가 {count(area.unscored)}통화 · 위치 없는 통화는 {administrative ? '행정동' : '격자'}에
             귀속하지 않습니다.
           </span>
         </div>
@@ -757,7 +804,7 @@ export function QualityOverview({
           <table className={styles.calls}>
             <thead>
               <tr>
-                <th>서비스 계약번호</th>
+                <th>서비스 고객번호</th>
                 <th>시작 시각</th>
                 <th>통화 시간</th>
                 <th>{metricName}</th>
@@ -775,9 +822,9 @@ export function QualityOverview({
                     <button
                       className={styles.link}
                       onClick={() => onAnalyze(call)}
-                      aria-label={`${call.contractId ?? '계약번호 미제공'} ${call.start} 통화 열기`}
+                      aria-label={`${call.contractId ?? '고객번호 미제공'} ${call.start} 통화 열기`}
                     >
-                      {call.contractId ?? '계약번호 미제공'}
+                      {call.contractId ?? '고객번호 미제공'}
                     </button>
                   </td>
                   <td>{call.start}</td>
@@ -796,7 +843,7 @@ export function QualityOverview({
                     <button
                       className={styles.link}
                       onClick={() => onAnalyze(call)}
-                      aria-label={`${call.contractId ?? '계약번호 미제공'} ${call.start} 통화 분석`}
+                      aria-label={`${call.contractId ?? '고객번호 미제공'} ${call.start} 통화 분석`}
                     >
                       분석 →
                     </button>
@@ -812,7 +859,7 @@ export function QualityOverview({
           )}
         </div>
         <div className={styles.pagination}>
-          <span>통화의 분석을 선택하면 계약·통화 분석으로 이동합니다.</span>
+          <span>통화의 분석을 선택하면 고객·통화 분석으로 이동합니다.</span>
           <label>
             표시{' '}
             <select

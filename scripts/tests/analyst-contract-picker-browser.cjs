@@ -8,11 +8,11 @@ const { chromium } = require(process.argv[2] || 'playwright');
     });
     await page.goto(process.argv[3] || 'http://localhost:3001/qoe/?source=MDT');
     const trigger = page.getByRole('button', {
-      name: '계약 목록 / 계약 선택',
+      name: '고객 목록 / 고객 선택',
       exact: true,
     });
     await trigger.waitFor({ timeout: 60000 });
-    const dialog = page.getByRole('dialog', { name: '계약 선택', exact: true });
+    const dialog = page.getByRole('dialog', { name: '고객 선택', exact: true });
     await trigger.click();
     await dialog.getByRole('button', { name: '다음', exact: true }).click();
     await page.keyboard.press('Escape');

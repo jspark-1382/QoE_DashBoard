@@ -7,7 +7,11 @@ export function parseSelection(search:string):AnalystSelection {
 }
 export function resolveSelection(s:AnalystSelection,dataset:AnalystDataset):AnalystSelection {
   const customer=dataset.customers.find(c=>c.id===s.customerId);
-  return {...s,date:dataset.meta.dates.includes(s.date)?s.date:customer?.dates[0]??dataset.meta.dates[0]??'',...(s.customerId&&!customer?{view:'overview' as const,customerId:'',callId:null,sampleIndex:null}:{})};
+  // When a customer appears on only a subset of the five dates, never
+  // route the contract view to a day with no corresponding CDR partition.
+  const preferredDate=customer && customer.dates.includes(s.date)
+    ? s.date : customer?.dates[0] ?? (dataset.meta.dates.includes(s.date) ? s.date : dataset.meta.dates.at(-1) ?? '');
+  return {...s,date:preferredDate,...(s.customerId&&!customer?{view:'overview' as const,customerId:'',callId:null,sampleIndex:null}:{})};
 }
 export function selectionQuery(s:AnalystSelection):string {
   const p=new URLSearchParams({source:s.source,view:s.view,date:s.date});

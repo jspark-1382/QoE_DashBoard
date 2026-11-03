@@ -22,10 +22,14 @@ export function QualityDistribution({
 }: Props) {
   const metricLabel = analytics.metric === 'mos' ? 'MOS' : 'QoE';
   const maximum = Math.max(1, ...analytics.bins.map((bin) => bin.count));
+  const orderedBands = (['poor', 'fair', 'good'] as ScoreBand[])
+    .flatMap((id) => analytics.bands.filter((band) => band.id === id));
+  const displayBandName = (band: { id: ScoreBand; label: string }) =>
+    analytics.metric === 'mos' && band.id === 'fair' ? '보통' : band.label;
   const select = (band: ScoreBand) =>
     onBandSelect(selectedBand === band ? null : band);
   const poorBoundary = analytics.threshold;
-  const goodBoundary = Math.max(4, poorBoundary);
+  const goodBoundary = analytics.metric === 'mos' ? 3.5 : Math.max(4, poorBoundary);
   const boundaryLabel = (value: number) =>
     Number.isInteger(value) ? value.toFixed(1) : String(value);
   const poorLabel = boundaryLabel(poorBoundary);
@@ -50,7 +54,7 @@ export function QualityDistribution({
           className={styles.composition}
           aria-label="평가 통화의 구간별 구성비"
         >
-          {analytics.bands.map((band) => (
+          {orderedBands.map((band) => (
             <button
               key={band.id}
               type="button"
@@ -60,15 +64,15 @@ export function QualityDistribution({
                 width: `${band.percent ?? 0}%`,
                 backgroundColor: band.color,
               }}
-              aria-label={`${band.label} ${rangeLabel(band.id)}, ${count(band.count)}통화, ${percent(band.percent)}`}
+              aria-label={`${displayBandName(band)} ${rangeLabel(band.id)}, ${count(band.count)}통화, ${percent(band.percent)}`}
               aria-pressed={selectedBand === band.id}
               disabled={band.count === 0}
-              title={`${band.label} (${rangeLabel(band.id)}) · ${count(band.count)}통화 · ${percent(band.percent)}`}
+              title={`${displayBandName(band)} (${rangeLabel(band.id)}) · ${count(band.count)}통화 · ${percent(band.percent)}`}
               onClick={() => select(band.id)}
             >
               {(band.percent ?? 0) >= 16 && (
                 <span>
-                  {band.label}
+                  {displayBandName(band)}
                   <small>
                     {band.id === 'fair'
                       ? `${poorLabel}–${goodLabel}`
@@ -81,7 +85,7 @@ export function QualityDistribution({
         </div>
       )}
       <div className={styles.legend}>
-        {analytics.bands.map((band) => (
+        {orderedBands.map((band) => (
           <button
             key={band.id}
             type="button"
@@ -92,7 +96,7 @@ export function QualityDistribution({
             onClick={() => select(band.id)}
           >
             <i style={{ backgroundColor: band.color }} aria-hidden="true" />
-            {band.label} <strong>{percent(band.percent)}</strong>
+            {displayBandName(band)} <strong>{percent(band.percent)}</strong>
           </button>
         ))}
       </div>
@@ -111,7 +115,7 @@ export function QualityDistribution({
             {analytics.bins.map((bin) => {
               const band = analytics.bands.find((item) => item.id === bin.band);
               const interval = `${bin.from.toFixed(2)} 이상 ${bin.to.toFixed(2)}${bin.to === 5 ? ' 이하' : ' 미만'}`;
-              const description = `${metricLabel} ${interval}, ${count(bin.count)}통화, ${band?.label ?? ''}`;
+              const description = `${metricLabel} ${interval}, ${count(bin.count)}통화, ${band ? displayBandName(band) : ''}`;
               const height = (bin.count / maximum) * 82;
               return (
                 <button

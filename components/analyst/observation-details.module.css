@@ -133,3 +133,24 @@
   margin: 16px 0;
   color: #65717d;
 }
+
+/* Clearly distinguish observed positions from the modeled candidate. */
+.sourceIdentity{display:grid;gap:3px;margin:7px 0 10px;padding:8px 9px;border:1px solid #dbe7ee;border-left:4px solid #8795a4;border-radius:5px;background:#f7f9fb;font-size:11px;line-height:1.4}
+.sourceIdentity>b{color:#344a60}
+.sourceIdentity>span{color:#647788}
+.sourceIdentity[data-location-source="gnss"],.sourceIdentity[data-location-source="measured"]{border-left-color:#098e83;background:#edf9f6}
+.sourceIdentity[data-location-source="radio"]{border-left-color:#6754c7;background:#f4f1ff}
+.sourceIdentity[data-location-source="interpolated"]{border-left-color:#d38e28;background:#fff7ec}
+
+/* Display candidate rejection above collapsed radio diagnostics. */
+.positionReviewWarning{margin:8px 0 12px;padding:10px 11px;border:1px solid #e9cbaa;border-left:4px solid #b16d22;border-radius:6px;background:#fff8eb;line-height:1.5;color:#80501a;font-size:11px}
+.positionReviewWarning strong{display:block;color:#874715;font-size:12px;margin-bottom:4px}
+.positionReviewWarning p{margin:4px 0 5px;overflow-wrap:anywhere}
+.positionReviewWarning span{color:#866635}
+.positionReviewReasons{padding:7px 9px;background:#fff6e8;color:#975c13;border-radius:5px;font-size:11px}
+
+/* Expose previous GNSS reference independently of the raw radio sample. */
+.gnssReferenceEvidence{padding:9px 10px;border:1px solid #b3e1da;border-left:4px solid #078e82;border-radius:6px;margin:8px 0;background:#edf9f7;font-size:11px;line-height:1.55;color:#35675e}
+.gnssReferenceEvidence strong{display:block;margin-bottom:4px;color:#15695d;font-size:12px}
+.gnssReferenceEvidence p{margin:2px 0}
+.gnssReferenceEvidence span{color:#58736d}
