@@ -1,5 +1,6 @@
 import { normalizeDay } from './data';
 import { buildOverview } from './overview';
+import { SharedRequestCache } from './request-cache';
 import type {
   AnalystDataset,
   AnalystDay,
@@ -9,6 +10,12 @@ import type {
 } from './types';
 const sourcePath = (source: AnalystSource) =>
   source === 'MDT' ? 'MDT' : 'measured';
+// Public manifests are mutable URLs. Revalidate again after a short interaction
+// window; retain only bounded completed results, never failed/aborted responses.
+const CACHE_AGE_MS = 30_000;
+const datasets = new SharedRequestCache<AnalystDataset>(2, CACHE_AGE_MS);
+const overviews = new SharedRequestCache<AnalystOverview>(5, CACHE_AGE_MS);
+const details = new WeakMap<AnalystDataset, SharedRequestCache<AnalystDay>>();
 async function json<T>(url: string, signal?: AbortSignal): Promise<T> {
   // Revalidate public JSON: an earlier interrupted deployment left zero-filled
   // responses cacheable for an hour. Never reuse stale broken detail/MDT data.
@@ -21,16 +28,34 @@ export function loadDataset(
   source: AnalystSource,
   signal?: AbortSignal,
 ): Promise<AnalystDataset> {
-  return json(
-    `/qoe/${source === 'MDT' ? 'voice-1030' : 'executive-data'}.json`,
-    signal,
-  );
+  const url = `/qoe/${source === 'MDT' ? 'voice-1030' : 'executive-data'}.json`;
+  return datasets.get(url, async requestSignal => {
+    const value = await json<AnalystDataset>(url, requestSignal);
+    if (!value?.meta || !Array.isArray(value.meta.dates) ||
+        !Array.isArray(value.customers) || !Array.isArray(value.days))
+      throw new Error('분석 목록 자료의 형식이 올바르지 않습니다.');
+    return value;
+  }, signal);
 }
 export async function loadDay(
   dataset: AnalystDataset,
   entry: SourceDay,
   source: AnalystSource,
   signal?: AbortSignal,
+): Promise<AnalystDay> {
+  if (dataset.meta.revision && entry.dataPath) {
+    let cache = details.get(dataset);
+    if (!cache) {
+      cache = new SharedRequestCache<AnalystDay>(8, CACHE_AGE_MS);
+      details.set(dataset, cache);
+    }
+    const key = JSON.stringify([source, dataset.meta.revision, entry.dataPath, entry.customerId, entry.date]);
+    return cache.get(key, requestSignal => readDay(dataset, entry, source, requestSignal), signal);
+  }
+  return readDay(dataset, entry, source, signal);
+}
+async function readDay(
+  dataset: AnalystDataset, entry: SourceDay, source: AnalystSource, signal?: AbortSignal,
 ): Promise<AnalystDay> {
   signal?.throwIfAborted();
   const detail = entry.dataPath
@@ -49,6 +74,18 @@ export async function loadOverview(
   source: AnalystSource,
   date: string,
   signal?: AbortSignal,
+): Promise<AnalystOverview> {
+  // Inline/fallback summaries may be rebuilt from mutable in-memory records.
+  // Cache only externally partitioned sources whose response revision is checked.
+  if (dataset.meta.revision &&
+      (dataset.meta.partitioned || dataset.days.some(day => day.dataPath))) {
+    const key = JSON.stringify([source, dataset.meta.revision, date]);
+    return overviews.get(key, requestSignal => readOverview(dataset, source, date, requestSignal), signal);
+  }
+  return readOverview(dataset, source, date, signal);
+}
+async function readOverview(
+  dataset: AnalystDataset, source: AnalystSource, date: string, signal?: AbortSignal,
 ): Promise<AnalystOverview> {
   signal?.throwIfAborted();
   // Legacy inline sources have no content revision, so a saved summary cannot be

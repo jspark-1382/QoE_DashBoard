@@ -143,13 +143,14 @@ export function getOverviewAnalytics(
   threshold: number,
 ): OverviewAnalytics {
   threshold = metric === 'mos' ? 3.0 : threshold;
-  const all = [...new Map(calls.map((call) => [call.id, call])).values()];
-  const rows: ScoredCall[] = all.map((call) => ({
-    call,
-    value: scoreValue(call, metric),
-    timestamp: parseFullTimestamp(call.startTimestamp),
-  }));
-  const values = rows.flatMap((row) => (row.value == null ? [] : [row.value]));
+  const unique = new Map<string, OverviewCall>();
+  for (const call of calls) unique.set(call.id, call);
+  const all = [...unique.values()];
+  const rows: ScoredCall[] = [];
+  const hourlyRows: ScoredCall[][] = Array.from({ length: 24 }, () => []);
+  const customers = new Set<string>();
+  const counts: Record<ScoreBand, number> = { good: 0, fair: 0, poor: 0 };
+  let evaluated = 0, sum = 0, outOfRange = 0, unknownPoorHour = false;
   const bands: ScoreBand[] = ['good', 'fair', 'poor'];
   const labels = { good: '양호', fair: metric === 'mos' ? '주의' : '보통', poor: '불량' };
   const bins = Array.from({ length: 20 }, (_, i) => {
@@ -158,28 +159,34 @@ export function getOverviewAnalytics(
     const band = getScoreBand((from + to) / 2, metric, threshold);
     return { from, to, count: 0, color: colors[band], band };
   });
-  for (const value of values) {
-    if (value >= 0 && value <= 5)
-      bins[Math.min(19, Math.floor(value * 4))].count++;
+  for (const call of all) {
+    const value = scoreValue(call, metric);
+    const timestamp = parseFullTimestamp(call.startTimestamp);
+    const row = { call, value, timestamp };
+    rows.push(row);
+    customers.add(call.customerId);
+    if (timestamp != null) {
+      // Assign each call once rather than rescanning it for all 24 hours.
+      // Source timestamps are reported in Korean local time.
+      const localHour = Math.floor((timestamp + 9 * 3600000) / 3600000);
+      hourlyRows[((localHour % 24) + 24) % 24].push(row);
+    } else if (value != null && value < threshold) {
+      unknownPoorHour = true;
+    }
+    if (value != null) {
+      evaluated++;
+      sum += value;
+      counts[getScoreBand(value, metric, threshold)]++;
+      if (value >= 0 && value <= 5)
+        bins[Math.min(19, Math.floor(value * 4))].count++;
+    }
+    const raw = metric === 'mos' ? call.mos : call.qoe;
+    if (typeof raw === 'number' && Number.isFinite(raw) &&
+      (raw < (metric === 'mos' ? 1 : 0) || raw > 5)) outOfRange++;
   }
   const groups = customersByGroup(rows, threshold);
-  const totalCustomers = new Set(all.map((call) => call.customerId)).size;
-  const unknownPoorHour = rows.some(
-    (row) =>
-      row.value != null && row.value < threshold && row.timestamp == null,
-  );
-  const hourly = Array.from({ length: 24 }, (_, hour) =>
-    customersByGroup(
-      rows.filter((row) => {
-        // Source clocks and original full timestamps describe Korean local reporting hours.
-        return (
-          row.timestamp != null &&
-          new Date(row.timestamp + 9 * 3600000).getUTCHours() === hour
-        );
-      }),
-      threshold,
-    ),
-  );
+  const totalCustomers = customers.size;
+  const hourly = hourlyRows.map((hour) => customersByGroup(hour, threshold));
   const experienceLabels: Record<ExperienceGroup, string> = {
     affected: '저품질 1회 이상',
     repeat: '2회 이상 반복',
@@ -189,28 +196,17 @@ export function getOverviewAnalytics(
     metric,
     threshold,
     total: all.length,
-    evaluated: values.length,
-    unscored: all.length - values.length,
-    average: values.length
-      ? values.reduce((sum, value) => sum + value, 0) / values.length
-      : null,
-    outOfRange: all.filter((call) => {
-      const value = metric === 'mos' ? call.mos : call.qoe;
-      return (
-        typeof value === 'number' &&
-        Number.isFinite(value) &&
-        (value < (metric === 'mos' ? 1 : 0) || value > 5)
-      );
-    }).length,
+    evaluated,
+    unscored: all.length - evaluated,
+    average: evaluated ? sum / evaluated : null,
+    outOfRange,
     bands: bands.map((id) => {
-      const count = values.filter(
-        (value) => getScoreBand(value, metric, threshold) === id,
-      ).length;
+      const count = counts[id];
       return {
         id,
         label: labels[id],
         count,
-        percent: values.length ? (count / values.length) * 100 : null,
+        percent: evaluated ? (count / evaluated) * 100 : null,
         color: colors[id],
       };
     }),
@@ -226,12 +222,12 @@ export function getOverviewAnalytics(
         count,
         total: totalCustomers,
         percent:
-          count != null && totalCustomers && values.length
+          count != null && totalCustomers && evaluated
             ? (count / totalCustomers) * 100
             : null,
         customerIds: ids ?? [],
         hourly:
-          !values.length ||
+          !evaluated ||
           count == null ||
           unknownPoorHour ||
           hourly.some((hour) => hour[id] == null)

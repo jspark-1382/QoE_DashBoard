@@ -101,6 +101,13 @@ export function AnalystMap({
     group = useRef<LayerGroup | null>(null),
     fitKey = useRef('');
   const renderers = useRef<{ svg: SVG; canvas: Canvas } | null>(null);
+  // Leaflet owns the event listeners until geometry changes. Keep those
+  // listeners current without rebuilding every polygon when a parent renders.
+  const selectionCallbacks = useRef({ onSampleSelect, onCellSelect, onCallLocationSelect });
+  useEffect(() => {
+    selectionCallbacks.current = { onSampleSelect, onCellSelect, onCallLocationSelect };
+  }, [onSampleSelect, onCellSelect, onCallLocationSelect]);
+  const canSelectCallLocation = Boolean(onCallLocationSelect);
   const appliedFocus = useRef('');
   const [map, setMap] = useState<LeafletMap | null>(null),
     [error, setError] = useState(''),
@@ -213,7 +220,7 @@ export function AnalystMap({
                 '통화 (기지국 좌표, 단말 좌표 아님)'
               : '연계된 통화 위치 없음'),
           );
-          if (cell) polygon.on('click', () => onCellSelect?.(district.id));
+          if (cell) polygon.on('click', () => selectionCallbacks.current.onCellSelect?.(district.id));
           polygon.addTo(layer);
         }
 
@@ -373,14 +380,14 @@ export function AnalystMap({
             detail.textContent = method + spread + geometry + review;
             popup.appendChild(detail);
           }
-          if(onCallLocationSelect) for (const entry of (isCluster ? callsAtPoint.slice(0,10) : callsAtPoint)) {
+          if(canSelectCallLocation) for (const entry of (isCluster ? callsAtPoint.slice(0,10) : callsAtPoint)) {
             const button = document.createElement('button');
             button.type = 'button';
             button.textContent =
               `${entry.start} · MOS ${entry.mos == null ? '미평가' : entry.mos.toFixed(2)} · 통화 분석`;
             button.addEventListener('click', () => {
               map.closePopup();
-              onCallLocationSelect?.(entry.callId);
+              selectionCallbacks.current.onCallLocationSelect?.(entry.callId);
             });
             popup.appendChild(button);
           }
@@ -438,7 +445,7 @@ export function AnalystMap({
             .bindTooltip(
               `${esc(cell.label)}<br/>저품질 ${cell.poor} / 평가 ${cell.evaluated}통화 · ${cell.poorRate == null ? '평가 불가' : cell.poorRate.toFixed(1) + '%'}<br/>영향 고객 ${cell.affectedCustomers}개`,
             )
-            .on('click', () => onCellSelect?.(cell.id))
+            .on('click', () => selectionCallbacks.current.onCellSelect?.(cell.id))
             .addTo(layer);
         }
       }
@@ -502,7 +509,7 @@ export function AnalystMap({
         marker
           .bindTooltip(label)
           .bindPopup(html)
-          .on('click', () => onSampleSelect?.(s.index))
+          .on('click', () => selectionCallbacks.current.onSampleSelect?.(s.index))
           .addTo(layer);
         marker.getElement()?.setAttribute('aria-label', label);
       }
@@ -669,7 +676,7 @@ export function AnalystMap({
     clusterZoom,
     scoreBand,
     gradeLabel,
-    onCallLocationSelect,
+    canSelectCallLocation,
     stations,
     byeSiteCellId,
     byeSiteRuId,
@@ -684,8 +691,6 @@ export function AnalystMap({
     selectedIndex,
     selectedCellId,
     focusKey,
-    onSampleSelect,
-    onCellSelect,
     focusTarget,
   ]);
   const selectedPoint = visiblePoints(samples, showGnss, showEstimates).find(

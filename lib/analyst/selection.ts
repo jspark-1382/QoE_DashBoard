@@ -8,14 +8,18 @@ export function parseSelection(search:string):AnalystSelection {
 }
 export function resolveSelection(s:AnalystSelection,dataset:AnalystDataset):AnalystSelection {
   const customer=dataset.customers.find(c=>c.id===s.customerId);
-  // When a customer appears on only a subset of the five dates, never
-  // route the contract view to a day with no corresponding CDR partition.
+  // An unbounded customer deep link falls back to an available customer day.
+  // An explicit range stays within its bounds even when that customer has no calls.
   const defaultDate=dataset.meta.dates.includes(s.date)?s.date:dataset.meta.dates.at(-1)??'';
+  const hasRequestedRange=!!(s.dateStart||s.dateEnd);
   const requestedRange=s.dateStart&&s.dateEnd
     ? datesInRange(dataset.meta.dates,s.dateStart,s.dateEnd):[];
-  // Invalid URLs fail closed to a one-day range rather than loading unlimited dates.
+  // Invalid range URLs fail closed to the requested/default day.
   const range=requestedRange.length?requestedRange:[defaultDate];
-  const preferredDate=customer
+  const preferredDate=customer&&!hasRequestedRange
+    ? customer.dates.includes(defaultDate)?defaultDate
+      : customer.dates.find(date=>dataset.meta.dates.includes(date))??defaultDate
+    : customer
     ? range.find(date=>date===defaultDate&&customer.dates.includes(date))
       ??range.find(date=>customer.dates.includes(date))
       ??range.at(-1)??defaultDate

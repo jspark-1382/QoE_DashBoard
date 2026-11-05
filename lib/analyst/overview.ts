@@ -85,27 +85,36 @@ export function buildOverview(
     appendOverview(overview, normalizeDay(dataset, day, source));
   return overview;
 }
-const unique = (calls: OverviewCall[]) => [
-  ...new Map(calls.map((c) => [c.id, c])).values(),
-];
+const unique = (calls: OverviewCall[]) => {
+  const byId = new Map<string, OverviewCall>();
+  for (const call of calls) byId.set(call.id, call);
+  return [...byId.values()];
+};
 export function getOverviewSummary(
   calls: OverviewCall[],
   threshold: number,
 ): AnalystSummary {
-  const all = unique(calls),
-    evaluated = all.filter((c) => c.qoe != null && Number.isFinite(c.qoe)),
-    poor = all.filter((c) => isPoorCall(c.qoe, threshold)),
-    located = poor.filter((c) => c.gridIds.length);
+  const all = unique(calls);
+  const customers = new Set<string>(), affected = new Set<string>();
+  let evaluated = 0, poor = 0, located = 0;
+  for (const call of all) {
+    customers.add(call.customerId);
+    if (call.qoe != null && Number.isFinite(call.qoe)) evaluated++;
+    if (!isPoorCall(call.qoe, threshold)) continue;
+    poor++;
+    affected.add(call.customerId);
+    if (call.gridIds.length) located++;
+  }
   return {
-    customers: new Set(all.map((c) => c.customerId)).size,
+    customers: customers.size,
     total: all.length,
-    evaluated: evaluated.length,
-    unscored: all.length - evaluated.length,
-    poor: poor.length,
-    poorRate: evaluated.length ? (poor.length / evaluated.length) * 100 : null,
-    affectedCustomers: new Set(poor.map((c) => c.customerId)).size,
-    locatedPoor: located.length,
-    unlocatedPoor: poor.length - located.length,
+    evaluated,
+    unscored: all.length - evaluated,
+    poor,
+    poorRate: evaluated ? (poor / evaluated) * 100 : null,
+    affectedCustomers: affected.size,
+    locatedPoor: located,
+    unlocatedPoor: poor - located,
   };
 }
 export function getOverviewCells(
@@ -136,17 +145,17 @@ export function getHourlyCalls(
   calls: OverviewCall[],
   threshold: number,
 ): { hour: number; total: number; evaluated: number; poor: number }[] {
-  return Array.from({ length: 24 }, (_, hour) => {
-    const summary = getOverviewSummary(
-      calls.filter((c) => Math.floor(c.startSecond / 3600) === hour),
-      threshold,
-    );
-    return {
-      hour,
-      total: summary.total,
-      evaluated: summary.evaluated,
-      poor: summary.poor,
-    };
+  // A duplicate ID can occur in different hours in legacy data. Deduplicate
+  // inside each hour, exactly as the previous filtered summaries did.
+  const buckets = Array.from({ length: 24 }, () => new Map<string, OverviewCall>());
+  for (const call of calls) buckets[Math.floor(call.startSecond / 3600)]?.set(call.id, call);
+  return buckets.map((bucket, hour) => {
+    let evaluated = 0, poor = 0;
+    for (const call of bucket.values()) {
+      if (call.qoe != null && Number.isFinite(call.qoe)) evaluated++;
+      if (isPoorCall(call.qoe, threshold)) poor++;
+    }
+    return { hour, total: bucket.size, evaluated, poor };
   });
 }
 export function filterOverviewCalls(

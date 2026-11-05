@@ -7,6 +7,7 @@ const { load } = createRequire(import.meta.url)('../analyst-ts-loader.cjs');
 const evidenceHelper = load('lib/analyst/estimation-evidence.ts');
 globalThis.__analystEstimationEvidence = evidenceHelper;
 globalThis.__analystDurationFormatter = load('lib/analyst/call-duration.ts').formatCallDuration;
+globalThis.__analystSipReason = load('lib/analyst/sip-reason.ts');
 import { renderToStaticMarkup } from 'react-dom/server';
 const helperFile = new URL('./.analyst-map-helper.mjs', import.meta.url);
 await fs.writeFile(
@@ -36,6 +37,10 @@ let code = ts.transpileModule(
 code = code.replace(
   /import\s+\{[^}]+\}\s+from ['"]\.\.\/\.\.\/lib\/analyst\/call-duration['"];?/s,
   'const formatCallDuration=globalThis.__analystDurationFormatter;',
+);
+code = code.replace(
+  /import\s+\{[^}]+\}\s+from ['"]\.\.\/\.\.\/lib\/analyst\/sip-reason['"];?/s,
+  'const {classifySipReason11,sipReasonLabel}=globalThis.__analystSipReason;',
 );
 code = code.replace('../../lib/analyst/map', './.analyst-map-helper.mjs');
 code = code.replace(

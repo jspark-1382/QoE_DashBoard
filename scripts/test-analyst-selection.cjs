@@ -17,6 +17,11 @@ const multiDayDs={meta:{dates:['2026-10-26','2026-10-27','2026-10-28','2026-10-2
 assert.equal(resolveSelection(parseSelection('?source=MDT&view=overview'),multiDayDs).date,'2026-10-30');
 assert.equal(resolveSelection(parseSelection('?source=MDT&view=contract&customer=one&date=2026-10-30'),multiDayDs).date,'2026-10-28');
 assert.equal(resolveSelection(parseSelection('?source=MDT&view=contract&customer=one&date=2026-10-26'),multiDayDs).date,'2026-10-26');
+assert.equal(resolveSelection(parseSelection('?source=MDT&view=contract&customer=one'),multiDayDs).date,'2026-10-28');
+const rangeSelection=parseSelection('?source=MDT&view=contract&customer=one&date=2026-10-30&dateStart=2026-10-29&dateEnd=2026-10-30');
+assert.equal(resolveSelection(rangeSelection,multiDayDs).date,'2026-10-30');
+assert.equal(resolveSelection({...rangeSelection,dateStart:'2026-10-26'},multiDayDs).date,'2026-10-26');
+assert.equal(resolveSelection({...rangeSelection,dateStart:'2026-10-26',date:'2026-10-28'},multiDayDs).date,'2026-10-28');
 
 assert.equal(metricColor(null,'qoe',2.5),'#87929d');assert.equal(metricColor(2.49,'qoe',2.5),'#b64536');assert.notEqual(metricColor(2.5,'qoe',2.5),'#b64536');
 const sample={index:0,second:0,timestamp:0,lat:37.48,lon:127.05,callId:'a',locationSource:'gnss'};

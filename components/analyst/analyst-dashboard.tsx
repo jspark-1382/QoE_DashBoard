@@ -8,13 +8,13 @@ import {
   useRef,
   useState,
 } from 'react';
-import Link from './document-link';
 import {
   loadDataset,
   loadDay,
   loadOverview,
 } from '../../lib/analyst/data-loader';
 import { getContractId } from '../../lib/analyst/data';
+import { indexDataset } from '../../lib/analyst/dataset-index';
 import {
   parseSelection,
   resolveSelection,
@@ -24,7 +24,7 @@ import {
 import type { AnalystSource, SourceCustomer } from '../../lib/analyst/types';
 import { ContractPicker } from './contract-picker';
 import { ContractWorkspace } from './contract-workspace';
-import { MAX_ANALYSIS_DAYS, adjustDateRange, combineDateOverviews, datesInRange, dateOfCall } from '../../lib/analyst/date-range';
+import { adjustDateRange, combineDateOverviews, datesInRange, dateOfCall } from '../../lib/analyst/date-range';
 import { overlayThreeSiteRough, type ThreeSiteRoughDataset } from '../../lib/analyst/three-site-rough';
 import { QualityOverview, type OverviewFilters } from './quality-overview';
 import styles from './analyst-shell.module.css';
@@ -106,6 +106,8 @@ function useResource<T>(
     let current = true;
     const cached = cache.current.get(key);
     if (cached) {
+      cache.current.delete(key);
+      cache.current.set(key,cached);
       queueMicrotask(() => {
         if (current) setResult({ key, data: cached });
       });
@@ -118,6 +120,9 @@ function useResource<T>(
       (data) => {
         if (current && !controller.signal.aborted) {
           cache.current.set(key, data);
+          // A period summary can retain all calls. Keep only the two most
+          // recently used results per resource instead of every date combination.
+          while(cache.current.size>2)cache.current.delete(cache.current.keys().next().value!);
           setResult({ key, data });
         }
       },
@@ -177,11 +182,10 @@ export function AnalystDashboard() {
       manifestLoader,
     ),
     dataset = manifest.data;
-  const resolved = dataset ? resolveSelection(selection, dataset) : selection;
+  const datasetIndex=useMemo(()=>dataset?indexDataset(dataset):null,[dataset]);
+  const resolved = useMemo(()=>dataset?resolveSelection(selection,dataset):selection,[dataset,selection]);
   const revision = dataset?.meta.revision ?? 'inline';
-  const entry = dataset?.days.find(
-    (d) => d.customerId === resolved.customerId && d.date === resolved.date,
-  );
+  const entry = datasetIndex?.daysByCustomer.get(resolved.customerId)?.get(resolved.date);
   const detailKey =
     resolved.view === 'contract' && entry
       ? `detail-compact-v2/${resolved.source}/${revision}/${resolved.date}/${resolved.customerId}`
@@ -193,8 +197,8 @@ export function AnalystDashboard() {
   const detail = useResource(detailKey, detailLoader);
   const rangeStart=resolved.dateStart??resolved.date;
   const rangeEnd=resolved.dateEnd??resolved.date;
-  const selectedDates=datesInRange(dataset?.meta.dates??[],rangeStart,rangeEnd);
-  const overviewDates=resolved.view==='overview'?selectedDates:[resolved.date];
+  const selectedDates=useMemo(()=>datesInRange(dataset?.meta.dates??[],rangeStart,rangeEnd),[dataset,rangeStart,rangeEnd]);
+  const overviewDates=useMemo(()=>resolved.view==='overview'?selectedDates:[resolved.date],[resolved.view,selectedDates,resolved.date]);
   const dateKey=overviewDates.join('|');
   const overviewKey =
     dataset && (resolved.view === 'overview' || (resolved.view === 'contract' && resolved.source === 'MDT')) && resolved.date
@@ -204,7 +208,7 @@ export function AnalystDashboard() {
     async (signal: AbortSignal) => combineDateOverviews(await Promise.all(
       overviewDates.map(date=>loadOverview(dataset!,resolved.source,date,signal)),
     )),
-    [dataset,resolved.source,dateKey],
+    [dataset,resolved.source,overviewDates],
   );
   const overview = useResource(overviewKey, overviewLoader);
   const roughKey=dataset && resolved.view==='contract' && resolved.source==='MDT' && resolved.date
@@ -224,11 +228,11 @@ export function AnalystDashboard() {
     : null;
   const periodLoader=useCallback(async (signal:AbortSignal)=>{
     const entries=selectedDates.flatMap(date=>{
-      const found=dataset?.days.find(d=>d.customerId===resolved.customerId&&d.date===date);
+      const found=datasetIndex?.daysByCustomer.get(resolved.customerId)?.get(date);
       return found?[found]:[];
     });
     return Promise.all(entries.map(entry=>loadDay(dataset!,entry,resolved.source,signal)));
-  },[dataset,resolved.customerId,resolved.source,selectedDates.join('|')]);
+  },[dataset,datasetIndex,resolved.customerId,resolved.source,selectedDates]);
   const period=useResource(periodKey,periodLoader);
   const roughOverview=useMemo(
     ()=>overview.data?overlayThreeSiteRough(overview.data,rough.data??null,true):null,
@@ -291,7 +295,7 @@ export function AnalystDashboard() {
       )
       .slice(0, 40);
   }, [dataset, deferred]);
-  const customer = dataset?.customers.find((c) => c.id === resolved.customerId);
+  const customer = datasetIndex?.customersById.get(resolved.customerId);
   const choose = (chosen: SourceCustomer) => {
     const inside=selectedDates.filter(date=>chosen.dates.includes(date));
     const chosenDate=inside.includes(resolved.date)?resolved.date:inside[0]??chosen.dates[0]??resolved.date;
@@ -470,7 +474,18 @@ export function AnalystDashboard() {
           {(dataset?.meta.dates??[]).map(date=><option key={date} value={date}>{date}</option>)}
         </select>
       </label>
-      <span className={styles.rangeHint}>최대 {MAX_ANALYSIS_DAYS}일</span>
+      <button type="button" aria-label="전체 분석기간 조회"
+        disabled={!dataset?.meta.dates.length}
+        aria-pressed={selectedDates.length>0&&selectedDates.length===dataset?.meta.dates.length}
+        onClick={()=>{
+          const dates=[...new Set(dataset?.meta.dates??[])].sort();
+          if(!dates.length)return;
+          const nextDate=dates.includes(resolved.date)&&(!customer||customer.dates.includes(resolved.date))
+            ?resolved.date:dates.find(date=>!customer||customer.dates.includes(date))??dates.at(-1)!;
+          navigate({...resolved,date:nextDate,dateStart:dates[0],dateEnd:dates.at(-1),
+            callId:null,sampleIndex:null},{...initialFilters});
+        }}>전체 기간</button>
+      <span className={styles.rangeHint}>{selectedDates.length}일 선택</span>
       <label className={styles.field}>
         데이터 출처
         <select

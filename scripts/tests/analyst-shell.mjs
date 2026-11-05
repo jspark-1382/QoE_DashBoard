@@ -52,6 +52,10 @@ try {
     /import\s+\{[^}]+\}\s+from\s+['"]\.\.\/\.\.\/lib\/analyst\/data['"];?/s,
     'const getContractId=c=>c?.sourceContractId??null;',
   );
+  code=code.replace(
+    /import\s+\{\s*indexDataset\s*\}\s+from\s+['"]\.\.\/\.\.\/lib\/analyst\/dataset-index['"];?/,
+    'const indexDataset=()=>({customersById:new Map(),daysByCustomer:new Map()});',
+  );
   code = code
     .replace("'../../lib/analyst/selection'", "'./.analyst-selection-test.mjs'")
     .replace(
@@ -74,7 +78,7 @@ try {
   // Keep this SSR-only contract test independent of the runtime data modules.
   code = code.replace(
     /import\s+\{[^}]+\}\s+from\s+['"]\.\.\/\.\.\/lib\/analyst\/date-range['"];?/s,
-    'const MAX_ANALYSIS_DAYS=3,adjustDateRange=()=>({}),combineDateOverviews=()=>({}),datesInRange=()=>[],dateOfCall=()=>"";',
+    'const adjustDateRange=()=>({}),combineDateOverviews=()=>({}),datesInRange=()=>[],dateOfCall=()=>"";',
   );
   code = code.replace(
     /import\s+\{[^}]+\}\s+from\s+['"]\.\.\/\.\.\/lib\/analyst\/three-site-rough['"];?/s,
@@ -120,6 +124,9 @@ try {
   assert.match(html, /데이터 목록을 불러오는 중입니다/);
   assert.match(html, /QoE 분석/);
   assert.match(html, /role="combobox"/);
+  assert.match(html, /aria-label="전체 분석기간 조회"/);
+  assert.match(html, />전체 기간<\/button>/);
+  assert.doesNotMatch(html, /최대 3일/);
   assert.doesNotMatch(html, /SSR must not fetch/);
   assert.deepEqual(
     [...html.matchAll(/<a\b[^>]*href="([^"]+)"/g)].map((match) => match[1]),

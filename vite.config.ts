@@ -1,7 +1,9 @@
 import { sites } from '@openai/sites-vite-plugin';
 import tailwindcss from '@tailwindcss/postcss';
 import vinext from 'vinext';
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
 import hostingConfig from './.openai/hosting.json';
 
 const SITE_CREATOR_PLACEHOLDER_DATABASE_ID =
@@ -34,7 +36,19 @@ const localBindingConfig = {
     : [],
 };
 
-export default defineConfig(async () => {
+export default defineConfig(async ({ mode }) => {
+  const localPreview = mode === 'local-preview';
+  const localPreviewBuild: Plugin = {
+    name: 'qoe:local-preview-build',
+    writeBundle(options) {
+      if (this.environment.name !== 'client') return;
+      if (!options.dir) throw new Error('Local preview client output directory is required');
+      // Keep this outside client/ so it cannot be downloaded as a public file.
+      const marker = resolve(options.dir, '..', '.qoe-local-preview.json');
+      mkdirSync(dirname(marker), { recursive: true });
+      writeFileSync(marker, JSON.stringify({ schemaVersion: 1, mode: 'local-preview' }));
+    },
+  };
   // Keep Wrangler and Miniflare state project-local. These are non-secret tool
   // settings; application environment belongs in ignored `.env*` files.
   process.env.WRANGLER_WRITE_LOGS ??= 'false';
@@ -45,6 +59,9 @@ export default defineConfig(async () => {
   const { cloudflare } = await import('@cloudflare/vite-plugin');
 
   return {
+    // Local data is streamed by the loopback preview, avoiding a 150k-file
+    // public route literal and copying private datasets into each UI build.
+    ...(localPreview ? { publicDir: false as const } : {}),
     css: { postcss: { plugins: [tailwindcss()] } },
     server: {
       watch: {
@@ -72,6 +89,7 @@ export default defineConfig(async () => {
         viteEnvironment: { name: 'rsc', childEnvironments: ['ssr'] },
         config: localBindingConfig,
       }),
+      ...(localPreview ? [localPreviewBuild] : []),
     ],
   };
 });

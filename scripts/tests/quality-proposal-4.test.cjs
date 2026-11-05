@@ -235,7 +235,7 @@ test('selected-call dialog draws exactly its linked CDR-end coordinate, not an a
  assert(ui.includes('MOS 저하 순간의 위치를 뜻하지 않습니다'));
  assert(map.includes('if (administrativeDongs.length || callLocations.length)'));
  assert(map.includes('!callLocations.length &&'),'linked single call must not show misleading empty-map overlay');
- assert(map.includes('if(onCallLocationSelect) for (const entry'));
+ assert(map.includes('if(canSelectCallLocation) for (const entry'));
  assert(css.includes('.dialogLocationMap{height:225px;'));
  const sources=new Set(overview.callLocations.map(p=>p.evidence));
  assert(sources.has('bye-cell')&&sources.has('gnss'));

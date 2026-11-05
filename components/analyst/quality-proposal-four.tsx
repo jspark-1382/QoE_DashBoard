@@ -5,9 +5,10 @@ import Link from './document-link';
 import {
   Activity, AlertTriangle, BarChart3, CalendarDays, Check, ChevronDown, ChevronRight,
   CircleHelp, Download, Layers3, MapPinned, MapPin, PhoneCall,
-  RadioTower, RotateCcw, Search, ShieldCheck, Signal, Users, Waves, X,
+  RotateCcw, Search, ShieldCheck, Signal, Users, X,
 } from 'lucide-react';
 import { loadDataset, loadDay, loadOverview } from '../../lib/analyst/data-loader';
+import { indexDataset } from '../../lib/analyst/dataset-index';
 import { buildImprovedView, buildOriginalCallLink, type ImprovedLocationFilter } from '../../lib/analyst/improved-overview';
 import { getOverviewAnalytics, type ExperienceGroup } from '../../lib/analyst/overview-analytics';
 import { calculateProposalGrades, type MosBand } from '../../lib/analyst/quality-proposal-metrics';
@@ -16,7 +17,7 @@ import { evaluateCallEvidence } from '../../lib/mos/call-evidence';
 import type { AnalystDataset, AnalystDay, AnalystOverview, OverviewCall, OverviewCallLocation } from '../../lib/analyst/types';
 import { AnalystMap } from './analyst-map';
 import { overlayThreeSiteRough, type ThreeSiteRoughDataset } from '../../lib/analyst/three-site-rough';
-import { MAX_ANALYSIS_DAYS, adjustDateRange, datesInRange, combineDateOverviews, dateOfCall } from '../../lib/analyst/date-range';
+import { adjustDateRange, datesInRange, combineDateOverviews, dateOfCall } from '../../lib/analyst/date-range';
 import { MosCallInvestigation } from './mos-call-investigation';
 import styles from './quality-proposal-four.module.css';
 import { QualityTopNav } from './quality-top-nav';
@@ -327,13 +328,26 @@ export function QualityProposalFour() {
   const [chosenCall,setChosenCall]=useState<string|null>(null);
   const [dialogOpen,setDialogOpen]=useState(false);
   const dialogCloseRef=useRef<HTMLButtonElement>(null);
-  const [details,setDetails]=useState<Record<string,AnalystDay>>({});
+  const [detailCache,setDetailCache]=useState<{dataset:AnalystDataset|null;values:Record<string,AnalystDay>}>({dataset:null,values:{}});
   const [more,setMore]=useState(12);
   const [search,setSearch]=useState('');
   const [sipFilter,setSipFilter]=useState<SipReasonGroup|'all'>('all');
   const [deep,setDeep]=useState(false);
   const [focus,setFocus]=useState<{key:string;lat:number;lon:number}|undefined>();
   const overview=loaded.overview, dataset=loaded.dataset;
+  // A refreshed manifest may point to a different source revision. Never pair
+  // its overview with detail records normalized from an earlier dataset.
+  const details=useMemo(()=>detailCache.dataset===dataset?detailCache.values:{},[detailCache,dataset]);
+  const datasetIndex=useMemo(()=>dataset?indexDataset(dataset):null,[dataset]);
+  const availableDates=[...new Set(dataset?.meta.dates??[])].sort();
+  const changePeriod=(start:string,end:string)=>{
+    if(start===startDate&&end===selectedDate)return;
+    setStartDate(start);setSelectedDate(end);
+    setLoaded(prev=>({...prev,loading:true,overview:null,rough:null,roughError:null,error:null}));
+    setSelectedHour(null);setDistrict(null);setSelectedBand(distributionMode==='drop'?'poor':null);setCohort(null);
+    setChosenCall(null);setDialogOpen(false);setFocus(undefined);setEvidence('all');
+    setMore(12);setSearch('');
+  };
 
   useEffect(()=>{
     const controller=new AbortController();
@@ -341,7 +355,7 @@ export function QualityProposalFour() {
       try{
         const dataset=await loadDataset('MDT',controller.signal);
         const rangeDates=datesInRange(dataset.meta.dates,startDate,selectedDate);
-        if(!rangeDates.length)throw new Error('분석 기간을 확인하세요. 최대 '+MAX_ANALYSIS_DAYS+'일입니다.');
+        if(!rangeDates.length)throw new Error('분석 기간에 해당하는 날짜별 자료를 확인하세요.');
         const summaries=await Promise.all(rangeDates.map(day=>loadOverview(dataset,'MDT',day,controller.signal)));
         const summary=combineDateOverviews(summaries);
         if(!summary.administrativeDongs?.length||!summary.callLocations?.length)
@@ -409,14 +423,18 @@ export function QualityProposalFour() {
   // Each selected MOS grade gets its OWN original CDR-end-location subset.
   // No low-MOS location is ever reused to represent a different MOS grade.
   const geographicModel=model;
-  const dataCalls=useMemo(()=>{
+  const orderedCalls=useMemo(()=>{
     if(!model)return [];
     const population=selectedBand
       ? fourthBandCalls(model.visibleHours,selectedBand,{
           districtId:district,evidence,locations:scopeOverview?.callLocations??[],
         })
       : [...model.focusedCalls];
-    let items=population.sort((a,b)=>(b.startTimestamp??'').localeCompare(a.startTimestamp??'')||b.startSecond-a.startSecond||a.id.localeCompare(b.id));
+    return population.sort((a,b)=>(b.startTimestamp??'').localeCompare(a.startTimestamp??'')||b.startSecond-a.startSecond||a.id.localeCompare(b.id));
+  },[model,selectedBand,district,evidence,scopeOverview?.callLocations]);
+  const dataCalls=useMemo(()=>{
+    if(!model)return [];
+    let items=orderedCalls;
     const activeSipFilter=distributionMode==='drop'?'drop':sipFilter;
     if(activeSipFilter!=='all')items=items.filter(call=>classifySipReason11(call.sipCause)===activeSipFilter);
     if(!search.trim())return items;
@@ -425,7 +443,7 @@ export function QualityProposalFour() {
       const point=model.markerByCall.get(call.id);
       return (fourthMaskedCustomer(call.customerId)+' '+dateOfCall(call,selectedDate)+' '+call.start+' '+(regionNames.get(point?.areaId??'')??'')).toLowerCase().includes(query);
     });
-  },[model,selectedBand,district,evidence,scopeOverview?.callLocations,search,sipFilter,distributionMode,regionNames]);
+  },[model,orderedCalls,search,sipFilter,distributionMode,regionNames,selectedDate]);
   const shown=useMemo(()=>dataCalls.slice(0,more),[dataCalls,more]);
   const selectedForFetch=chosenCall?dataCalls.find(call=>call.id===chosenCall)??null:null;
 
@@ -434,7 +452,7 @@ export function QualityProposalFour() {
     const controller=new AbortController();
     const unique=new Map([...shown,...(selectedForFetch?[selectedForFetch]:[])].map(c=>[c.customerId+':'+dateOfCall(c,selectedDate),c]));
     const pending=[...unique].filter(([key])=>!details[key])
-      .map(([,call])=>dataset.days.find(d=>d.customerId===call.customerId&&d.date===dateOfCall(call,selectedDate)))
+      .map(([,call])=>datasetIndex?.daysByCustomer.get(call.customerId)?.get(dateOfCall(call,selectedDate)))
       .filter((entry):entry is NonNullable<typeof entry>=>Boolean(entry));
     if(!pending.length)return;
     let active=true;
@@ -444,12 +462,13 @@ export function QualityProposalFour() {
         if(!active)return;
         const next:Record<string,AnalystDay>={};
         for(const o of outcomes)if(o.status==='fulfilled')next[o.value.customerId+':'+o.value.date]=o.value;
-        if(Object.keys(next).length)setDetails(prev=>({...prev,...next}));
+        if(Object.keys(next).length)setDetailCache(prev=>({dataset,
+          values:{...(prev.dataset===dataset?prev.values:{}),...next}}));
       });
     return ()=>{active=false;controller.abort();};
   // A populated cache prevents redundant requests. Map-selected calls outside
   // the visible 12-row table still have their detail loaded on demand.
-  },[dataset,shown,selectedForFetch,details]);
+  },[dataset,datasetIndex,shown,selectedForFetch,details,selectedDate]);
 
   const selected=selectedForFetch;
   // Only the original CDR-end representative position of this exact call.
@@ -538,39 +557,37 @@ export function QualityProposalFour() {
           <span>시작일</span>
           <select aria-label="분석 시작일" value={startDate} onChange={event=>{
             const next=adjustDateRange(dataset?.meta.dates??[DATE],startDate,selectedDate,'start',event.target.value);
-            setStartDate(next.start);setSelectedDate(next.end);
-            setLoaded(prev=>({...prev,loading:true,overview:null,rough:null,roughError:null,error:null}));
-            setSelectedHour(null);setDistrict(null);setSelectedBand(distributionMode==='drop'?'poor':null);setCohort(null);
-            setChosenCall(null);setDialogOpen(false);setFocus(undefined);setEvidence('all');
-            setMore(12);setSearch('');
+            changePeriod(next.start,next.end);
           }}>
             {(dataset?.meta.dates??[DATE]).map(date=><option key={date} value={date}>{date}</option>)}
           </select></label>
         <label className={styles.dateField}><span>종료일</span>
           <select aria-label="분석 종료일" value={selectedDate} onChange={event=>{
             const next=adjustDateRange(dataset?.meta.dates??[DATE],startDate,selectedDate,'end',event.target.value);
-            setStartDate(next.start);setSelectedDate(next.end);
-            setLoaded(prev=>({...prev,loading:true,overview:null,rough:null,roughError:null,error:null}));
-            setSelectedHour(null);setDistrict(null);setSelectedBand(distributionMode==='drop'?'poor':null);setCohort(null);
-            setChosenCall(null);setDialogOpen(false);setFocus(undefined);setEvidence('all');
-            setMore(12);setSearch('');
+            changePeriod(next.start,next.end);
           }}>
             {(dataset?.meta.dates??[DATE]).map(date=><option key={date} value={date}>{date}</option>)}
           </select></label>
-        <span className={styles.rangeHint}>최대 {MAX_ANALYSIS_DAYS}일</span>
+        <button type="button" className={styles.allDatesButton} aria-label="전체 분석기간 조회"
+          disabled={loaded.loading||!availableDates.length}
+          aria-pressed={startDate===availableDates[0]&&selectedDate===availableDates.at(-1)}
+          onClick={()=>{
+            if(availableDates.length)changePeriod(availableDates[0],availableDates.at(-1)!);
+          }}>전체 기간</button>
+        {dataset&&<span className={styles.rangeHint}>{datesInRange(availableDates,startDate,selectedDate).length}일 선택</span>}
         <label>시간 <input type="time" value={from} aria-label="시작 시간"
           onChange={e=>{setFrom(e.target.value);setSelectedHour(null);}}/></label>
         <span className={styles.separator}>~</span>
         <label><input type="time" value={to} aria-label="종료 시간"
           onChange={e=>{setTo(e.target.value);setSelectedHour(null);}}/></label>
         <div className={styles.filterSpacer}/>
-        <div className={styles.mapModeButtons} role="group" aria-label="지도 모드">
+        <fieldset className={styles.mapModeButtons} aria-label="지도 모드">
           <button type="button" aria-pressed={mapMode==='current'}
             onClick={()=>{setMapMode('current');setChosenCall(null);setDialogOpen(false);}}>기존 현황</button>
           <button type="button" aria-pressed={mapMode==='improvement'}
             title="2026.10.26~10.30 원본 5일로 계산한 반복 불량 조사 후보"
             onClick={()=>{setMapMode('improvement');setChosenCall(null);setDialogOpen(false);}}>개선 후보 분석</button>
-        </div>
+        </fieldset>
         <span className={styles.staticField}>데이터 출처 <b>MDT</b><ChevronDown size={13}/></span>
         <span className={styles.staticField}>평가 지표 <b>MOS(v5)</b><ChevronDown size={13}/></span>
         <span className={styles.staticField}>저품질 기준 <b>MOS &lt; 3.0</b></span>
@@ -659,7 +676,7 @@ export function QualityProposalFour() {
               <div><span className={styles.outlineDot}/>행정동 경계</div>
               <small>GNSS 중 종료 60~180초 전 마지막 실측 {n(geographicModel?.locations.filter(p=>p.positionQuality==='gnss-last-known').length??0)}건은 종료 실측 위치가 아닌 참고점입니다.</small>
               <small>{`선택 등급 위치 근거 ${n(geographicModel?.locatedPoorCalls??0)}통화 · 3사이트는 대략적인 조사 영역이며 실제 불량 시점 위치가 아님 · BYE Cell은 기지국 좌표`}</small>
-              {loaded.roughError&&<small role="status">3사이트 후보 자료 미적용: {loaded.roughError}</small>}
+              {loaded.roughError&&<small><output>3사이트 후보 자료 미적용: {loaded.roughError}</output></small>}
             </div>
           </section>
           <section className={styles.panel}>

@@ -13,6 +13,7 @@
 const fs = require('node:fs');
 const path = require('node:path');
 const {pathToFileURL} = require('node:url');
+const {isLocalPreviewBuild,createPublicAssetHandler} = require('./local-public-assets.cjs');
 
 const root=path.resolve(__dirname,'..');
 const dist=path.join(root,'dist');
@@ -82,6 +83,8 @@ async function main(){
   if(!fs.existsSync(assetRoot)){
     throw new Error('Run npm.cmd run build before preview: '+assetRoot);
   }
+  const servePublic=isLocalPreviewBuild(dist)
+    ? createPublicAssetHandler(path.join(root,'public')) : null;
   const {startProdServer}=await import(pathToFileURL(path.join(root,'node_modules/vinext/dist/server/prod-server.js')).href);
   const {server}=await startProdServer({
     port:3014,
@@ -104,10 +107,15 @@ async function main(){
       }
       void serveLocalAsset(req,res,pathname);
     }else{
-      delegate.call(server,req,res);
+      if(servePublic){
+        void servePublic(req,res,pathname).then(handled=>{
+          if(!handled)delegate.call(server,req,res);
+        }).catch(()=>{if(!res.headersSent){res.writeHead(500);res.end('Asset unavailable');}else res.destroy();});
+      }else delegate.call(server,req,res);
     }
   });
   console.log('[preview] Production UI + static assets: http://127.0.0.1:3014/qoe/');
   console.log('[preview] Local only; original app and datasets remain unchanged');
+  if(servePublic)console.log('[preview] Local build: source public assets with revalidation');
 }
 main().catch(error=>{console.error(error);process.exitCode=1;});

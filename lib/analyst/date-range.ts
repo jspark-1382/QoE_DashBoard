@@ -1,12 +1,10 @@
 import type { AnalystOverview, OverviewCall } from './types';
 
 /** The source archive is date-partitioned, so only available dates are selectable. */
-export const MAX_ANALYSIS_DAYS = 3;
-
 export function datesInRange(available: readonly string[], start: string, end: string): string[] {
   const dates = [...new Set(available)].sort();
   const first = dates.indexOf(start), last = dates.indexOf(end);
-  if (first < 0 || last < first || last >= dates.length || last - first + 1 > MAX_ANALYSIS_DAYS)
+  if (first < 0 || last < first || last >= dates.length)
     return [];
   // Require actual calendar-contiguous days. A missing partition must never
   // look like a one-day interval or hide a data collection gap.
@@ -27,10 +25,8 @@ export function adjustDateRange(
   let last = dates.indexOf(changed === 'end' ? next : end);
   if (changed === 'start') {
     if (last < first) last = first;
-    if (last - first + 1 > MAX_ANALYSIS_DAYS) last = first + MAX_ANALYSIS_DAYS - 1;
   } else {
     if (first > last) first = last;
-    if (last - first + 1 > MAX_ANALYSIS_DAYS) first = last - MAX_ANALYSIS_DAYS + 1;
   }
   return {start:dates[first],end:dates[last]};
 }
@@ -41,7 +37,6 @@ export function dateOfCall(call: Pick<OverviewCall,'startTimestamp'>, fallback:s
 /** Concatenate independent dates without reassigning a call's id or GNSS position. */
 export function combineDateOverviews(days: readonly AnalystOverview[]): AnalystOverview {
   if (!days.length) throw new Error('분석 기간의 실제 자료가 없습니다.');
-  if (days.length > MAX_ANALYSIS_DAYS) throw new Error('분석 기간은 최대 3일입니다.');
   const sorted=[...days].sort((a,b)=>a.date.localeCompare(b.date));
   const reference=sorted[0];
   for (const item of sorted) {

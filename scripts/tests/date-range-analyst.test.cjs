@@ -3,7 +3,7 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const {load}=require('../analyst-ts-loader.cjs');
-const {datesInRange,adjustDateRange,combineDateOverviews,dateOfCall,MAX_ANALYSIS_DAYS}
+const {datesInRange,adjustDateRange,combineDateOverviews,dateOfCall}
   =load('lib/analyst/date-range.ts');
 const {parseSelection,resolveSelection,selectionQuery}=load('lib/analyst/selection.ts');
 const {calculateProposalGrades}=load('lib/analyst/quality-proposal-metrics.ts');
@@ -12,18 +12,24 @@ const days=['2026-10-26','2026-10-27','2026-10-28','2026-10-29','2026-10-30'];
 const path=date=>'public/analyst-overview/MDT/'+date+'.json';
 const data={};
 const getDate=(date)=>data[date]??(data[date]=JSON.parse(fs.readFileSync(path(date),'utf8')));
-test('range is inclusive, max 3 calendar days and never silently bridges missing dates',()=>{
- assert.equal(MAX_ANALYSIS_DAYS,3);
+test('range includes every available day without a duration cap and never bridges missing dates',()=>{
  assert.deepEqual(datesInRange(days,'2026-10-28','2026-10-30'),days.slice(2));
- assert.deepEqual(datesInRange(days,'2026-10-26','2026-10-30'),[]);
+ assert.deepEqual(datesInRange(days,'2026-10-26','2026-10-30'),days);
+ const month=Array.from({length:30},(_,index)=>'2026-10-'+String(index+1).padStart(2,'0'));
+ assert.deepEqual(datesInRange(month,month[0],month.at(-1)),month);
  assert.deepEqual(datesInRange(days,'2026-10-30','2026-10-29'),[]);
+ assert.deepEqual(datesInRange(days,'2026-10-25','2026-10-30'),[]);
  assert.deepEqual(datesInRange(['2026-10-26','2026-10-28'],'2026-10-26','2026-10-28'),[]);
  assert.deepEqual(adjustDateRange(days,'2026-10-30','2026-10-30','start','2026-10-26'),
-   {start:'2026-10-26',end:'2026-10-28'});
+   {start:'2026-10-26',end:'2026-10-30'});
  assert.deepEqual(adjustDateRange(days,'2026-10-26','2026-10-26','end','2026-10-30'),
-   {start:'2026-10-28',end:'2026-10-30'});
+   {start:'2026-10-26',end:'2026-10-30'});
+ assert.deepEqual(adjustDateRange(days,'2026-10-26','2026-10-28','start','2026-10-30'),
+   {start:'2026-10-30',end:'2026-10-30'});
+ assert.deepEqual(adjustDateRange(days,'2026-10-28','2026-10-30','end','2026-10-26'),
+   {start:'2026-10-26',end:'2026-10-26'});
 });
-test('selection URL preserves range, rejects oversized period and keeps exact call date',()=>{
+test('selection URL preserves full range, rejects invalid endpoints and keeps exact call date',()=>{
  const source=JSON.parse(fs.readFileSync('public/voice-1030.json','utf8'));
  const demo=source.customers.find(x=>x.dates.includes('2026-10-30'));
  assert(demo,'required real customer with 10/30 partition');
@@ -36,9 +42,30 @@ test('selection URL preserves range, rejects oversized period and keeps exact ca
  const query=selectionQuery(resolved);
  assert(query.includes('dateStart=2026-10-28'));
  assert(query.includes('dateEnd=2026-10-30'));
- const malicious=resolveSelection({...parsed,dateStart:'2026-10-26',dateEnd:'2026-10-30'},source);
- assert.equal(malicious.dateStart,undefined);
- assert.equal(malicious.dateEnd,undefined);
+ const fullRange=resolveSelection({...parsed,dateStart:'2026-10-26',dateEnd:'2026-10-30'},source);
+ assert.equal(fullRange.date,'2026-10-30');
+ assert.equal(fullRange.dateStart,'2026-10-26');
+ assert.equal(fullRange.dateEnd,'2026-10-30');
+ const invalid=resolveSelection({...parsed,dateStart:'2026-10-25',dateEnd:'2026-10-30'},source);
+ assert.equal(invalid.dateStart,undefined);
+ assert.equal(invalid.dateEnd,undefined);
+});
+test('all five source dates combine with original call IDs, MOS and positions intact',()=>{
+ const sourceDays=days.map(getDate);
+ const originalCalls=sourceDays.flatMap(day=>day.calls.map(call=>[call.id,call.mos,call.startTimestamp]));
+ const originalPositions=sourceDays.flatMap(day=>day.callLocations??[]);
+ const positionSnapshot=JSON.stringify(originalPositions);
+ const result=combineDateOverviews(sourceDays);
+ assert.equal(result.date,'2026-10-26 ~ 2026-10-30');
+ assert.equal(result.calls.length,184232);
+ assert.equal(new Set(result.calls.map(call=>call.id)).size,184232);
+ assert.deepEqual(result.calls.map(call=>[call.id,call.mos,call.startTimestamp]),originalCalls);
+ assert.equal(JSON.stringify(result.callLocations),positionSnapshot);
+ assert.equal(JSON.stringify(sourceDays.flatMap(day=>day.callLocations??[])),positionSnapshot);
+ const grades=calculateProposalGrades(result,'00:00','23:59');
+ assert.equal(grades.evaluated+grades.unavailable,184232);
+ assert.equal(grades.bands[0].count,sourceDays.reduce((n,day)=>n+
+  day.calls.filter(call=>typeof call.mos==='number'&&call.mos>=1&&call.mos<3).length,0));
 });
 test('original 3 source dates combine exactly, with no duplicate CDR IDs or location reuse',()=>{
  const sourceDays=days.slice(2).map(getDate);
