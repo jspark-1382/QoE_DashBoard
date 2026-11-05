@@ -245,6 +245,7 @@ export function AnalystMap({
           const point = callsAtPoint[0];
           const observed = point.evidence === 'gnss';
           const lastKnown=point.positionQuality==='gnss-last-known';
+          const roughThreeSite=point.positionQuality==='three-site-rough';
           const regionName = administrativeDongs.find(
             (dong) => dong.id === point.areaId,
           )?.label ?? '행정동 미확인';
@@ -254,6 +255,7 @@ export function AnalystMap({
           const label = lastKnown ? '마지막 GNSS 실측 기준점 (통화 종료 실측 위치 아님)' :
             observed ? 'GNSS 관측 (정확도 미제공)' :
             isByeSite ? 'BYE Cell 기지국 위치 (단말 실제 위치 아님)' :
+            roughThreeSite ? '3사이트 근사 조사 권역 중심 (실제 UE 위치 아님)' :
             '3사이트 무선 추정 (정확도 미검증)';
           const count = callsAtPoint.length;
           const uniqueCalls = new Set(callsAtPoint.map(item=>item.callId)).size;
@@ -263,7 +265,7 @@ export function AnalystMap({
             lastKnown ? styles.occurrenceGnssReference :
             observed ? styles.occurrenceGnss :
             isByeSite ? styles.occurrenceByeCell :
-            point.estimationMethod === 'MULTILATERATION' && (point.usedSiteCount??0)>=3
+            (roughThreeSite || point.estimationMethod === 'MULTILATERATION') && (point.usedSiteCount??0)>=3
               ? styles.occurrenceTrilat : styles.occurrenceEstimate;
           const icon = L.divIcon({
             className: styles.occurrenceIcon,
@@ -281,7 +283,7 @@ export function AnalystMap({
           const provenance = document.createElement('p');
           provenance.textContent = isCluster
             ? 'GNSS/3사이트 추정/BYE Cell 기지국 위치 군집 · 확대 후 개별 근거 확인'
-            : `${label} · ${point.lat.toFixed(6)}, ${point.lon.toFixed(6)}` +
+            : `${label} · ${point.lat.toFixed(roughThreeSite?3:6)}, ${point.lon.toFixed(roughThreeSite?3:6)}` +
               (isByeSite
                 ? ` · Cell ID ${point.byeCellId??'미제공'} · RU ${point.byeRuId??'미제공'} · 기지국 위치를 종료 통화의 대표점으로 사용`
                 : point.representativeBasis === 'cdr-end-nearest' && point.secondsBeforeEnd != null
@@ -319,9 +321,38 @@ export function AnalystMap({
               }
             }
           }
+          if (!isCluster && roughThreeSite && point.roughSearchRadiusM != null) {
+            const explanation=document.createElement('p');
+            explanation.textContent='신호 세기 가중 기지국 위치 중심 · 현장 조사 권역 약 '+
+              Math.round(point.roughSearchRadiusM).toLocaleString()+'m · 실제 단말 위치/정확도 90% 영역 아님';
+            popup.appendChild(explanation);
+            // Draw the rough investigation zone, not an asserted UE accuracy
+            // circle or a route; avoid clutter on very dense regional maps.
+            if(callLocations.length<=35){
+              L.circle(position,{
+                radius:point.roughSearchRadiusM,color:'#ca8a20',
+                dashArray:'7 6',weight:2,fillColor:'#dba34d',fillOpacity:0.025,
+              }).bindTooltip('3사이트 기반 대략 조사 권역 · 정확도 검증 구간 아님').addTo(layer);
+            }
+            if(callLocations.length===1) {
+              for(const site of point.usedStations??[]) {
+                const positionSite:[number,number]=[site.lat,site.lon];
+                focusBounds.push(positionSite);
+                const labelSite=document.createElement('span');
+                labelSite.textContent='참조 기지국 '+site.ruId+' / '+site.cellId+
+                  ' · RSRP '+site.rsrpDbm.toFixed(1)+' dBm (UE 위치 아님)';
+                L.marker(positionSite,{zIndexOffset:500,icon:L.divIcon({
+                  className:styles.stationIcon+' '+styles.byeStationIcon,
+                  html:'▲',iconSize:[23,23],iconAnchor:[11,11],
+                })}).bindTooltip(labelSite).addTo(layer);
+              }
+            }
+          }
           if (!isCluster && point.evidence === 'estimated') {
             const detail = document.createElement('p');
-            const method = point.usedSiteCount != null && point.usedSiteCount >= 3 &&
+            const method = roughThreeSite
+                ? `3개 이상 서로 다른 기지국의 RSRP 가중중심 (${point.usedSiteCount} Site) · 정밀 삼변측량 아님`
+                : point.usedSiteCount != null && point.usedSiteCount >= 3 &&
               point.estimationMethod === 'MULTILATERATION'
                 ? `3개 이상 독립 사이트 무선 위치 추정 (${point.usedSiteCount} Site)`
                 : point.usedSiteCount === 2
@@ -333,7 +364,9 @@ export function AnalystMap({
                 : '';
             const geometry = point.geometry != null && Number.isFinite(point.geometry)
                 ? ` · 배치 지표 ${point.geometry.toFixed(3)}` : '';
-            const review = point.positionQuality === 'trilateration-weak'
+            const review = roughThreeSite
+                ? ` · 대략적 조사 반경 ${Math.round(point.roughSearchRadiusM??0).toLocaleString()}m (현장 참고용 가정, 정확도/신뢰구간 아님)`
+                : point.positionQuality === 'trilateration-weak'
                 ? ' · 기하/불확실성 품질 조건 미통과'
                 : point.positionQuality === 'trilateration-reviewable'
                   ? ' · 기본 품질 조건 통과(정확도 검증 아님)' : '';
@@ -756,6 +789,9 @@ export function AnalystMap({
             );
             evidenceSites.forEach((site) =>
               p.push([site.latitude, site.longitude]),
+            );
+            callLocations.forEach((point) =>
+              p.push([point.lat,point.lon]),
             );
             if (p.length)
               m.fitBounds(p, {

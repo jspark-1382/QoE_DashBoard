@@ -8,6 +8,7 @@ import { AnalystMap } from './analyst-map';
 import { MosCallInvestigation } from './mos-call-investigation';
 import type { AnalystDataset, AnalystDay, AnalystOverview } from '../../lib/analyst/types';
 import styles from './improved-quality-overview.module.css';
+import { QualityTopNav } from './quality-top-nav';
 
 type Loaded = { dataset: AnalystDataset; overview: AnalystOverview };
 type DataState = { loading: boolean; value: Loaded | null; error: string | null };
@@ -125,16 +126,8 @@ export function ImprovedQualityOverview() {
 
   return (
     <div className={styles.shell}>
-      <header className={styles.appbar}>
-        <Link className={styles.brand} href="/">QoE 분석 · MOS 음성품질</Link>
-        <nav aria-label="분석 화면">
-          <Link href={originalLink}>품질 현황</Link>
-          <Link href={'/?source=MDT&view=contract&date='+selectedDate}>고객·통화 분석</Link>
-          <Link href="/mos-lab">MOS 알고리즘 비교</Link>
-          <Link href="/overview-improved" className={styles.active} aria-current="page">품질현황_개선</Link>
-        </nav>
-        <span className={styles.source}>MDT · Voice</span>
-      </header>
+      <QualityTopNav active="legacy" date={selectedDate} legacyHref={originalLink}
+        sourceLabel="MDT · Voice"/>
 
       <main className={styles.main}>
         <div className={styles.titleRow}>

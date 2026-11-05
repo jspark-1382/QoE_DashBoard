@@ -55,6 +55,8 @@ export interface AnalystSample {
   raw:readonly unknown[];
 }
 export interface AnalystCall {
+  /** Source-tagged MDT observation times, separate from identity validation. */
+  mdtObservation?:import('./mdt-observation').MdtObservationSummary;
   id:string; ci:string; customerId:string; contractId:string|null;
   start:string; end:string; startTimestamp?:string; startSecond:number; endSecond:number; qoe:number|null;
   startCellId:string; endCellId:string;
@@ -94,14 +96,18 @@ export interface OverviewCallLocation {
   byeStationLat?:number; byeStationLon?:number;
   /** Distance/time envelope from the last observed GNSS; not an accuracy radius. */
   gnssReferenceAgeSec?:number; possibleRadiusM?:number;
-  referenceBasis?:'last-known-gnss'|'direct-gnss'|'reviewed-radio'|'bye-station';
+  referenceBasis?:'last-known-gnss'|'direct-gnss'|'reviewed-radio'|'bye-station'|'coarse-site-barycenter';
   observedAt?:string; cdrEndAt?:string; secondsBeforeEnd?:number;
   /** Radio estimate metadata. Model uncertainty is NOT validated location error. */
-  positionQuality?:'gnss-observed'|'gnss-last-known'|'trilateration-reviewable'|'trilateration-weak'|'two-site-approximation'|'other-approximation'|'bye-cell-site';
+  positionQuality?:'gnss-observed'|'gnss-last-known'|'trilateration-reviewable'|'trilateration-weak'|'three-site-rough'|'two-site-approximation'|'other-approximation'|'bye-cell-site';
   estimationMethod?:string|null; usedSiteCount?:number|null;
   geometry?:number|null; residualErrorM?:number|null;
   modelUncertaintyM?:number|null; modelConfidenceScore?:number|null;
   estimationWindowSec?:number|null;
+  /** Engineering search area, NOT a calibrated positioning accuracy bound. */
+  roughSearchRadiusM?:number|null;
+  siteSpanM?:number|null;
+  usedStations?:Array<{lat:number;lon:number;ruId:string;cellId:string;rsrpDbm:number}>;
 }
 export interface AdministrativeDongBoundary {
   id:string; label:string; lat:number; lon:number;

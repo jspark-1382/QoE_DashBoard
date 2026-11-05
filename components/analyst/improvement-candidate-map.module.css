@@ -1,0 +1,5 @@
+.container{height:100%;min-height:320px;width:100%;position:relative;background:#e6f0f5;isolation:isolate}
+.map{position:absolute;inset:0}
+.map :global(.leaflet-container){height:100%;width:100%;z-index:1}
+.notice{position:absolute;z-index:500;bottom:34px;left:10px;background:#fffef6e9;border:1px solid #d6c9a1;color:#69593d;border-radius:6px;padding:5px 9px;font-size:11px;max-width:80%}
+.hint{position:absolute;z-index:500;bottom:7px;left:8px;background:#ffffffee;border:1px solid #c8dbe8;color:#46637a;border-radius:6px;padding:4px 7px;font-size:10px;pointer-events:none}

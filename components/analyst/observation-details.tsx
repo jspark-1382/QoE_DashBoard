@@ -4,6 +4,7 @@ import type {
   AnalystCall,
   AnalystSample,
   AnalystSource,
+  OverviewCallLocation,
 } from '../../lib/analyst/types';
 import {
   estimationMethodLabel,
@@ -31,11 +32,13 @@ export function ObservationDetails({
   call,
   samples,
   source,
+  roughLocation,
 }: {
   sample: AnalystSample | null;
   call: AnalystCall | null;
   samples: AnalystSample[];
   source: AnalystSource;
+  roughLocation?: OverviewCallLocation;
 }) {
   const rsrp = samples.filter((s) => s.rsrp !== null),
     sinr = samples.filter((s) => s.sinr !== null),
@@ -80,6 +83,11 @@ export function ObservationDetails({
                 ? '제공된 관측 좌표입니다. 측정 오차는 미제공입니다.'
                 : '이 관측값만으로 고객의 실제 위치를 확정할 수 없습니다.'}</span>
           </div>
+          {roughLocation&&<div className={styles.roughLocation} aria-label="통화 단위 3사이트 대략 위치">
+            <b>통화 3사이트 근사 위치</b>
+            <span>{roughLocation.lat.toFixed(3)}, {roughLocation.lon.toFixed(3)} · 조사 반경 약 {Math.round(roughLocation.roughSearchRadiusM??0).toLocaleString()}m</span>
+            <small>실제 GNSS/선택 관측 좌표 아님</small>
+          </div>}
           {sample.gnssReference&&<div className={styles.gnssReferenceEvidence}
               aria-label="선택 관측의 이전 GNSS 기준">
               <strong>이전 GNSS 기준점 확인됨</strong>
@@ -89,7 +97,9 @@ export function ObservationDetails({
               <span>이는 이전 실측 위치를 참고하는 영역이며, 현재 관측 시점의 새 GNSS 좌표가 아닙니다.</span>
             </div>}
           {sample.estimation?.review&&!sample.estimation.review.accepted&&sample.lat==null&&
-            <output className={styles.positionReviewWarning} aria-label="추정 위치 품질검토 결과">
+            <details className={styles.positionReviewDetails} aria-label="추정 위치 품질검토 결과">
+              <summary>개별 관측 좌표 심사 근거 보기</summary>
+              <div className={styles.positionReviewWarning}>
               <strong>고객 위치 추정 보류 · 지도 좌표 미표시</strong>
               <p>{sample.estimation.review.reasons.join(' · ')}</p>
               <span>모델 신뢰 점수 {sample.confidence??'미확인'}점과 별개로 좌표 품질 심사에서 제외됐습니다.
@@ -97,7 +107,8 @@ export function ObservationDetails({
                   ? ' 거리 상한 도달 '+sample.estimation.review.cappedSites+'/'+sample.estimation.siteCount+'사이트.'
                   : ''}
                 {' '}실제 고객 위치는 확인되지 않았습니다.</span>
-            </output>}
+              </div>
+            </details>}
           <p className={styles.helper}>
             원본 관측 #{sample.index} · {source}
           </p>

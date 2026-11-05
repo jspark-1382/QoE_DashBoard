@@ -3,6 +3,7 @@ import { reviewAdaptivePosition } from '../location-estimation/review';
 import { latestGnssReference } from '../location-estimation/gnss-reference';
 import { distanceM } from '../location-estimation/geo';
 import { normalizeStartTimestamp } from './call-time';
+import { summarizeCallMdtObservations } from './mdt-observation';
 import type {
   AnalystDataset,
   AnalystDay,
@@ -72,6 +73,13 @@ export function normalizeDay(
       endTimestamp: meta?.endTimestamp,
       qoe: num(row[16]),
     });
+  }
+  const rawByCall=new Map<string,(readonly unknown[])[]>();
+  for(const row of detail.samples){
+    if(typeof row[19]!=='string')continue;
+    const items=rawByCall.get(row[19])??[];
+    items.push(row);
+    rawByCall.set(row[19],items);
   }
   const samples: AnalystSample[] = detail.samples.flatMap((raw, index) => {
     const callId = str(raw[19]);
@@ -319,6 +327,7 @@ export function normalizeDay(
       mosStatus: call.mosStatus,
       matchStatus: call.matchStatus,
       matchDeltaSec: call.matchDeltaSec,
+      ...(source==='MDT'?{mdtObservation:summarizeCallMdtObservations(call,rawByCall.get(call.id)??[])}:{}),
       rtp: call.rtp,
       rsrp: num(call.rsrp) ?? average(rows.map((s) => s.rsrp)),
       rsrq: num(call.rsrq) ?? average(rows.map((s) => s.rsrq)),

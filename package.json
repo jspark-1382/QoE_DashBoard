@@ -22,7 +22,7 @@
     "test:admin-dong": "node --test scripts/tests/admin-dong-output.test.cjs",
     "test:mos-lab": "node --test scripts/tests/mos-lab.test.cjs",
     "test:improved": "node --test scripts/tests/improved-overview.test.cjs",
-    "test:proposals": "node --test scripts/tests/quality-proposals.test.cjs scripts/tests/quality-proposal-3.test.cjs scripts/tests/quality-proposal-4.test.cjs",
+    "test:proposals": "node --test scripts/tests/quality-tabs.test.cjs scripts/tests/quality-proposal-4.test.cjs",
     "test:analyst": "node scripts/test-analyst-data.cjs && node scripts/test-analyst-loader.cjs && node scripts/test-analyst-selection.cjs && node scripts/tests/analyst-overview.test.cjs && node scripts/tests/analyst-overview-analytics.test.cjs && node scripts/tests/analyst-original-charts.mjs && node scripts/tests/analyst-overview-ui.test.cjs && node scripts/tests/analyst-map-ui.test.cjs && node scripts/tests/analyst-contract-picker.mjs && node scripts/tests/analyst-contract-picker-ui.mjs && node scripts/tests/analyst-call-metadata.test.cjs && node scripts/tests/analyst-estimation-evidence.test.cjs && node --test scripts/tests/position-review.test.cjs scripts/tests/gnss-reference-fusion.test.cjs && node scripts/tests/analyst-navigation.mjs && node scripts/tests/analyst-observation-groups.mjs && node scripts/tests/analyst-workspace.mjs && node scripts/tests/analyst-provenance.mjs && node scripts/tests/analyst-shell.mjs",
     "data:all": "npm run data:voice1030 && npm run data:overview -- MDT",
     "build": "vinext build",

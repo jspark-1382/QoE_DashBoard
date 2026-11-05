@@ -39,6 +39,9 @@ yarn-error.log*
 /public/voice-1030.json
 /public/voice-1030-data/
 /public/analyst-overview/
+/public/improvement-candidates/
+/public/radio-investigation/
+/public/three-site-rough/
 
 # local QA artifact
 /dashboard-local-preview.png
@@ -51,6 +54,8 @@ yarn-error.log*
 .vercel
 next-env.d.ts
 /dist/
+/dist-backup-*/
+/dist-incomplete-*/
 /.wrangler/
 /outputs/
 /work/

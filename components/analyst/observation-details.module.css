@@ -154,3 +154,12 @@
 .gnssReferenceEvidence strong{display:block;margin-bottom:4px;color:#15695d;font-size:12px}
 .gnssReferenceEvidence p{margin:2px 0}
 .gnssReferenceEvidence span{color:#58736d}
+
+/* Only the evidence button is shown until the analyst opens its contents. */
+.positionReviewDetails{margin:7px 0 10px;font-size:11px}
+.positionReviewDetails>summary{display:inline-block;cursor:pointer;border:1px solid #e8d4bd;border-radius:5px;padding:5px 8px;background:#fff8ef;color:#865a2b;font-weight:600}
+.positionReviewDetails .positionReviewWarning{margin-top:7px}
+.roughLocation{margin:8px 0;padding:8px 9px;border-radius:5px;background:#f5f0fd;border:1px solid #dcd0f0;color:#584581;display:grid;gap:4px;line-height:1.45}
+.roughLocation>b{font-size:12px}
+.roughLocation>span{font-weight:600}
+.roughLocation>small{font-size:10px;color:#746485}

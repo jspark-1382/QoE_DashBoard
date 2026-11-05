@@ -74,7 +74,7 @@
 }
 .columns {
   display: grid;
-  grid-template-columns: 280px minmax(0, 1fr) 280px;
+  grid-template-columns: 340px minmax(0, 1fr) 280px;
   gap: 12px;
   align-items: stretch;
 }
@@ -432,12 +432,12 @@
 }
 @media (min-width: 1800px) {
   .columns {
-    grid-template-columns: 300px minmax(0, 1fr) 300px;
+    grid-template-columns: 350px minmax(0, 1fr) 300px;
   }
 }
 @media (max-width: 1350px) {
   .columns {
-    grid-template-columns: 250px minmax(0, 1fr) 260px;
+    grid-template-columns: 315px minmax(0, 1fr) 260px;
     gap: 10px;
   }
   .summary > span {
@@ -446,7 +446,7 @@
 }
 @media (max-width: 1179px) {
   .columns {
-    grid-template-columns: 250px minmax(0, 1fr);
+    grid-template-columns: 315px minmax(0, 1fr);
   }
   .detailsPanel {
     grid-column: 1/-1;
@@ -545,3 +545,35 @@
 .gnssReference span{font-size:12px;font-weight:650;font-variant-numeric:tabular-nums}
 .gnssReference small{font-size:11px;color:#516b65}
 .gnssReferenceSymbol{display:inline-block;width:13px;height:13px;border:2px dashed #0b8d82;border-radius:50%;background:#cdf0e7}
+
+/* Compact evidence affordances: verbose model/rejection details stay collapsed. */
+.technicalDetails{margin:7px 0 0;font-size:11px;color:#53697e}
+.technicalDetails>summary{display:inline-flex;align-items:center;gap:5px;padding:5px 8px;border:1px solid #d2dfec;border-radius:5px;background:#fff;color:#365d83;cursor:pointer;font-weight:600}
+.technicalDetails[open]>summary{background:#edf4fb}
+.technicalDetails:focus-within>summary{outline-offset:2px}
+.roughSummary{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:9px 0 2px;padding:8px 10px;border-radius:6px;border:1px solid #d5c6ee;background:#f6f1fc;color:#55438a;font-size:12px;line-height:1.5}
+.roughSummary>b{white-space:nowrap}
+.roughSummary>span{font-size:11px;color:#827391}
+.roughEvidence{margin:7px 0;padding:8px 10px;border-radius:6px;background:#f7f7fc;border:1px solid #e4e0ed;color:#4d5866;line-height:1.55}
+.roughEvidence p{margin:0 0 6px}
+.roughEvidence ul{margin:4px 0 0;padding-left:18px}
+.roughEvidence li{margin:3px 0}
+
+.periodNavigation{display:flex;align-items:center;flex-wrap:wrap;gap:7px 13px;border:1px solid #d9e5f1;background:#f7fbff;padding:8px 12px;margin:0 0 12px;font-size:12px;border-radius:5px}
+.periodNavigation>strong{color:#254b70}.periodNavigation>span{font-weight:650;color:#52718e}
+.periodNavigation>div{display:flex;gap:5px;flex-wrap:wrap}
+.periodNavigation>div button{background:white;border:1px solid #bcd2e5;border-radius:5px;padding:4px 8px}
+.periodNavigation>div button[aria-pressed="true"]{background:#dcecff;border-color:#5c95c7;color:#144b80;font-weight:750}
+.periodNavigation>small{color:#8195a8}
+
+/* SIP CDR 11.REASON, shown immediately after MOS in the customer call list. */
+.callList .sipReasonBadge{display:inline-block;min-width:42px;border-radius:6px;
+  padding:4px 6px;white-space:nowrap;font-size:10px;font-weight:750;
+  background:#f0f3f7;color:#607184}
+.callList .sipReasonBadge[data-reason='normal']{background:#e8f7ee;color:#17805e}
+.callList .sipReasonBadge[data-reason='drop']{background:#ffe6e9;color:#b83243}
+.callList .sipReasonBadge[data-reason='other']{background:#fff4df;color:#98681c}
+@media(max-width:760px){
+  .callList table{min-width:315px}
+}
+

@@ -148,10 +148,19 @@
 .tableActions{display:flex;align-items:center;gap:9px}
 .searchBox{height:34px;display:flex;align-items:center;gap:7px;padding:0 10px;border:1px solid #d2e0ed;border-radius:8px;background:#fbfdff;color:#7592af}
 .searchBox input{width:240px;border:0;background:transparent;outline:0!important;color:#284762;font-size:11px}
+.sipSelect{display:flex;align-items:center;gap:6px;color:#648098;font-size:11px;
+  font-weight:700;white-space:nowrap}
+.sipSelect select{background:#f9fcff;border:1px solid #cbdde9;padding:6px;border-radius:7px;
+  color:#335d76;font-size:11px;min-width:72px}
+.sipBadge{display:inline-flex;align-items:center;justify-content:center;min-width:58px;
+  border-radius:7px;padding:5px 8px;font-size:11px;font-weight:800;background:#f1f5f9;color:#52677a}
+.sipBadge[data-reason="normal"]{background:#e5f7ef;color:#198458}
+.sipBadge[data-reason="drop"]{background:#ffe8eb;color:#c02e41}
+.sipBadge[data-reason="other"]{background:#fff5dd;color:#906414}
 .csvButton{height:34px;display:flex;align-items:center;gap:7px;padding:0 12px;border:1px solid #cbdceb;
   color:#355b80;border-radius:8px;font-size:11px;font-weight:700;background:#fff}
 .tableScroller{width:100%;overflow:auto;max-height:370px}
-.table{border-collapse:collapse;width:100%;min-width:1320px;font-size:11px}
+.table{border-collapse:collapse;width:100%;min-width:1470px;font-size:11px}
 .table th{position:sticky;top:0;background:#f3f8fd;color:#617d96;text-align:left;font-size:11px;padding:10px 13px;font-weight:760;border-bottom:1px solid #dee8f3;white-space:nowrap;z-index:1}
 .table td{padding:9px 13px;border-bottom:1px solid #edf1f5;white-space:nowrap;color:#304a65}
 .table tbody tr{cursor:pointer}
@@ -262,3 +271,65 @@
 
 .dateField select{appearance:auto;border:0;background:transparent;color:#244363;font-size:12px;font-weight:750;min-width:117px;cursor:pointer}
 .dateField select:focus-visible{outline:2px solid #3494b0;outline-offset:3px}
+
+.rangeHint{font-size:11px;color:#6b829d;white-space:nowrap;font-weight:650}
+
+/* Map mode shares the existing filter bar, immediately left of data source. */
+.mapModeButtons{display:flex;align-items:center;flex-shrink:0;gap:3px;border:1px solid #cbdfea;
+  border-radius:8px;padding:2px;background:#eef5fb;min-height:36px}
+.mapModeButtons button{border:0;background:transparent;color:#547590;padding:6px 9px;
+  font-size:11px;font-weight:750;border-radius:6px;white-space:nowrap;line-height:1.35}
+.mapModeButtons button[aria-pressed="true"]{color:#0d695f;background:#bdf4e9;box-shadow:0 1px 4px #277c7233}
+.mapModeButtons button:focus-visible{outline:3px solid #45cfc3;outline-offset:2px}
+@media(max-width:1600px){.filters{column-gap:8px}.staticField{gap:7px}}
+@media(max-width:1100px){.filterSpacer{flex-basis:100%;height:0}}
+@media(max-width:680px){.mapModeButtons{flex:1;justify-content:stretch}
+  .mapModeButtons button{flex:1}}
+
+/* MDT observation timing for this call, measured relative to CDR end (not a SIP BYE packet clock). */
+.selectedMetrics .mdtObservedMetric{gap:5px;min-width:0}
+.mdtObservedMetric b{font-size:13px;line-height:1.4;overflow-wrap:anywhere;color:#286a7b}
+.mdtObservedMetric[data-observation="none"] b,
+.mdtObservedMetric[data-observation="distant"] b{color:#657c91}
+.mdtObservedMetric[data-observation="after"] b{color:#a16c26}
+.mdtObservedMetric[data-observation="ambiguous"] b,
+.mdtObservedMetric[data-observation="unverified"] b{color:#9d6a33}
+.mdtObservedMetric small{font-size:10px;line-height:1.5;color:#61798f;font-weight:500}
+.mdtObservationFoot{margin:0 12px 8px;padding:8px 10px;background:#eef8f8;border:1px solid #d6e8e9;
+  border-radius:7px;color:#426979;font-size:11px;line-height:1.55}
+.mdtObservationFoot strong{font-weight:800}
+.mdtObservationFoot span{color:#6f8595;font-size:10px}
+.mdtObservationFoot[data-observation="none"],
+.mdtObservationFoot[data-observation="distant"]{background:#f6f9fb;color:#647589}
+
+
+/* Selected call MOS and original SIP CDR 11.REASON directly adjacent. */
+.selectedMetrics{grid-template-columns:repeat(6,minmax(0,1fr))}
+.selectedMetrics>.mdtObservedMetric{grid-column:span 2}
+.selectedMetrics>.sipResultMetric{min-width:0;gap:5px}
+.sipResultMetric b{color:#697a88;font-size:16px}
+.sipResultMetric[data-reason="normal"] b{color:#15835d}
+.sipResultMetric[data-reason="drop"] b{color:#c43648}
+.sipResultMetric[data-reason="other"] b{color:#9c711f}
+.sipResultMetric small{color:#647c90;font-size:10px;line-height:1.4;overflow-wrap:anywhere;
+  display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+@media(max-width:680px){
+ .selectedMetrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .selectedMetrics>.mdtObservedMetric{grid-column:span 2}
+}
+
+
+/* MOS/Drop source selector inside the distribution card heading. */
+.distributionSelect{display:inline-flex;align-items:center;gap:6px;color:#69849d;
+  font-size:10px;font-weight:700;white-space:nowrap}
+.distributionSelect select{height:30px;max-width:174px;padding:4px 23px 4px 8px;
+  font-size:11px;color:#285a73;background:#f4faff;border:1px solid #b9d8e5;
+  border-radius:7px;font-weight:750;cursor:pointer}
+.distributionSelect select:focus-visible{outline:3px solid #31c2b3;outline-offset:2px}
+.filterApplied button{padding:0;border:0;background:transparent;color:inherit;
+  display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+@media(max-width:450px){
+  .distributionSelect{font-size:9px;gap:4px}
+  .distributionSelect select{max-width:146px;font-size:10px}
+}
+

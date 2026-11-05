@@ -13,19 +13,25 @@ const root=path.resolve(__dirname,'../..');
 const read=(relative)=>fs.readFileSync(path.join(root,relative),'utf8');
 const overview=JSON.parse(read('public/analyst-overview/MDT/2026-10-30.json'));
 
-test('original quality overview stays unchanged, and proposals 1-3 stay independently routed',()=>{
+test('original overview preserved as 기존안 and former 4th proposal becomes main quality overview',()=>{
   const sha=(file)=>crypto.createHash('sha256').update(read(file)).digest('hex').toUpperCase();
   assert.equal(sha('components/analyst/quality-overview.tsx'),
     '7D167EAE8C180B8BB37721410F5048772F3DC23035D6DE9B676CE13268BC4458');
   assert.equal(sha('components/analyst/quality-overview.module.css'),
     '3610BAF982E4FD67E0C4E54460C9C35C7D71D4FF7FA2028BA0F5DE55CAA2FD9E');
+  const main=read('app/page.tsx');
   const shell=read('components/analyst/analyst-dashboard.tsx');
-  const proposals=read('components/analyst/quality-proposals.tsx');
-  const positions=[1,2,3,4].map(index=>shell.indexOf('href="/overview-proposal-'+index+'"'));
-  assert(positions.every(v=>v>=0));
-  assert(positions.every((v,i)=>i===0||v>positions[i-1]));
-  assert(proposals.includes('<Link href="/overview-proposal-4">개선4안</Link>'));
+  const topbar=read('components/analyst/quality-proposal-four.tsx');
+  assert(main.includes('return <QualityProposalFour />'));
+  assert(main.includes("view === 'overview' || view === 'contract'"));
+  assert(shell.includes('<QualityTopNav'));
+  assert(topbar.includes('<QualityTopNav active="quality" date={date}/>'));
   assert(read('app/overview-proposal-4/page.tsx').includes('<QualityProposalFour />'));
+  for(const version of [1,2,3]){
+    assert(!fs.existsSync(path.join(root,'app/overview-proposal-'+version+'/page.tsx')));
+    assert(!shell.includes('href="/overview-proposal-'+version+'"'));
+    assert(!topbar.includes('href="/overview-proposal-'+version+'"'));
+  }
 });
 
 test('new design mirrors the second selected reference composition without fabricated claims',()=>{
@@ -141,13 +147,14 @@ test('total CDR low-quality percentage is separately presented beside evaluated 
  assert.deepEqual(fourthPoorRates(0,0,0),{total:null,evaluated:null});
  const ui=read('components/analyst/quality-proposal-four.tsx');
  const css=read('components/analyst/quality-proposal-four.module.css');
- assert(ui.includes('<GradeDonut grades={metrics} selected={selectedBand} onSelect={chooseBand}/>'));
+ assert(ui.includes("grades={distributionMode==='drop'?(dropGrades??metrics):metrics}"));
+ assert(ui.includes('onModeChange={chooseDistributionMode}'));
  assert(ui.includes('aria-pressed={selected===entry.id}'));
  assert(ui.includes('onClick={()=>choose(entry.id)}'));
  assert(ui.includes('onClick={fromRing}'));
  assert(ui.includes('fourthBandCalls(model.visibleHours,selectedBand'));
  assert(ui.includes('setSelectedBand(null)'),'clear all releases grade filter');
- assert(ui.includes('selectedBand&&<button className={styles.filterApplied}'));
+ assert(ui.includes("selectedBand&&distributionMode==='mos'&&<button className={styles.filterApplied}"));
  assert(ui.includes('전체 대비 {entry.totalRate}'));
  assert(ui.includes('유효 MOS 대비'));
  assert(css.includes('.gradeItem[aria-pressed="true"]'));
@@ -158,7 +165,7 @@ test('total CDR low-quality percentage is separately presented beside evaluated 
 });
 
 
-test('map selection pins exact CDR row first, table opens accessible modal rather than inline panel',()=>{
+test('map popup opens selected CDR immediately and table retains accessible call modal',()=>{
  const ui=read('components/analyst/quality-proposal-four.tsx');
  const css=read('components/analyst/quality-proposal-four.module.css');
  assert(ui.includes('const shown=pinned'));
@@ -166,7 +173,8 @@ test('map selection pins exact CDR row first, table opens accessible modal rathe
  assert(ui.includes('data-call-id={call.id}'));
  assert(ui.includes('onCallLocationSelect={selectCall}'));
  assert(ui.includes('onSelect={selectTableCall}'));
- assert(ui.includes('setChosenCall(id);setDeep(false);setDialogOpen(false);setSearch'));
+ assert(ui.includes('setChosenCall(id);setDeep(false);setDialogOpen(true);setSearch'));
+ assert(!ui.includes('scrollIntoView'));
  assert(ui.includes('setChosenCall(id);setDeep(false);setDialogOpen(true)'));
  assert(ui.includes('id="qoe-call-analysis-dialog"'));
  assert(ui.includes('aria-modal="true"'));

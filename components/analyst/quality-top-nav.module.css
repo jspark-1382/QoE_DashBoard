@@ -1,0 +1,27 @@
+.nav{
+  height:57px;background:#112c50;display:flex;align-items:center;gap:25px;
+  padding:0 clamp(18px,1.8vw,32px);color:#dceaf9;
+  box-shadow:0 3px 10px #0e36602c;
+  font-family:Inter,"Pretendard","Noto Sans KR","Malgun Gothic",Arial,sans-serif;
+  font-size:13px;line-height:1.45;letter-spacing:-.017em;
+}
+.nav *{box-sizing:border-box}
+.nav a{text-decoration:none}
+.nav a:focus-visible,.nav button:focus-visible{outline:3px solid #45cfc3;outline-offset:2px}
+.brand{font-weight:820;font-size:20px;display:flex;align-items:center;gap:10px;white-space:nowrap;color:#fff!important;letter-spacing:-.05em}
+.brand span{color:#e6f1ff}
+.links{height:100%;display:flex;align-items:center;gap:5px;min-width:0;flex:1}
+.links a{display:flex;align-items:center;gap:6px;white-space:nowrap;padding:8px 12px;
+  border-radius:8px;font-size:12px;font-weight:700;color:#dce8f5}
+.links a:hover{background:#294d73;color:#fff}
+.links .current{background:#3cdbca;color:#0d3b54;box-shadow:0 2px 7px #00c4b73b}
+.links .current:hover{background:#3cdbca;color:#0d3b54}
+.source{display:flex;gap:6px;align-items:center;font-size:11px;white-space:nowrap;font-weight:650;color:#dce8f5}
+.actions{display:flex;align-items:center;gap:8px}
+@media(max-width:900px){
+  .nav{height:auto;min-height:57px;flex-wrap:wrap;padding:8px 16px;gap:9px 15px}
+  .brand{font-size:17px}
+  .links{order:3;min-width:100%;height:auto;overflow-x:auto;gap:4px;padding:0 0 2px}
+  .links a{font-size:11px;padding:7px 9px}
+  .source{margin-left:auto}
+}

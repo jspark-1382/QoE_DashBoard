@@ -25,11 +25,10 @@ test('five-day source is fully queryable without reusing another day, default la
  const allIds=overviewFiles.flatMap(day=>day.calls.map(call=>call.id));
  assert.equal(new Set(allIds).size,allIds.length,'CDR call IDs must be unique across the five days');
 });
-test('proposal screens and legacy improved quality tab use date selector with matching daily source',()=>{
+test('proposal 4 supports a bounded date range while the other independent screens retain daily sources',()=>{
  const four=read('components/analyst/quality-proposal-four.tsx');
- const proposals=read('components/analyst/quality-proposals.tsx');
  const improved=read('components/analyst/improved-quality-overview.tsx');
- for(const screen of [four,proposals,improved]){
+ for(const screen of [improved]){
   assert(screen.includes('value={selectedDate}')||screen.includes('value={ctx.overview.date}'));
   assert(screen.includes('onChange='));
   assert(screen.includes("loadOverview(dataset,'MDT',selectedDate")||
@@ -37,8 +36,14 @@ test('proposal screens and legacy improved quality tab use date selector with ma
          screen.includes("loadOverview(dataset, 'MDT', date"));
   assert(screen.includes('meta.dates'));
  }
+ assert(four.includes('aria-label="분석 시작일"'));
+ assert(four.includes('aria-label="분석 종료일"'));
+ assert(four.includes("loadOverview(dataset,'MDT',day"));
+ assert(four.includes('combineDateOverviews(summaries)'));
+ assert(four.includes('datesInRange(dataset.meta.dates,startDate,selectedDate)'));
  assert(four.includes('setSelectedBand(null)'));
- assert(four.includes("focusKey={'proposal-four-'+selectedDate}"));
- assert(four.includes('-'+String.fromCharCode(36)+'{selectedDate}.csv'));
- assert(proposals.includes('dates={dataset?.meta.dates??[selectedDate]}'));
+ assert(four.includes("focusKey={'proposal-four-'+startDate+'-'+selectedDate}"));
+ assert(four.includes('voice-mos-'+String.fromCharCode(36)));
+ assert(four.includes('-'+String.fromCharCode(36)+'{startDate}_'+String.fromCharCode(36)+'{selectedDate}.csv'));
+ assert(four.includes('aria-label="품질 현황 분석 조건"'));
 });

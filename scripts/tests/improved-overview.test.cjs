@@ -12,10 +12,16 @@ const dataPath = path.join(root, 'public/analyst-overview/MDT/2026-10-30.json');
 const source = fs.readFileSync(path.join(root, 'components/analyst/analyst-dashboard.tsx'), 'utf8');
 const original = fs.readFileSync(path.join(root, 'components/analyst/quality-overview.tsx'), 'utf8');
 
-test('new tab exists immediately to the right of MOS algorithm; original overview component stays independent', () => {
-  assert.match(source, /href="\/mos-lab"[^>]*>MOS 알고리즘 비교<\/Link>\s*<Link[^>]+href="\/overview-proposal-1"[^>]*>개선1안<\/Link>\s*<Link[^>]+href="\/overview-proposal-2"[^>]*>개선2안<\/Link>/);
+test('old quality overview is preserved and explicitly named 기존안', () => {
+  assert(source.includes('QualityTopNav'));
+  const shared=fs.readFileSync(path.join(root,'components/analyst/quality-top-nav.tsx'),'utf8');
+  assert(shared.includes('>기존안</Link>'));
+  assert(shared.includes('품질 현황'));
+  assert(!source.includes('overview-proposal-1'));
+  assert(!source.includes('overview-proposal-2'));
+  assert(!source.includes('overview-proposal-3'));
   assert.ok(fs.existsSync(path.join(root, 'app/overview-improved/page.tsx')));
-  assert.ok(!original.includes('ImprovedQualityOverview'), 'existing tab must not embed the new version');
+  assert.ok(!original.includes('ImprovedQualityOverview'), 'existing overview remains isolated');
 });
 
 test('new overview uses the same real 10/30 CDR and keeps missing MOS outside poor denominator', () => {

@@ -9,6 +9,7 @@ import {
 import { isPoorCall } from '../../lib/analyst/data';
 import { getMetricLegend, hasCustomerPoint } from '../../lib/analyst/map';
 import { formatCallDuration } from '../../lib/analyst/call-duration';
+import { classifySipReason11,sipReasonLabel } from '../../lib/analyst/sip-reason';
 import { AnalystMap } from './analyst-map';
 import { MosCallInvestigation } from './mos-call-investigation';
 import { RadioTimeline } from './radio-timeline';
@@ -17,6 +18,12 @@ import styles from './contract-workspace.module.css';
 type Props = {
   day: AnalystDay;
   byeLocation?: OverviewCallLocation;
+  /** Approximate call-level 3-site search centre, never a GNSS/sample coordinate. */
+  roughLocation?: OverviewCallLocation;
+  /** Only the customer's selected date partitions, never shared with another customer. */
+  periodDays?: AnalystDay[];
+  periodRange?: {start:string;end:string};
+  onSelectPeriodDate?: (date:string)=>void;
   callId: string | null;
   sampleIndex: number | null;
   threshold: number;
@@ -37,6 +44,10 @@ const duration = (c: AnalystCall) => {
 export function ContractWorkspace({
   day,
   byeLocation,
+  roughLocation,
+  periodDays,
+  periodRange,
+  onSelectPeriodDate,
   callId,
   sampleIndex,
   threshold,
@@ -72,7 +83,7 @@ export function ContractWorkspace({
   const mapReference=sample?.gnssReference??endReference;
   const activeReferenceLabel=sample?.gnssReference?'선택 MDT 관측 시각':'통화 종료 시각';
   const selectedPosition=selectedReview&&!selectedReview.accepted&&sample?.lat==null
-    ? '위치 추정 보류 · '+selectedReview.reasons.slice(0,3).join(' · ')
+    ? (roughLocation?'선택 관측 GNSS 없음 · 통화 단위 3사이트 조사 권역 표시':'개별 관측 좌표 보류')
     : sample&&hasCustomerPoint(sample)
     ? ['gnss','measured'].includes(sample.locationSource)
       ? 'GNSS 관측 · 실제 제공 좌표'
@@ -183,6 +194,19 @@ export function ContractWorkspace({
           </span>
         </div>
       </div>
+      {periodRange&&<section className={styles.periodNavigation} aria-label="선택 고객 기간별 통화">
+        <strong>{periodRange.start} ~ {periodRange.end}</strong>
+        {periodDays
+          ? <><span>기간 통화 {periodDays.reduce((n,d)=>n+d.calls.length,0).toLocaleString()}건
+              {' · '}저품질 {periodDays.reduce((n,d)=>n+d.calls.filter(c=>isPoorCall(c.qoe,threshold)).length,0).toLocaleString()}건</span>
+              <div>{periodDays.map(d=><button type="button" key={d.date}
+                aria-pressed={d.date===day.date}
+                onClick={()=>onSelectPeriodDate?.(d.date)}>
+                {d.date.slice(5)} ({d.calls.length}건)
+              </button>)}</div></>
+          : <span>선택 고객의 기간별 통화를 불러오는 중…</span>}
+        <small>일자 선택 후 아래에서 개별 통화를 조사합니다.</small>
+      </section>}
       {settingsOpen && (
         <div className={styles.settings}>
           <strong>분석 설정</strong>
@@ -244,6 +268,7 @@ export function ContractWorkspace({
                   <th>시작 시각</th>
                   <th title="원본 시간을 초 단위로 반올림">통화 시간</th>
                   <th>{day.source === 'MDT' ? 'MOS' : 'QoE'}</th>
+                  {day.source === 'MDT' && <th title="원본 SIP CDR 11.REASON 종료 사유 (SIP 응답코드 아님)">상태</th>}
                   <th>자료</th>
                 </tr>
               </thead>
@@ -281,6 +306,13 @@ export function ContractWorkspace({
                         </>
                       )}
                     </td>
+                    {day.source === 'MDT' && <td>
+                      <span className={styles.sipReasonBadge}
+                        data-reason={classifySipReason11(c.sipCause)}
+                        title={'SIP CDR 11.REASON: '+(c.sipCause||'원본 값 없음')+' · SIP 응답코드가 아닌 통화 종료 사유입니다.'}>
+                        {sipReasonLabel(classifySipReason11(c.sipCause))}
+                      </span>
+                    </td>}
                     <td>
                       <span
                         className={styles.dataBadge}
@@ -468,17 +500,33 @@ export function ContractWorkspace({
             {call&&<div className={styles.positionSummary} aria-label="고객 위치 출처 요약">
               <div className={styles.positionSummaryTitle}>
                 <b>이동 위치 근거</b>
-                <span>GNSS는 관측 좌표, 추정은 계산값입니다. 기지국은 고객 위치가 아닙니다.</span>
+                <span>GNSS 실측 / 추정 위치 구분</span>
               </div>
               <div className={styles.positionBadges}>
                 <span className={styles.positionObserved}><i className={styles.gnssSymbol}/> GNSS 관측 <b>{observedPoints.length}건</b></span>
                 <span className={styles.positionModel}><i className={styles.modelSymbol}/> 무선 추정 <b>{radioPoints.length}건</b></span>
                 <span className={styles.positionInterpolation}><i className={styles.interpolatedSymbol}/> 보간 추정 <b>{interpolatedPoints.length}건</b></span>
                 <span className={styles.positionStation}><i className={styles.stationSymbol}/> 기지국 <b>{stationMarkers.length}곳</b></span>
+                {roughLocation&&<span className={styles.positionModel}><i className={styles.modelSymbol}/> 3사이트 근사 <b>1건</b></span>}
                 {withheldCount>0&&<span className={styles.positionWithheld}> <i className={styles.withheldSymbol}/> 추정 보류 <b>{withheldCount}건</b></span>}
               </div>
               {sample&&<p className={styles.selectedPositionStatus}><b>선택 관측 #{sample.index}</b> · {selectedPosition}</p>}
-              {mapReference&&<div className={styles.gnssReference} aria-label="최근 GNSS 기반 종료 위치 참고 영역">
+              {roughLocation&&<p className={styles.roughSummary} aria-label="선택 통화 3사이트 대략 위치">
+                <b>3사이트 대략 위치</b> · {roughLocation.lat.toFixed(3)}, {roughLocation.lon.toFixed(3)}
+                {' '}· 조사 반경 약 {Math.round(roughLocation.roughSearchRadiusM??0).toLocaleString()}m
+                <span>통화 단위 후보 · 실제 단말 위치 아님</span>
+              </p>}
+              {roughLocation&&<details className={styles.technicalDetails} aria-label="통화 3사이트 대략 위치 근거">
+                <summary>3사이트 추정 근거 보기</summary>
+                <div className={styles.roughEvidence}>
+                  <p>MDT 기준 {roughLocation.observedAt??'시각 미확인'} · 사용 사이트 {roughLocation.usedSiteCount??0}곳.
+                    RSRP 가중중심으로 계산한 조사 중심이며 단말 위치·실제 MOS 저하 지점이 아닙니다.
+                    조사 반경은 검증된 위치 정확도/신뢰구간이 아닙니다.</p>
+                  <ul>{(roughLocation.usedStations??[]).map(site=>
+                    <li key={site.ruId+':'+site.cellId}>{site.ruId} / Cell {site.cellId} · RSRP {site.rsrpDbm.toFixed(1)} dBm</li>)}</ul>
+                </div>
+              </details>}
+              {mapReference&&<details className={styles.technicalDetails} aria-label="GNSS 기준점 세부 근거"><summary>최근 GNSS 기준점 자세히</summary><div className={styles.gnssReference}>
                 <strong>마지막 GNSS 실측 기준점 + {activeReferenceLabel} 참고</strong>
                 <span>GNSS 관측 {new Date(mapReference.observedAt).toLocaleTimeString('ko-KR',{timeZone:'Asia/Seoul',hour12:false})}
                   {' '}· 경과 {mapReference.ageSeconds.toFixed(1)}초
@@ -490,16 +538,16 @@ export function ContractWorkspace({
                     ? ' BYE 종료 기지국 '+activeByeStation.baseStationId+'은 별도 위치 관계로 표시합니다.'
                     : ' BYE Cell의 기지국이 유일하게 확인되지 않으면 기지국 거리 제약은 적용하지 않습니다.'}
                 </small>
-              </div>}
+              </div></details>}
               {endReference&&sample?.gnssReference&&endReference.observedAt!==sample.gnssReference.observedAt&&
                 <p className={styles.selectedPositionStatus}>통화 종료 시점의 가장 최근 GNSS는 별도 관측이며,
                   종료 기준 경과 {endReference.ageSeconds.toFixed(1)}초 · 범위 반경 약 {endReference.movementRadiusM.toLocaleString()}m입니다.</p>}
-              {withheldCount>0&&<output className={styles.noGnssWarning}>
+              {withheldCount>0&&<details className={styles.technicalDetails} aria-label="좌표 심사 근거"><summary>좌표 심사 근거 보기 · {withheldCount}건 보류</summary><div className={styles.noGnssWarning}>
                 무선 계산 후보 {withheldCount}건은 거리 포화·모델 불확실성·관측 시간차 등의 검토를 통과하지 못해 고객 좌표를 표시하지 않습니다.
                 {activeByeStation
                   ? ' BYE 종료 기지국 '+activeByeStation.baseStationId+' (Cell '+activeByeStation.cellId+')만 별도 강조합니다. 기지국은 단말의 위치가 아닙니다.'
                   : ' 유일한 BYE Cell 기지국을 확인하지 못한 경우에는 기지국 참고 위치만 표시합니다.'}
-              </output>}
+              </div></details>}
               {modeledCount>0&&observedPoints.length===0&&
                 <p className={styles.noGnssWarning}>이 통화에는 GNSS 관측 위치가 없습니다. 지도에 표시된 고객 위치는 무선 측량 또는 보간으로 추정한 좌표입니다.</p>}
             </div>}
@@ -528,7 +576,7 @@ export function ContractWorkspace({
                   : 'Cell 위치 미제공 · BYE Cell 기지국을 유일하게 확인할 수 없어 단말 위치를 표시하지 않습니다.'}</p>
               </div>
             ) : null}
-            {stationMarkers.length>0&&<div className={styles.stationSummary} aria-label="선택 통화의 기지국 연결">
+            {stationMarkers.length>0&&<details className={styles.technicalDetails} aria-label="선택 통화의 기지국 연결"><summary>기지국 {stationMarkers.length}곳 자세히</summary><div className={styles.stationSummary}>
               <strong>선택 통화 기지국 {stationMarkers.length}개</strong>
               <span>{stationMarkers.map(s=>s.baseStationId+' (Cell '+(s.cellId||'미제공')+')').join(' · ')}</span>
               <small>{activeByeStation
@@ -537,12 +585,13 @@ export function ContractWorkspace({
                   ? 'CDR 종료 Cell '+call.endCellId+'은 단일 RU로 확정되지 않음 (중복/미등록 가능) · 아래는 MDT 기지국 참고 위치이며 단말 위치 아님'
                   : 'MDT에 연결된 기지국 참고 위치 · 단말 위치 아님'}</small>
               {!stations&&<button type="button" onClick={()=>setStations(true)}>지도에 기지국 표시</button>}
-            </div>}
+            </div></details>}
             {(!cdrOnly||byeStation)&&(
               <div className={styles.map}>
                 <AnalystMap
                   threshold={threshold}
                   samples={samples}
+                  callLocations={estimates&&roughLocation?[roughLocation]:[]}
                   selectedIndex={sampleIndex}
                   onSampleSelect={onSelectSample}
                   stations={stationMarkers}
@@ -564,6 +613,7 @@ export function ContractWorkspace({
               <span><i className={styles.gnssSymbol}/> GNSS 실측</span>
               {mapReference&&<span><i className={styles.gnssReferenceSymbol}/> 최근 GNSS 기반 이동 가능 범위 (실제 경로 아님)</span>}
               <span><i className={styles.modelSymbol}/> 무선 측량 추정</span>
+              {roughLocation&&<span><i className={styles.modelSymbol}/> 3사이트 조사 권역 (실측 아님)</span>}
               <span><i className={styles.interpolatedSymbol}/> 보간 추정</span>
               <span><i className={styles.stationSymbol}/> 기지국 (단말 아님)</span>
               {activeByeStation&&<span><i className={styles.byeStationSymbol}/> BYE 종료 기지국 (단말 아님)</span>}
@@ -589,6 +639,7 @@ export function ContractWorkspace({
             call={call}
             samples={samples}
             source={day.source}
+            roughLocation={roughLocation}
           />
         </aside>
       </div>

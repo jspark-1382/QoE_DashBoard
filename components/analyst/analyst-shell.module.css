@@ -421,3 +421,5 @@
     flex: 0 1 auto;
   }
 }
+
+.rangeHint{font-size:11px;color:#627b92;white-space:nowrap}

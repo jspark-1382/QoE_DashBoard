@@ -10,7 +10,9 @@ import type {
 const sourcePath = (source: AnalystSource) =>
   source === 'MDT' ? 'MDT' : 'measured';
 async function json<T>(url: string, signal?: AbortSignal): Promise<T> {
-  const response = await fetch(url, { signal });
+  // Revalidate public JSON: an earlier interrupted deployment left zero-filled
+  // responses cacheable for an hour. Never reuse stale broken detail/MDT data.
+  const response = await fetch(url, { signal, cache: 'no-cache' });
   if (!response.ok)
     throw new Error(`자료를 불러오지 못했습니다 (${response.status}): ${url}`);
   return response.json();

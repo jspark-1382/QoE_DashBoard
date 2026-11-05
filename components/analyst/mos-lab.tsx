@@ -7,6 +7,7 @@ import { compareMosCandidate, type MosComparison } from '../../lib/mos/compariso
 import { mosGrade } from '../../lib/mos/call-evidence';
 import type { AnalystOverview } from '../../lib/analyst/types';
 import styles from './mos-lab.module.css';
+import { QualityTopNav } from './quality-top-nav';
 
 type LoadState = { overview: AnalystOverview | null; loading: boolean; error: string | null };
 const pretty = (value: number) => value.toLocaleString('ko-KR');
@@ -100,10 +101,12 @@ export function MosLab() {
     Math.max(comparison.gradeOriginal[grade], comparison.gradeCandidate[grade]))) : 1;
 
   return (
+    <>
+    <QualityTopNav active="mos" date="2026-10-30"/>
     <main className={styles.page}>
       <header className={styles.header}>
         <div>
-          <Link href="/?source=MDT&view=overview" className={styles.back}>← MOS 품질 현황</Link>
+          <Link href="/" className={styles.back}>← 품질 현황</Link>
           <h1>MOS 알고리즘 비교 연구실</h1>
           <p>원본 RTCP MOS(v5)를 보존하면서 개선 모델의 산출물을 동일 통화 기준으로 비교합니다.</p>
         </div>
@@ -209,5 +212,6 @@ export function MosLab() {
         </>
       )}
     </main>
+    </>
   );
 }

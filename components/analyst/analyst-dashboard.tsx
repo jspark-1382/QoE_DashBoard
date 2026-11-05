@@ -24,8 +24,11 @@ import {
 import type { AnalystSource, SourceCustomer } from '../../lib/analyst/types';
 import { ContractPicker } from './contract-picker';
 import { ContractWorkspace } from './contract-workspace';
+import { MAX_ANALYSIS_DAYS, adjustDateRange, combineDateOverviews, datesInRange, dateOfCall } from '../../lib/analyst/date-range';
+import { overlayThreeSiteRough, type ThreeSiteRoughDataset } from '../../lib/analyst/three-site-rough';
 import { QualityOverview, type OverviewFilters } from './quality-overview';
 import styles from './analyst-shell.module.css';
+import { QualityTopNav } from './quality-top-nav';
 const initialFilters: OverviewFilters = {
   from: '00:00',
   to: '23:59',
@@ -188,16 +191,49 @@ export function AnalystDashboard() {
     [dataset, entry, resolved.source],
   );
   const detail = useResource(detailKey, detailLoader);
+  const rangeStart=resolved.dateStart??resolved.date;
+  const rangeEnd=resolved.dateEnd??resolved.date;
+  const selectedDates=datesInRange(dataset?.meta.dates??[],rangeStart,rangeEnd);
+  const overviewDates=resolved.view==='overview'?selectedDates:[resolved.date];
+  const dateKey=overviewDates.join('|');
   const overviewKey =
     dataset && (resolved.view === 'overview' || (resolved.view === 'contract' && resolved.source === 'MDT')) && resolved.date
-      ? `overview-analytics-v1/${resolved.source}/${revision}/${resolved.date}/overview`
+      ? `overview-analytics-v1/${resolved.source}/${revision}/${dateKey}/overview`
       : null;
   const overviewLoader = useCallback(
-    (signal: AbortSignal) =>
-      loadOverview(dataset!, resolved.source, resolved.date, signal),
-    [dataset, resolved.source, resolved.date],
+    async (signal: AbortSignal) => combineDateOverviews(await Promise.all(
+      overviewDates.map(date=>loadOverview(dataset!,resolved.source,date,signal)),
+    )),
+    [dataset,resolved.source,dateKey],
   );
   const overview = useResource(overviewKey, overviewLoader);
+  const roughKey=dataset && resolved.view==='contract' && resolved.source==='MDT' && resolved.date
+    ? 'three-site-rough-v1/'+revision+'/'+resolved.date : null;
+  const roughLoader=useCallback(async (signal:AbortSignal):Promise<ThreeSiteRoughDataset>=>{
+    const response=await fetch('/qoe/three-site-rough/'+resolved.date+'.json',{signal,cache:'no-cache'});
+    if(!response.ok)throw new Error('3사이트 조사 권역 데이터를 불러오지 못했습니다.');
+    const value=await response.json() as ThreeSiteRoughDataset;
+    if(value.sourceRevision!==revision || value.date!==resolved.date ||
+       value.schemaVersion!=='coarse-three-site-v1')
+      throw new Error('3사이트 조사 권역 데이터 버전이 일치하지 않습니다.');
+    return value;
+  },[revision,resolved.date]);
+  const rough=useResource(roughKey,roughLoader);
+  const periodKey=dataset&&resolved.view==='contract'&&resolved.customerId&&selectedDates.length>1
+    ? 'contract-period-v1/'+resolved.source+'/'+revision+'/'+resolved.customerId+'/'+selectedDates.join('|')
+    : null;
+  const periodLoader=useCallback(async (signal:AbortSignal)=>{
+    const entries=selectedDates.flatMap(date=>{
+      const found=dataset?.days.find(d=>d.customerId===resolved.customerId&&d.date===date);
+      return found?[found]:[];
+    });
+    return Promise.all(entries.map(entry=>loadDay(dataset!,entry,resolved.source,signal)));
+  },[dataset,resolved.customerId,resolved.source,selectedDates.join('|')]);
+  const period=useResource(periodKey,periodLoader);
+  const roughOverview=useMemo(
+    ()=>overview.data?overlayThreeSiteRough(overview.data,rough.data??null,true):null,
+    [overview.data,rough.data],
+  );
   const day = detail.data;
   const activeCall =
     day?.calls.find((c) => c.id === resolved.callId) ?? day?.calls[0] ?? null;
@@ -257,13 +293,17 @@ export function AnalystDashboard() {
   }, [dataset, deferred]);
   const customer = dataset?.customers.find((c) => c.id === resolved.customerId);
   const choose = (chosen: SourceCustomer) => {
+    const inside=selectedDates.filter(date=>chosen.dates.includes(date));
+    const chosenDate=inside.includes(resolved.date)?resolved.date:inside[0]??chosen.dates[0]??resolved.date;
+    // A customer outside the selected interval starts a new one-day interval;
+    // never show an out-of-range call while claiming the previous date range.
     navigate({
       ...resolved,
       view: 'contract',
       customerId: chosen.id,
-      date: chosen.dates.includes(resolved.date)
-        ? resolved.date
-        : (chosen.dates[0] ?? resolved.date),
+      date:chosenDate,
+      dateStart:inside.length?rangeStart:chosenDate,
+      dateEnd:inside.length?rangeEnd:chosenDate,
       callId: null,
       sampleIndex: null,
     });
@@ -403,27 +443,34 @@ export function AnalystDashboard() {
         )}
       </div>
       <label className={styles.field}>
-        일자
-        <select
-          aria-label="분석 일자"
-          value={resolved.date}
-          onChange={(e) =>
-            navigate(
-              {
-                ...resolved,
-                date: e.target.value,
-                callId: null,
-                sampleIndex: null,
-              },
-              { ...initialFilters },
-            )
-          }
-        >
-          {(dataset?.meta.dates ?? []).map((date) => (
-            <option key={date}>{date}</option>
-          ))}
+        시작일
+        <select aria-label="분석 시작일" value={rangeStart} onChange={e=>{
+          const next=adjustDateRange(dataset?.meta.dates??[],rangeStart,rangeEnd,'start',e.target.value);
+          const active=datesInRange(dataset?.meta.dates??[],next.start,next.end);
+          const customerDates=customer?.dates??[];
+          const nextDate=active.includes(resolved.date)&&(!customer||customerDates.includes(resolved.date))
+            ? resolved.date:(active.find(date=>!customer||customerDates.includes(date))??next.end);
+          navigate({...resolved,date:nextDate,dateStart:next.start,dateEnd:next.end,
+            callId:null,sampleIndex:null}, {...initialFilters});
+        }}>
+          {(dataset?.meta.dates??[]).map(date=><option key={date} value={date}>{date}</option>)}
         </select>
       </label>
+      <label className={styles.field}>
+        종료일
+        <select aria-label="분석 종료일" value={rangeEnd} onChange={e=>{
+          const next=adjustDateRange(dataset?.meta.dates??[],rangeStart,rangeEnd,'end',e.target.value);
+          const active=datesInRange(dataset?.meta.dates??[],next.start,next.end);
+          const customerDates=customer?.dates??[];
+          const nextDate=active.includes(resolved.date)&&(!customer||customerDates.includes(resolved.date))
+            ? resolved.date:(active.find(date=>!customer||customerDates.includes(date))??next.end);
+          navigate({...resolved,date:nextDate,dateStart:next.start,dateEnd:next.end,
+            callId:null,sampleIndex:null}, {...initialFilters});
+        }}>
+          {(dataset?.meta.dates??[]).map(date=><option key={date} value={date}>{date}</option>)}
+        </select>
+      </label>
+      <span className={styles.rangeHint}>최대 {MAX_ANALYSIS_DAYS}일</span>
       <label className={styles.field}>
         데이터 출처
         <select
@@ -449,45 +496,19 @@ export function AnalystDashboard() {
   );
   return (
     <div className={styles.shell}>
-      <header className={styles.appbar}>
-        <button
-          className={styles.brand}
-          onClick={() => navigate({ ...current, view: 'overview' })}
-        >
-          QoE 분석 · MOS 음성품질
-        </button>
-        <nav aria-label="분석 화면">
-          <button
-            className={resolved.view === 'overview' ? styles.active : ''}
-            onClick={() => navigate({ ...current, view: 'overview' })}
-          >
-            품질 현황
-          </button>
-          <button
-            className={resolved.view === 'contract' ? styles.active : ''}
-            onClick={() => navigate({ ...current, view: 'contract' })}
-          >
-            고객·통화 분석
-          </button>
-          <Link className={styles.navLab} href="/mos-lab">MOS 알고리즘 비교</Link>
-          <Link className={styles.navLab} href="/overview-proposal-1">개선1안</Link>
-          <Link className={styles.navLab} href="/overview-proposal-2">개선2안</Link>
-          <Link className={styles.navLab} href="/overview-proposal-3">개선3안</Link>
-          <Link className={styles.navLab} href="/overview-proposal-4">개선4안</Link>
-        </nav>
-        <span className={styles.headerSource}>{resolved.source} · Voice</span>
-        <button
-          className={styles.settingsButton}
-          aria-expanded={settingsOpen}
-          onClick={() => setSettingsOpen((v) => !v)}
-        >
-          분석 설정
-        </button>
-      </header>
+      <QualityTopNav
+        active={resolved.view === 'overview' ? 'legacy' : 'contract'}
+        date={resolved.date}
+        sourceLabel={resolved.source+' · Voice'}
+        onLegacy={() => navigate({ ...current, view: 'overview' })}
+        onContract={() => navigate({ ...current, view: 'contract' })}
+        actions={<button className={styles.settingsButton} aria-expanded={settingsOpen}
+          onClick={() => setSettingsOpen(v => !v)}>분석 설정</button>}
+      />
       <div className={styles.content}>
         {resolved.view === 'overview' && (
           <div className={styles.pageHeading}>
-            <h1>품질 현황</h1>
+            <h1>기존안 · 품질 현황</h1>
             <span>지역·시간·고객별 저품질을 조사합니다.</span>
           </div>
         )}
@@ -497,7 +518,7 @@ export function AnalystDashboard() {
               <button
                 onClick={() => navigate({ ...current, view: 'overview' })}
               >
-                품질 현황으로 돌아가기
+                기존안으로 돌아가기
               </button>
               <span>/ 고객 분석</span>
             </div>
@@ -561,6 +582,7 @@ export function AnalystDashboard() {
                       navigate({
                         ...resolved,
                         view: 'contract',
+                        date:dateOfCall(call,resolved.date),
                         customerId: call.customerId,
                         callId:
                           call.rawCallId ??
@@ -594,6 +616,10 @@ export function AnalystDashboard() {
                 <ContractWorkspace
                   day={day}
                   byeLocation={overview.data?.callLocations?.find(point=>point.callId===day.customerId+':'+(activeCall?.id??''))}
+                  roughLocation={roughOverview?.callLocations?.find(point=>point.callId===day.customerId+':'+(activeCall?.id??'')&&point.positionQuality==='three-site-rough')}
+                  periodDays={period.data}
+                  periodRange={selectedDates.length>1?{start:rangeStart,end:rangeEnd}:undefined}
+                  onSelectPeriodDate={date=>navigate({...resolved,date,callId:null,sampleIndex:null})}
                   toolbar={toolbar}
                   callId={activeCall?.id ?? null}
                   sampleIndex={activeSample?.index ?? null}

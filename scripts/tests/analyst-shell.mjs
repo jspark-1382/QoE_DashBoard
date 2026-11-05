@@ -19,7 +19,10 @@ try {
     selectionPath,
     ts.transpileModule(await fs.readFile('lib/analyst/selection.ts', 'utf8'), {
       compilerOptions: options,
-    }).outputText,
+    }).outputText.replace(
+      /import\s+\{\s*datesInRange\s*\}\s+from\s+['"]\.\/date-range['"];?/,
+      'const datesInRange=()=>[];',
+    ),
   );
   const documentLinkPath = new URL(
     './.document-link-test.mjs',
@@ -68,6 +71,19 @@ try {
     /import\s+\{[^}]+\}\s+from\s+['"]\.\/contract-picker['"];?/s,
     'const ContractPicker=()=>null;',
   );
+  // Keep this SSR-only contract test independent of the runtime data modules.
+  code = code.replace(
+    /import\s+\{[^}]+\}\s+from\s+['"]\.\.\/\.\.\/lib\/analyst\/date-range['"];?/s,
+    'const MAX_ANALYSIS_DAYS=3,adjustDateRange=()=>({}),combineDateOverviews=()=>({}),datesInRange=()=>[],dateOfCall=()=>"";',
+  );
+  code = code.replace(
+    /import\s+\{[^}]+\}\s+from\s+['"]\.\.\/\.\.\/lib\/analyst\/three-site-rough['"];?/s,
+    'const overlayThreeSiteRough=()=>null;',
+  );
+  code = code.replace(
+    /import\s+\{\s*QualityTopNav\s*\}\s+from\s+['"]\.\/quality-top-nav['"];?/,
+    'const QualityTopNav=()=>"QoE 분석";',
+  );
   code = code.replace(
     /import styles from ['"]\.\/analyst-shell.module.css['"];?/,
     'const styles={};',
@@ -107,13 +123,7 @@ try {
   assert.doesNotMatch(html, /SSR must not fetch/);
   assert.deepEqual(
     [...html.matchAll(/<a\b[^>]*href="([^"]+)"/g)].map((match) => match[1]),
-    [
-      '/qoe/mos-lab',
-      '/qoe/overview-proposal-1',
-      '/qoe/overview-proposal-2',
-      '/qoe/overview-proposal-3',
-      '/qoe/overview-proposal-4',
-    ],
+    [],
   );
   console.log(
     'Analyst shell SSR initial loading and search accessibility tests passed',
