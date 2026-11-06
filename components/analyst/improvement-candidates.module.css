@@ -13,13 +13,14 @@
 .panelHeading{min-height:47px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:10px 14px}
 .panelHeading strong{display:flex;align-items:center;gap:7px;color:#1c405e;font-size:14px}
 .panelHeading svg{color:#3387c5}
+.mapActions{display:flex;align-items:center;justify-content:flex-end;gap:8px;flex-wrap:wrap;min-width:0}
 .legend{display:flex;gap:8px;align-items:center;font-size:10px;color:#657a8e;flex-wrap:wrap}
 .redDot,.blueDot{display:inline-block;width:10px;height:10px;border-radius:50%;background:#d44956;margin-left:3px}
 .blueDot{background:#3869a6}
 .mapHost{flex:1;min-height:330px;margin:0 12px;border-radius:8px;overflow:hidden;position:relative}
 .mapFoot{margin:0;padding:9px 14px;font-size:11px;color:#607d94}
 .analysisLabel{font-size:10px;color:#7a8fa4}
-.kindFilters{display:flex;gap:5px;padding:0 12px 9px}
+.kindFilters{display:flex;gap:5px;padding:0 12px 9px;border:0;margin:0;min-width:0}
 .kindFilters button{background:#f8fbff;color:#4c6f89;padding:6px 9px;border-radius:7px;border:1px solid #d8e6ef;
   font-size:11px;font-weight:700}
 .kindFilters button[aria-pressed="true"]{background:#d8f7f1;border-color:#7cdbce;color:#096d66}
@@ -105,6 +106,7 @@
 .footerDetails li{margin:4px 0}
 .footerDetails p{font-size:11px}
 .loadState,.errorState{padding:32px;text-align:center;background:#fff;border:1px solid #dce7f2;border-radius:11px;color:#618199}
+.loadState{display:block}
 .errorState{background:#fff6f4;color:#9d4b43;border-color:#eed6d2}
 @media(max-width:1100px){
   .grid{grid-template-columns:minmax(0,1fr)}

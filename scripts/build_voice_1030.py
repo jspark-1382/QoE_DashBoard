@@ -21,7 +21,8 @@ from statistics import fmean
 
 from mdt_pipeline import read_rows, normalize, numeric, parse_timestamp, _match_station, _station_indices
 from base_station_master import load_master
-from lte_station_catalog import load_lte_catalog
+from lte_station_catalog import load_lte_catalog, resolve_lte_master
+from nr_station_catalog import resolve_nr_master
 from mdt_gnss import convert_gnss
 
 KST = timezone(timedelta(hours=9))
@@ -64,6 +65,27 @@ def source_field(row, name):
     return row.get(name)
 
 
+def end_rat_from_pani(value):
+    """Return only an explicit end-access RAT; do not infer it from radio or start access."""
+    access = clean(value).split(';', 1)[0].strip().upper()
+    if access in ('3GPP-NR-TDD', '3GPP-NR-FDD'):
+        return 'NR'
+    if access in ('3GPP-E-UTRAN-TDD', '3GPP-E-UTRAN-FDD'):
+        return 'LTE'
+    return None
+
+
+def resolve_optional_nr_master(path=None, directory=None):
+    """An absent optional NR file is allowed; explicit CLI/environment choices must exist."""
+    required = path is not None or bool(os.environ.get('QOE_NR_MASTER'))
+    try:
+        return resolve_nr_master(path, directory)
+    except FileNotFoundError:
+        if required:
+            raise
+        return None
+
+
 def iso_kst(value):
     if not isinstance(value, datetime):
         return None
@@ -85,6 +107,14 @@ def file_revision(paths, config):
                     break
                 sha.update(piece)
     return sha.hexdigest()[:20]
+
+
+def file_sha256(path):
+    sha = hashlib.sha256()
+    with path.open('rb') as inp:
+        for piece in iter(lambda: inp.read(1024 * 1024), b''):
+            sha.update(piece)
+    return sha.hexdigest()
 
 
 def read_cdr(cdr_path, target_date):
@@ -134,6 +164,13 @@ def read_cdr(cdr_path, target_date):
             # CDR CALL ID and EDIT CALL ID are not guaranteed unique; never group by either.
             call_id = 'call-' + sha_key('cdr-leg', contract, start.isoformat(), end.isoformat(),
                                         clean(source_field(row, 'E3. Call_ID_edit')), row_number)
+            bye_cell = clean(source_field(row, '76. BYE CELL ID'))
+            ack_cell = clean(source_field(row, '75. BYE 200OK CELL ID'))
+            # Match the RAT to the same source message as the published end Cell.
+            # A start-access flag or another message's PANI may describe a different RAT.
+            end_rat = end_rat_from_pani(source_field(row, '73. BYE P-Access-Network-Info')) if bye_cell else (
+                end_rat_from_pani(source_field(row, '72. BYE 200OK P-Access Network-Info')) if ack_cell else None
+            )
             calls.append({
                 'id': call_id,
                 'customerId': 'mdt-' + sha_key('mdt', contract),
@@ -143,7 +180,8 @@ def read_cdr(cdr_path, target_date):
                 'endDt': end,
                 'editedKey': clean(source_field(row, 'E3. Call_ID_edit')),
                 'startCellId': clean(source_field(row, '74. User start CELL ID')) or clean(source_field(row, '139. INVITE CELL ID')),
-                'endCellId': clean(source_field(row, '76. BYE CELL ID')) or clean(source_field(row, '75. BYE 200OK CELL ID')),
+                'endCellId': bye_cell or ack_cell,
+                'endRat': end_rat,
                 'mos': mos,
                 'mosStatus': status,
                 'endType': clean(source_field(row, '10. RESULT')),
@@ -319,6 +357,7 @@ def as_day(customer_id, contract, group, stations, station_indices):
             'durationSeconds': round((end-start).total_seconds(), 3),
             'startCellId': call['startCellId'],
             'endCellId': call['endCellId'],
+            'endRat': call.get('endRat'),
             'qoe': call['mos'],  # compatibility alias; this is NEVER RSRP-derived QoE
             'mos': call['mos'],
             'mosV5Original': call['mos'],
@@ -409,6 +448,14 @@ def publish(calls, stations, audit, output, revision):
             'schemaVersion': 'voice-1030-v1', 'partitioned': True, 'revision': revision,
             'source': 'MDT', 'dates': sorted({call['date'] for call in calls}),
             'sourceFiles': [audit['cdrFile'], audit['mdtFile']],
+            'stationInventory': {
+                'file': audit['lteMasterFile'], 'sha256': audit['lteMasterSha256'],
+                'pciColumnPresent': audit['lteMasterAudit']['pciColumnPresent'],
+            },
+            **({'byeStationInventories': [
+                {'technology': 'LTE', 'file': audit['lteMasterFile'], 'sha256': audit['lteMasterSha256']},
+                {'technology': 'NR', 'file': audit['nrMasterFile'], 'sha256': audit['nrMasterSha256']},
+            ]} if audit.get('nrMasterFile') else {}),
             'poorQoeThreshold': 3.0, 'mosPoorThreshold': 3.0,
             'mosWarningThreshold': 3.5,
             'qoeBasis': 'rtcp-mos-v5', 'mosAlgorithmVersion': 'RTCP_MOS_V5',
@@ -449,8 +496,10 @@ def main():
     parser.add_argument('--cdr', type=Path, default=None)
     parser.add_argument('--mdt', type=Path, default=None)
     parser.add_argument('--master', type=Path, default=Path('data/BaseStation/BaseStation_new.txt'))
-    parser.add_argument('--lte-master', type=Path, default=Path('data/BaseStation/수도권_LTE_261103.xlsx'),
-                        help='정확한 RU+CellID 매칭용 2026-11-03 수도권 LTE 인벤토리')
+    parser.add_argument('--lte-master', type=Path, default=None,
+                        help='RU+CellID 정확 매칭 인벤토리. 기본: QOE_LTE_MASTER 또는 최신 수도권_LTE_YYMMDD.xlsx')
+    parser.add_argument('--nr-master', type=Path, default=None,
+                        help='BYE 등록 위치용 선택 NR 인벤토리. 기본: QOE_NR_MASTER 또는 선택 LTE 폴더의 최신 5G 파일')
     parser.add_argument('--out', type=Path, default=Path('public/voice-1030.json'))
     parser.add_argument('--audit', type=Path, default=Path('outputs/voice-1030-quality-report.json'))
     parser.add_argument('--date', default='all',
@@ -468,6 +517,11 @@ def main():
         parser.error(str(exc))
     if args.match_seconds < 0 or args.match_seconds > 60:
         parser.error('--match-seconds must be in [0, 60]')
+    try:
+        args.lte_master = resolve_lte_master(args.lte_master)
+        args.nr_master = resolve_optional_nr_master(args.nr_master, args.lte_master.parent)
+    except FileNotFoundError as exc:
+        parser.error(str(exc))
     print(json.dumps({'phase': 'read-cdr', 'file': cdr.name}, ensure_ascii=False), flush=True)
     calls, cdr_audit = read_cdr(cdr, args.date)
     print(json.dumps({'phase': 'read-mdt', 'file': mdt.name}, ensure_ascii=False), flush=True)
@@ -475,7 +529,8 @@ def main():
     matched, matching_audit = build_candidate_maps(calls, mdt_groups, args.match_seconds)
     for ci, mi in matched.items():
         calls[ci]['matchedGroup'] = mdt_groups[mi]
-    legacy_stations, master_errors = load_master(args.master)
+    legacy_present = args.master.is_file()
+    legacy_stations, master_errors = load_master(args.master) if legacy_present else ([], [])
     requested_pairs = {
         (clean(event['mdt'].get('baseStationId')), clean(event['mdt'].get('cellId')))
         for ci in matched for event in calls[ci]['matchedGroup']['events']
@@ -488,18 +543,25 @@ def main():
         {key for call in calls for key in (call['startCellId'], call['endCellId']) if key},
     )
     stations = exact_lte_stations + legacy_stations
-    config = {'pipeline': 'voice-1026-1030-lte-ru-cell-v3', 'date': args.date,
+    config = {'pipeline': 'voice-1026-1030-bye-mdt-first-v6', 'date': args.date,
               'toleranceSec': args.match_seconds, 'mosPoor': 3,
-              'mosWarning': 3.5, 'masterJoin': 'ru+cell-exact-first'}
-    revision = file_revision([cdr, mdt, args.master, args.lte_master], config)
+              'mosWarning': 3.5, 'masterJoin': 'ru+cell-exact-first',
+              'byeSiteSelection': 'same-call-mdt-30s-then-first-valid-inventory-row'}
+    master_sources = [args.lte_master] + ([args.nr_master] if args.nr_master is not None else []) + ([args.master] if legacy_present else [])
+    revision = file_revision([cdr, mdt, *master_sources], config)
     audit = {
         'cdrFile': cdr.name, 'mdtFile': mdt.name,
         'date': args.date,
         'sourceCdr': dict(cdr_audit), 'sourceMdt': dict(mdt_audit),
         'matching': dict(matching_audit), 'masterStations': len(stations),
         'masterErrors': master_errors[:15],
-        'masterSources':[args.lte_master.name,args.master.name],
+        'masterSources': [path.name for path in master_sources],
+        'legacyMasterPresent': legacy_present,
+        'lteMasterFile': args.lte_master.name,
+        'lteMasterSha256': file_sha256(args.lte_master),
         'lteMasterAudit':lte_audit,
+        'nrMasterFile': args.nr_master.name if args.nr_master is not None else None,
+        'nrMasterSha256': file_sha256(args.nr_master) if args.nr_master is not None else None,
         'noMdtCdrCalls':sum(call.get('matchStatus')!='MATCHED' for call in calls),
         'noMdtTrilaterationCalls':0,
         'noMdtPositionReason':'CDR only has start/end serving CELL ID; no simultaneous three-site RSRP',

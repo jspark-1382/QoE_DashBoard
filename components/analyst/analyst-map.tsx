@@ -20,6 +20,7 @@ import {
 } from '../../lib/analyst/map';
 import { locationLabels } from '../../lib/analyst/data';
 import { estimationMethodLabel } from '../../lib/analyst/estimation-evidence';
+import { byeSelectionDescription } from '../../lib/analyst/bye-selection';
 import type { GnssReference } from '../../lib/location-estimation/gnss-reference';
 import 'leaflet/dist/leaflet.css';
 import styles from './analyst-map.module.css';
@@ -38,9 +39,11 @@ interface Props {
   onSampleSelect?: (index: number) => void;
   onCellSelect?: (id: string) => void;
   stations?: BaseStation[];
-  /** Unique validated CDR BYE serving site; never a UE coordinate. */
+  /** Selected CDR BYE tower reference; never a measured UE coordinate. */
   byeSiteCellId?:string;
   byeSiteRuId?:string;
+  byeSiteTechnology?:'LTE'|'NR';
+  byeSiteSelectionLabel?:string;
   /** Last observed same-call GNSS plus time-dependent movement envelope, not a BYE measurement. */
   gnssReference?:GnssReference|null;
   metric?: AnalystMetric;
@@ -80,6 +83,8 @@ export function AnalystMap({
   stations = EMPTY_STATIONS,
   byeSiteCellId,
   byeSiteRuId,
+  byeSiteTechnology,
+  byeSiteSelectionLabel,
   gnssReference,
   selectedIndex,
   selectedCellId,
@@ -292,7 +297,7 @@ export function AnalystMap({
             ? 'GNSS/3사이트 추정/BYE Cell 기지국 위치 군집 · 확대 후 개별 근거 확인'
             : `${label} · ${point.lat.toFixed(roughThreeSite?3:6)}, ${point.lon.toFixed(roughThreeSite?3:6)}` +
               (isByeSite
-                ? ` · Cell ID ${point.byeCellId??'미제공'} · RU ${point.byeRuId??'미제공'} · 기지국 위치를 종료 통화의 대표점으로 사용`
+                ? ` · ${point.byeTechnology==='NR'?'5G (NR) · ':point.byeTechnology==='LTE'?'LTE · ':''}Cell ID ${point.byeCellId??'미제공'} · RU ${point.byeRuId??'미제공'} · ${byeSelectionDescription(point)} · 기지국 위치를 종료 통화의 대표점으로 사용`
                 : point.representativeBasis === 'cdr-end-nearest' && point.secondsBeforeEnd != null
                   ? ` · CDR 종료 ${Math.abs(point.secondsBeforeEnd).toFixed(1)}초 ${point.secondsBeforeEnd<0?'후':'전'} 관측`
                   : '');
@@ -303,8 +308,8 @@ export function AnalystMap({
               (point.gnssReferenceAgeSec??point.secondsBeforeEnd??0).toFixed(1)+'초 전' +
               ' · 이동 가능 범위 약 '+Math.round(point.possibleRadiusM).toLocaleString()+
               'm (120km/h, 기준점 오차 250m 가정)' +
-              (point.byeRuId?' · BYE 종료 기지국 '+point.byeRuId+' (단말 좌표 아님)':
-                ' · 유일한 BYE Cell 기지국 미확인');
+              (point.byeRuId?' · BYE 종료 기지국 '+point.byeRuId+' · '+byeSelectionDescription(point)+' (단말 좌표 아님)':
+                ' · BYE Cell 기지국 참고 위치 미확보');
             popup.appendChild(info);
             // Mini-map only; never draw thousands of large uncertainty circles
             // on the full administrative-dong dashboard.
@@ -321,7 +326,7 @@ export function AnalystMap({
                 L.marker(site,{zIndexOffset:600,icon:L.divIcon({
                   className:styles.stationIcon+' '+styles.byeStationIcon,
                   html:'▲',iconSize:[25,25],iconAnchor:[12,12],
-                })}).bindTooltip('유일하게 매핑된 BYE 기지국 · 단말 위치 아님').addTo(layer);
+                })}).bindTooltip(byeSelectionDescription(point)+' · BYE 기지국 · 단말 위치 아님').addTo(layer);
                 L.polyline([position,site],{
                   color:'#b87a31',weight:2,opacity:.75,dashArray:'3 7',
                 }).bindTooltip('GNSS 기준점–BYE 기지국 연결 · 실제 고객 이동 경로 아님').addTo(layer);
@@ -578,7 +583,8 @@ export function AnalystMap({
           bounds.push([station.latitude, station.longitude]);
           visibleStationBounds.push([station.latitude, station.longitude]);
           const isByeSite=!!byeSiteCellId&&station.cellId===byeSiteCellId&&
-            (!byeSiteRuId||station.baseStationId===byeSiteRuId);
+            (!byeSiteRuId||station.baseStationId===byeSiteRuId)&&
+            (!byeSiteTechnology||(station.technology??'LTE')===byeSiteTechnology);
           L.marker([station.latitude, station.longitude], {
             zIndexOffset:isByeSite?900:0,
             icon:L.divIcon({
@@ -588,10 +594,14 @@ export function AnalystMap({
               iconAnchor:isByeSite?[12,12]:[10,10],
             }),
           })
-            .bindTooltip(isByeSite?'BYE 종료 기지국 · 단말 위치 아님':'기지국 참고 위치 · 단말 위치 아님')
+            .bindTooltip(isByeSite?'BYE 기지국 참고 · '+(byeSiteSelectionLabel?byeSiteSelectionLabel+' · ':'')+'단말 위치 아님':'기지국 참고 위치 · 단말 위치 아님')
             .bindPopup(
               '<b>'+(isByeSite?'BYE 종료 기지국 · 단말 위치 아님':'기지국 참고 좌표 · 고객 위치 아님')+
               '</b><br/>RU '+esc(station.baseStationId)+' · Cell '+esc(station.cellId||'미제공')+
+              (isByeSite&&byeSiteSelectionLabel?'<br/>'+esc(byeSiteSelectionLabel):'')+
+              (station.technology?'<br/>통신 방식 '+(station.technology==='NR'?'5G (NR)':'LTE'):'')+
+              '<br/>등록 PCI '+(station.pci??'미제공')+
+              (station.inventorySource?'<br/>인벤토리 '+esc(station.inventorySource):'')+
               '<br/>'+station.latitude.toFixed(6)+', '+station.longitude.toFixed(6)+
               '<br/>기지국 좌표이며 단말의 실측·추정 위치가 아닙니다.',
             )
@@ -620,7 +630,8 @@ export function AnalystMap({
           .addTo(layer);
         if(showStations&&byeSiteCellId){
           const bye=stations.find(site=>site.cellId===byeSiteCellId&&
-            (!byeSiteRuId||site.baseStationId===byeSiteRuId));
+            (!byeSiteRuId||site.baseStationId===byeSiteRuId)&&
+            (!byeSiteTechnology||(site.technology??'LTE')===byeSiteTechnology));
           if(bye){
             L.polyline([fix,[bye.latitude,bye.longitude]],{
               color:'#af772f',weight:2,opacity:.75,dashArray:'3 7',
@@ -680,6 +691,8 @@ export function AnalystMap({
     stations,
     byeSiteCellId,
     byeSiteRuId,
+    byeSiteTechnology,
+    byeSiteSelectionLabel,
     gnssReference,
     metric,
     threshold,
@@ -797,6 +810,9 @@ export function AnalystMap({
             );
             callLocations.forEach((point) =>
               p.push([point.lat,point.lon]),
+            );
+            if(showStations)stations.forEach(station=>
+              p.push([station.latitude,station.longitude]),
             );
             if (p.length)
               m.fitBounds(p, {

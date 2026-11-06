@@ -7,6 +7,7 @@ trilateration, a surveyed handset location, or a 90% accuracy region.
 """
 from __future__ import annotations
 import collections
+import argparse
 from datetime import datetime
 import json
 import math
@@ -15,10 +16,11 @@ from pathlib import Path
 
 from shapely.geometry import Point, shape
 from shapely.prepared import prep
+from lte_station_catalog import resolve_lte_master
+from inventory_provenance import verify_inventory_provenance
 
 ROOT=Path(__file__).resolve().parent.parent
-PUBLIC=ROOT/"public"
-INVENTORY="수도권_LTE_261103.xlsx"
+PUBLIC=Path(os.environ.get('QOE_PUBLIC_DIR',str(ROOT/"public")))
 WINDOW_SECONDS=30
 MAX_END_AGE_SECONDS=180
 COLLOCATED_METERS=20
@@ -40,10 +42,12 @@ def distance_m(a,b):
     return math.hypot((a[0]-b[0])*111195.08,
                       (a[1]-b[1])*111195.08*math.cos(math.radians(lat)))
 
-def build_site_catalog(stations):
+def build_site_catalog(stations,inventory=None):
+    if inventory is None:
+        inventory=resolve_lte_master(directory=ROOT/'data/BaseStation').name
     pairs=collections.defaultdict(set)
     for s in stations:
-        if s.get("inventorySource")!=INVENTORY or s.get("isVirtual"):
+        if s.get("inventorySource")!=inventory or s.get("isVirtual"):
             continue
         ru,cell=str(s.get("baseStationId") or ""),str(s.get("cellId") or "")
         lat,lon=s.get("latitude"),s.get("longitude")
@@ -103,16 +107,20 @@ def district_shapes(overview):
             result.append((area["id"],polygon))
     return result
 
-def build():
-    manifest=json.loads((PUBLIC/"voice-1030.json").read_text("utf8"))
+def build(public_dir=PUBLIC,lte_master=None):
+    public_dir=Path(public_dir).resolve()
+    inventory_path=resolve_lte_master(lte_master)
+    inventory=inventory_path.name
+    manifest=json.loads((public_dir/"voice-1030.json").read_text("utf8"))
+    verify_inventory_provenance(manifest,inventory_path,'three-site rough')
     revision=manifest["meta"]["revision"]
     dates=manifest["meta"]["dates"]
-    outdir=PUBLIC/"three-site-rough"
+    outdir=public_dir/"three-site-rough"
     outdir.mkdir(parents=True,exist_ok=True)
     day_boundaries={}
     existing={}
     for day in dates:
-        overview=json.loads((PUBLIC/"analyst-overview"/"MDT"/(day+".json")).read_text("utf8"))
+        overview=json.loads((public_dir/"analyst-overview"/"MDT"/(day+".json")).read_text("utf8"))
         if overview.get("sourceRevision")!=revision:raise RuntimeError("overview revision mismatch")
         day_boundaries[day]=district_shapes(overview)
         existing[day]={p["callId"]:p for p in overview.get("callLocations",[])}
@@ -121,10 +129,10 @@ def build():
     for entry in manifest["days"]:
         if not entry.get("sampleCount"):continue
         date=entry["date"]
-        detail=json.loads((PUBLIC/entry["dataPath"]).read_text("utf8"))
+        detail=json.loads((public_dir/entry["dataPath"]).read_text("utf8"))
         if detail["date"]!=date or detail["customerId"]!=entry["customerId"]:
             raise RuntimeError("partition identity mismatch")
-        station_map=build_site_catalog(detail.get("baseStations",[]))
+        station_map=build_site_catalog(detail.get("baseStations",[]),inventory)
         seen_gnss=set()
         by_call=collections.defaultdict(list)
         for row in detail["samples"]:
@@ -132,7 +140,7 @@ def build():
             call_id=str(row[19])
             if md.get("locationSource")=="gnss" and number(row[2]) and number(row[3]):
                 seen_gnss.add(call_id)
-            if md.get("baseStationMatched") is not True or md.get("masterInventorySource")!=INVENTORY:
+            if md.get("baseStationMatched") is not True or md.get("masterInventorySource")!=inventory:
                 continue
             ru=str(md.get("baseStationId") or "")
             cell=str(md.get("cellId") or "")
@@ -196,6 +204,9 @@ def build():
                       "byeCellId":original.get("byeCellId"),
                       "byeRuId":original.get("byeRuId"),
                       "byeInventory":original.get("byeInventory"),
+                      "byePci":original.get("byePci"),
+                      "byeInventoryPciStatus":original.get("byeInventoryPciStatus"),
+                      "byeInventoryPciCandidates":original.get("byeInventoryPciCandidates",[]),
                       "byeStationLat":original["lat"],
                       "byeStationLon":original["lon"],
                     })
@@ -209,6 +220,7 @@ def build():
         result={
           "schemaVersion":"coarse-three-site-v1",
           "sourceRevision":revision,
+          "sourceInventory":inventory,
           "date":day,
           "method":"THREE_SITE_RSRP_CENTROID",
           "warning":"Weighted center of >=3 independent LTE site locations within preceding 30s. Approximate search area, NOT validated UE location or trilateration or MOS impairment onset.",
@@ -228,4 +240,9 @@ def build():
       "outputDir":str(outdir),
     },ensure_ascii=False,indent=2))
 
-if __name__=="__main__":build()
+if __name__=="__main__":
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--public-dir',type=Path,default=PUBLIC)
+    parser.add_argument('--lte-master',type=Path,default=None)
+    args=parser.parse_args()
+    build(args.public_dir,args.lte_master)

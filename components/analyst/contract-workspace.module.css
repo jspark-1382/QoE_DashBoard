@@ -502,11 +502,21 @@
 }
 
 /* Show the selected CDR/MDT serving sites even when GNSS coordinates are absent. */
-.stationSummary{display:flex;align-items:center;flex-wrap:wrap;gap:6px 12px;margin:0 8px 8px;padding:9px 12px;border:1px solid #d4e1ec;border-radius:7px;background:#f4f9fc;font-size:11px;color:#365c76}
-.stationSummary strong{font-size:12px;color:#1f4c6e}
-.stationSummary span{flex:1;min-width:160px;overflow-wrap:anywhere}
+.stationSummary{display:grid;gap:7px;margin:7px 0 8px;padding:8px 10px;border:1px solid #dce4ec;border-radius:5px;background:#fff;font-size:11px;color:#365c76;min-width:0}
 .stationSummary small{color:#76889a}
-.stationSummary button{border:1px solid #b5d9ed;border-radius:5px;background:#fff;padding:5px 9px;color:#23659a;cursor:pointer}
+.stationSummary button{justify-self:start;border:1px solid #b5d9ed;border-radius:5px;background:#fff;padding:5px 9px;color:#23659a;cursor:pointer}
+.stationTableScroll{max-height:240px;overflow:auto;min-width:0}
+.stationTable{width:100%;min-width:650px;border-collapse:collapse;table-layout:fixed;font-variant-numeric:tabular-nums}
+.stationTable th,.stationTable td{padding:6px 7px;border-bottom:1px solid #e7ecf1;text-align:left;vertical-align:top;overflow-wrap:anywhere;line-height:1.45}
+.stationTable th{position:sticky;top:0;background:#f4f7fa;color:#50647a;font-size:10px;font-weight:600;z-index:1}
+.stationTable th:nth-child(1){width:15%}.stationTable th:nth-child(2){width:15%}
+.stationTable th:nth-child(3){width:10%}.stationTable th:nth-child(4){width:12%}
+.stationTable th:nth-child(5){width:23%}.stationTable th:nth-child(6){width:25%}
+.stationTable td small{display:block;font-size:10px}
+.pciComparison{font-weight:600;color:#667789}
+.pciComparison[data-pci-comparison="match"]{color:#27845c}
+.pciComparison[data-pci-comparison="mismatch"]{color:#b25136}
+.pciNote{line-height:1.55}
 
 /* Phone-call duration is displayed at whole-second precision. */
 .durationCell{white-space:nowrap;font-variant-numeric:tabular-nums;font-weight:650;letter-spacing:.1px}

@@ -6,6 +6,7 @@ import { createRequire } from 'node:module';
 const { load } = createRequire(import.meta.url)('../analyst-ts-loader.cjs');
 const evidenceHelper = load('lib/analyst/estimation-evidence.ts');
 globalThis.__analystEstimationEvidence = evidenceHelper;
+globalThis.__analystPciEvidence = load('lib/analyst/pci-evidence.ts');
 import { renderToStaticMarkup } from 'react-dom/server';
 const file = new URL('./.observation-groups-test.mjs', import.meta.url);
 try {
@@ -15,6 +16,10 @@ try {
     .replace(
       /import\s+\{[^}]+\}\s+from ['"]\.\.\/\.\.\/lib\/analyst\/estimation-evidence['"];?/s,
       'const {estimationReason, estimationMethodLabel} = globalThis.__analystEstimationEvidence;',
+    )
+    .replace(
+      /import\s+\{[^}]+\}\s+from ['"]\.\.\/\.\.\/lib\/analyst\/pci-evidence['"];?/s,
+      'const {getPciEvidence,pciEvidenceReason}=globalThis.__analystPciEvidence;',
     )
     .replace(
       /import styles from ['"]\.\/[^'"]+\.module\.css['"];?/,

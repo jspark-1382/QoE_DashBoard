@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports -- Exercises TypeScript through the shared CJS loader. */
 const test=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
@@ -72,14 +73,14 @@ test('customer-only map shows GNSS movement envelope and BYE site separately; gl
  assert(contract.includes('gnssReference={mapReference}'));
  assert(contract.includes('마지막 GNSS 실측 기준점'));
  assert(contract.includes('120km/h'));
- assert(contract.includes('BYE Cell의 기지국이 유일하게 확인되지 않으면'));
+ assert(contract.includes('BYE Cell 기지국 참고 위치가 없으면'));
 });
 
 
 test('2026-10-30 combined GNSS anchor + verified BYE station remains two different geographical records',()=>{
  const overview=JSON.parse(fs.readFileSync('public/analyst-overview/MDT/2026-10-30.json','utf8'));
  const p=overview.callLocations.find(p=>p.positionQuality==='gnss-last-known'&&p.byeRuId);
- assert(p,'must contain a recent earlier GNSS and a uniquely matched BYE tower');
+ assert(p,'must contain a recent earlier GNSS and a separate BYE tower reference');
  assert.equal(p.evidence,'gnss');
  assert(p.gnssReferenceAgeSec>60&&p.gnssReferenceAgeSec<=180);
  assert.equal(p.referenceBasis,'last-known-gnss');

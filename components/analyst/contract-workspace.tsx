@@ -10,6 +10,8 @@ import { isPoorCall } from '../../lib/analyst/data';
 import { getMetricLegend, hasCustomerPoint } from '../../lib/analyst/map';
 import { formatCallDuration } from '../../lib/analyst/call-duration';
 import { classifySipReason11,sipReasonLabel } from '../../lib/analyst/sip-reason';
+import { buildCallPciRows, pciEvidenceReason, selectExactCallStations } from '../../lib/analyst/pci-evidence';
+import { byeSelectionDescription } from '../../lib/analyst/bye-selection';
 import { AnalystMap } from './analyst-map';
 import { MosCallInvestigation } from './mos-call-investigation';
 import { RadioTimeline } from './radio-timeline';
@@ -133,12 +135,9 @@ export function ContractWorkspace({
           a.startSecond - b.startSecond
         : a.startSecond - b.startSecond,
     );
-  const stationKeys = new Set(
-    samples.flatMap((s) => [s.baseStationId, s.cellId]).filter(Boolean),
-  );
   const cdrOnly = day.source === 'MDT' && call !== null && !hasMdt(call);
-  // CDR-only call: use ONLY a validated unique BYE serving RU from the
-  // administrative overview; never repurpose a station as a UE coordinate.
+  // Use the overview's selected BYE tower reference, preserving how it was chosen;
+  // a first-candidate fallback is never a measured handset coordinate.
   const byeEntry=byeLocation&&byeLocation.byeCellId===call?.endCellId &&
     byeLocation.byeRuId&&
     (byeLocation.evidence==='bye-cell'||
@@ -148,18 +147,22 @@ export function ContractWorkspace({
     ? {baseStationId:byeEntry.byeRuId!,cellId:byeEntry.byeCellId!,
        latitude:byeEntry.evidence==='bye-cell'?byeEntry.lat:byeEntry.byeStationLat!,
        longitude:byeEntry.evidence==='bye-cell'?byeEntry.lon:byeEntry.byeStationLon!,
-       frequency:null,isVirtual:false,provenanceUnknown:true}
+       frequency:null,isVirtual:false,provenanceUnknown:true,
+       pci:byeEntry.byePci??null,inventorySource:byeEntry.byeInventory,
+       technology:byeEntry.byeTechnology,
+       inventoryPciStatus:byeEntry.byeInventoryPciStatus,
+       inventoryPciCandidates:byeEntry.byeInventoryPciCandidates}
     : null;
-  const callStations=day.baseStations.filter(s=>
-    stationKeys.has(s.baseStationId)||stationKeys.has(s.cellId));
+  const callStations=selectExactCallStations(day.baseStations,samples);
   const stationMarkers=cdrOnly?(byeStation?[byeStation]:[]):[
     ...callStations,
     ...(byeStation&&!callStations.some(site=>site.baseStationId===byeStation.baseStationId&&
-      site.cellId===byeStation.cellId)?[byeStation]:[]),
+      site.cellId===byeStation.cellId&&(site.technology??'LTE')===(byeStation.technology??'LTE'))?[byeStation]:[]),
   ];
   const activeByeStation=byeStation && stationMarkers.some(s=>
     s.baseStationId===byeStation.baseStationId&&s.cellId===byeStation.cellId)
     ? byeStation : null;
+  const stationPciRows=buildCallPciRows(day.baseStations,samples,byeStation?[byeStation]:[]);
   return (
     <div className={styles.workspace}>
       <div className={styles.contextBar}>
@@ -536,7 +539,7 @@ export function ContractWorkspace({
                   실제 위치 정확도·고객 이동경로·기지국 서비스 반경을 보증하지 않습니다.
                   {activeByeStation
                     ? ' BYE 종료 기지국 '+activeByeStation.baseStationId+'은 별도 위치 관계로 표시합니다.'
-                    : ' BYE Cell의 기지국이 유일하게 확인되지 않으면 기지국 거리 제약은 적용하지 않습니다.'}
+                    : ' BYE Cell 기지국 참고 위치가 없으면 기지국 거리 제약은 적용하지 않습니다.'}
                 </small>
               </div></details>}
               {endReference&&sample?.gnssReference&&endReference.observedAt!==sample.gnssReference.observedAt&&
@@ -546,7 +549,7 @@ export function ContractWorkspace({
                 무선 계산 후보 {withheldCount}건은 거리 포화·모델 불확실성·관측 시간차 등의 검토를 통과하지 못해 고객 좌표를 표시하지 않습니다.
                 {activeByeStation
                   ? ' BYE 종료 기지국 '+activeByeStation.baseStationId+' (Cell '+activeByeStation.cellId+')만 별도 강조합니다. 기지국은 단말의 위치가 아닙니다.'
-                  : ' 유일한 BYE Cell 기지국을 확인하지 못한 경우에는 기지국 참고 위치만 표시합니다.'}
+                  : ' BYE Cell 기지국 참고 위치를 확인하지 못했습니다.'}
               </div></details>}
               {modeledCount>0&&observedPoints.length===0&&
                 <p className={styles.noGnssWarning}>이 통화에는 GNSS 관측 위치가 없습니다. 지도에 표시된 고객 위치는 무선 측량 또는 보간으로 추정한 좌표입니다.</p>}
@@ -572,20 +575,41 @@ export function ContractWorkspace({
                   </div>
                 </dl>
                 <p>{byeStation
-                  ? 'BYE Cell과 유일하게 일치하는 기지국을 지도에 표시합니다. 기지국 좌표는 고객 단말 위치가 아닙니다.'
-                  : 'Cell 위치 미제공 · BYE Cell 기지국을 유일하게 확인할 수 없어 단말 위치를 표시하지 않습니다.'}</p>
+                  ? 'BYE Cell에 연결된 기지국 참고 위치를 지도에 표시합니다. 기지국 좌표는 고객 단말 위치가 아닙니다.'
+                  : 'Cell 위치 미제공 · BYE Cell에 연결 가능한 기지국 좌표가 없습니다.'}</p>
               </div>
             ) : null}
-            {stationMarkers.length>0&&<details className={styles.technicalDetails} aria-label="선택 통화의 기지국 연결"><summary>기지국 {stationMarkers.length}곳 자세히</summary><div className={styles.stationSummary}>
-              <strong>선택 통화 기지국 {stationMarkers.length}개</strong>
-              <span>{stationMarkers.map(s=>s.baseStationId+' (Cell '+(s.cellId||'미제공')+')').join(' · ')}</span>
+            {stationPciRows.length>0&&<details className={styles.technicalDetails} aria-label="선택 통화의 기지국 연결"><summary>기지국 연결·PCI {stationPciRows.length}개 자세히</summary><div className={styles.stationSummary}>
+              <div className={styles.stationTableScroll}>
+                <table className={styles.stationTable} aria-label="선택 통화 PCI 비교">
+                  <thead><tr><th scope="col">RU</th><th scope="col">Cell</th><th scope="col">등록 PCI</th><th scope="col">관측 PCI</th><th scope="col">비교</th><th scope="col">정보 출처</th></tr></thead>
+                  <tbody>{stationPciRows.map(row=><tr key={JSON.stringify([row.technology??'LTE',row.baseStationId,row.cellId])}>
+                    <td>{row.baseStationId||'미제공'}</td>
+                    <td>{row.cellId||'미제공'}</td>
+                    <td>{row.registeredPci??'미확인'}{row.reason==='registry-conflict'&&row.registeredCandidates.length>0&&<small>후보 {row.registeredCandidates.join(' · ')}</small>}</td>
+                    <td>{row.observedPcis.length?row.observedPcis.join(' · '):'미제공'}</td>
+                    <td><span className={styles.pciComparison} data-pci-comparison={row.comparison}>
+                      {row.observationCount===0?'미확인':[
+                        row.matched>0?'일치 '+row.matched:null,
+                        row.mismatched>0?'불일치 '+row.mismatched:null,
+                        row.unknown>0?'미확인 '+row.unknown:null,
+                      ].filter(Boolean).join(' · ')}
+                    </span>{row.comparison==='unknown'&&<small>{pciEvidenceReason(row)}</small>}</td>
+                    <td>{row.inventorySources.join(' · ')||'출처 미제공'}</td>
+                  </tr>)}</tbody>
+                </table>
+              </div>
+              <small className={styles.pciNote}>등록 PCI는 RU·Cell 정확 일치 기준 · 비교 건수는 MDT 관측 수입니다. 기지국 정보 기준 시점과 통화 관측 시점이 다를 수 있습니다. 불일치만으로 장애나 PCI 충돌을 확정하지 않습니다.</small>
               <small>{activeByeStation
                 ? '종료 BYE 기지국 '+activeByeStation.baseStationId+' / Cell '+activeByeStation.cellId+' · 기지국 좌표이며 단말 위치 아님'
                 : withheldCount>0&&call?.endCellId
-                  ? 'CDR 종료 Cell '+call.endCellId+'은 단일 RU로 확정되지 않음 (중복/미등록 가능) · 아래는 MDT 기지국 참고 위치이며 단말 위치 아님'
+                  ? 'CDR 종료 Cell '+call.endCellId+'의 연결 가능한 RU 좌표 없음 · 아래는 MDT 기지국 참고 위치이며 단말 위치 아님'
                   : 'MDT에 연결된 기지국 참고 위치 · 단말 위치 아님'}</small>
               {!stations&&<button type="button" onClick={()=>setStations(true)}>지도에 기지국 표시</button>}
             </div></details>}
+            {activeByeStation&&byeEntry&&<p className={styles.selectedPositionStatus} data-bye-selection={byeEntry.byeSelectionMethod??'unknown'}>
+              BYE 기지국 선택: {byeSelectionDescription(byeEntry)} · RU {activeByeStation.baseStationId} · 단말 위치 아님
+            </p>}
             {(!cdrOnly||byeStation)&&(
               <div className={styles.map}>
                 <AnalystMap
@@ -597,6 +621,8 @@ export function ContractWorkspace({
                   stations={stationMarkers}
                   byeSiteCellId={activeByeStation?.cellId}
                   byeSiteRuId={activeByeStation?.baseStationId}
+                  byeSiteTechnology={activeByeStation?.technology}
+                  byeSiteSelectionLabel={byeEntry?byeSelectionDescription(byeEntry):undefined}
                   gnssReference={mapReference}
                   metric={metric}
                   showGnss={gnss}
@@ -640,6 +666,7 @@ export function ContractWorkspace({
             samples={samples}
             source={day.source}
             roughLocation={roughLocation}
+            stations={day.baseStations}
           />
         </aside>
       </div>

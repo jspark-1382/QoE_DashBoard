@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports -- Uses the shared CJS test loader. */
 /* Conservative publication policy: never confuse solver candidates with handset locations. */
 const test=require('node:test');
 const assert=require('node:assert/strict');
@@ -71,8 +72,20 @@ test('2026-10-30 reported call #29 keeps CDR MOS, withholds all 48 low-quality m
  const bye=raw.baseStations.filter(station=>station.cellId===call.endCellId);
  assert.equal(bye.length,1,'a local MDT record may contain only one RU candidate');
  const overview=JSON.parse(fs.readFileSync('public/analyst-overview/MDT/2026-10-30.json','utf8'));
- assert(!overview.callLocations.some(p=>p.callId===entry.customerId+':'+call.id),
-   'globally ambiguous CDR BYE Cell 1664768 must not be assigned one arbitrary RU coordinate');
+ const reference=overview.callLocations.find(p=>p.callId===entry.customerId+':'+call.id);
+ assert(reference,'the authorized MDT-first policy can expose a separate registered tower reference');
+ assert.equal(reference.evidence,'bye-cell','rejected radio coordinates never become a handset position');
+ assert.equal(reference.positionQuality,'bye-cell-site');
+ assert.equal(reference.byeSelectionMethod,'mdt');
+ assert.equal(reference.byeCandidateCount,3);
+ assert.equal(reference.byeSelectionMdtRu,bye[0].baseStationId);
+ assert.equal(reference.byeRuId,bye[0].baseStationId);
+ assert.equal(reference.lat,bye[0].latitude);
+ assert.equal(reference.lon,bye[0].longitude);
+ assert(reference.byeSelectionDeltaSeconds>=-1&&reference.byeSelectionDeltaSeconds<=30);
+ assert.equal(reference.observedAt,null);
+ assert.equal(reference.usedSiteCount,null);
+ assert.equal(reference.modelUncertaintyM,null);
 });
 test('GNSS observed location always takes precedence over rejected radio candidate',()=>{
  const manifest=JSON.parse(fs.readFileSync('public/voice-1030.json','utf8'));

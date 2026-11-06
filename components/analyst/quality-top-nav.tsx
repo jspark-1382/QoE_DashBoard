@@ -5,7 +5,7 @@ import Link from './document-link';
 import { BarChart3, CalendarDays, RadioTower, Users, Waves } from 'lucide-react';
 import styles from './quality-top-nav.module.css';
 
-export type QualityTab='quality'|'contract'|'mos'|'legacy';
+export type QualityTab='quality'|'contract'|'mos'|'stations'|'legacy';
 interface Props {
   active:QualityTab;
   date?:string;
@@ -41,6 +41,10 @@ export function QualityTopNav({
       <Link className={active==='mos'?styles.current:undefined}
         aria-current={active==='mos'?'page':undefined} href="/mos-lab">
         <Waves size={16}/>MOS 알고리즘 비교
+      </Link>
+      <Link className={active==='stations'?styles.current:undefined}
+        aria-current={active==='stations'?'page':undefined} href="/stations">
+        <RadioTower size={15}/>기지국·PCI
       </Link>
       <Link className={active==='legacy'?styles.current:undefined}
         aria-current={active==='legacy'?'page':undefined} href={legacy}

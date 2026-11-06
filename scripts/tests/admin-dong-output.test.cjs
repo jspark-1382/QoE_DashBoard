@@ -5,8 +5,9 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const root = path.resolve(__dirname, '../..');
-const source = path.join(root, 'public/voice-1030.json');
-const overviewPath = path.join(root, 'public/analyst-overview/MDT/2026-10-30.json');
+const publicRoot = process.env.QOE_PUBLIC_DIR ? path.resolve(process.env.QOE_PUBLIC_DIR) : path.join(root,'public');
+const source = path.join(publicRoot, 'voice-1030.json');
+const overviewPath = path.join(publicRoot, 'analyst-overview/MDT/2026-10-30.json');
 
 test('SHP-based administrative-dong overlay is complete, projected, and GNSS provenance is preserved', () => {
   const dataset = JSON.parse(fs.readFileSync(source, 'utf8'));
@@ -84,7 +85,7 @@ test('SHP-based administrative-dong overlay is complete, projected, and GNSS pro
       assert.equal(marker.observedAt,null);
       assert.equal(marker.secondsBeforeEnd,null);
       assert.equal(marker.usedSiteCount,null);
-      assert.match(marker.byeInventory,/수도권_LTE_261103/);
+      assert.match(marker.byeInventory,marker.byeTechnology==='NR'?/수도권_5G_\d{6}/:/수도권_LTE_\d{6}/);
     }else{
       assert.equal(marker.representativeBasis,'cdr-end-nearest');
       assert(typeof marker.observedAt==='string');
@@ -123,7 +124,18 @@ test('SHP-based administrative-dong overlay is complete, projected, and GNSS pro
   assert.equal(a.selectedEndLocations,a.locatedGnssCalls+a.locatedEstimatedCalls);
   assert.equal(a.selectedByeCellSites,a.locatedByeCellCalls);
   assert.equal(a.noUniqueByeCellFallbackCalls,a.unlocatedCalls);
-  assert.equal(a.byeCatalog_ambiguousCells,123);
+  const inventoryNames=[['LTE','station-catalog.json'],
+    ...(dataset.meta.byeStationInventories?.some(item=>item.technology==='NR')?[['NR','nr-station-catalog.json']]:[])];
+  const candidates=new Map();
+  for(const [technology,filename] of inventoryNames){
+    const inventory=JSON.parse(fs.readFileSync(path.join(publicRoot,filename),'utf8'));
+    for(const [ru,cell,,lat,lon] of inventory.rows){
+      const sites=candidates.get(cell)??new Set();
+      sites.add(JSON.stringify([technology,ru,lat,lon]));candidates.set(cell,sites);
+    }
+  }
+  const requested=new Set(overview.calls.map(call=>call.endCellId));
+  assert.equal(a.byeCatalog_ambiguousCells,[...requested].filter(cell=>(candidates.get(cell)?.size??0)>1).length);
   const quality = overview.callLocations.reduce((result,point)=>{
     result[point.positionQuality]=(result[point.positionQuality]??0)+1;
     if(point.evidence==='estimated'){
@@ -158,4 +170,32 @@ test('SHP-based administrative-dong overlay is complete, projected, and GNSS pro
   assert.equal(located+a.unlocatedCalls,overview.calls.length);
   assert.equal(overview.calls.length,37731);
   assert(regions.has('adm:11230710'), 'Gaepo 4-dong polygon from real Seoul SHP should exist');
+});
+
+test('published NR BYE sites retain exact source RAT, cell, registered coordinate and provenance',()=>{
+  const dataset=JSON.parse(fs.readFileSync(source,'utf8'));
+  const overview=JSON.parse(fs.readFileSync(overviewPath,'utf8'));
+  const declared=dataset.meta.byeStationInventories;
+  assert(declared?.some(item=>item.technology==='NR'),'NR inventory participates in the source revision');
+  const registry=new Map();
+  for(const [technology,filename] of [['LTE','station-catalog.json'],['NR','nr-station-catalog.json']]){
+    const catalog=JSON.parse(fs.readFileSync(path.join(publicRoot,filename),'utf8'));
+    const inventory=declared.find(item=>item.technology===technology);
+    assert.equal(catalog.source.file,inventory.file);assert.equal(catalog.source.sha256,inventory.sha256);
+    for(const [ru,cell,pci,lat,lon] of catalog.rows)registry.set(JSON.stringify([technology,ru,cell]),{pci,lat,lon,inventory});
+  }
+  const calls=new Map(overview.calls.map(call=>[call.id,call]));
+  const nr=overview.callLocations.filter(point=>point.evidence==='bye-cell'&&point.byeTechnology==='NR');
+  assert(nr.length>0,'5G BYE is present in the quality overview, beyond the station search page');
+  for(const point of overview.callLocations.filter(point=>point.evidence==='bye-cell')){
+    const call=calls.get(point.callId);
+    assert.equal(point.byeCellId,call.endCellId);
+    if(call.endRat)assert.equal(point.byeTechnology,call.endRat);
+    const exact=registry.get(JSON.stringify([point.byeTechnology,point.byeRuId,point.byeCellId]));
+    assert(exact,'BYE must retain the complete technology/RU/Cell identity');
+    assert.equal(point.lat,exact.lat);assert.equal(point.lon,exact.lon);
+    assert.equal(point.byePci,exact.pci);
+    assert.equal(point.byeInventorySha256,exact.inventory.sha256);
+    assert.equal(point.byeInventory,exact.inventory.file);
+  }
 });

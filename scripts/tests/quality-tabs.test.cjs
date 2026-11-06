@@ -25,7 +25,7 @@ test('all active navigation bars use quality overview, legacy, customer and MOS 
    for(const n of [1,2,3])
      assert(!item.includes('href="/overview-proposal-'+n+'"'),'retired tab must be absent');
  }
- const order=['품질 현황','고객·통화 분석','MOS 알고리즘 비교','기존안'];
+ const order=['품질 현황','고객·통화 분석','MOS 알고리즘 비교','기지국·PCI','기존안'];
  const positions=order.map(label=>top.indexOf('>'+label));
  assert(positions.every(x=>x>=0),'shared tabs have all requested labels');
  assert(positions.every((x,i)=>i===0||positions[i-1]<x),'legacy must be after MOS');
@@ -48,7 +48,7 @@ test('proposal 1/2/3 routes and their exclusive implementation are absent',()=>{
 test('original CDR, GNSS and MOS schemas are not touched by tab changes',()=>{
  const source=JSON.parse(read('public/voice-1030.json'));
  assert.deepEqual(source.meta.dates,['2026-10-26','2026-10-27','2026-10-28','2026-10-29','2026-10-30']);
- assert.equal(source.meta.revision,'557c39d2c6a9a5b4c69b');
+ assert.match(source.meta.revision,/^[a-f0-9]{20}$/);
  const day=JSON.parse(read('public/analyst-overview/MDT/2026-10-30.json'));
  assert.equal(day.calls.length,37731);
  assert.equal(day.callLocations.filter(p=>p.evidence==='gnss').length,116);

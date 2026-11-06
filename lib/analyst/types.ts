@@ -20,6 +20,8 @@ export interface SourceCustomer { id:string; displayName:string; maskedPhone:str
 export interface SourceCall {
   id:string; ci?:string; start:string; end:string; startTimestamp?:string; endTimestamp?:string;
   startCellId?:string; endCellId?:string;
+  /** Explicit BYE/paired 200OK PANI radio technology; unrelated to MDT RAT. */
+  endRat?:'LTE'|'NR'|null;
   mosV5Original?:number|null; mosStatus?:'VALID'|'MISSING'|'INVALID';
   mosAlgorithmVersion?:string;
   matchStatus?:'MATCHED'|'AMBIGUOUS'|'UNMATCHED'; matchDeltaSec?:number;
@@ -37,6 +39,7 @@ export interface SourceDay {
 }
 export interface AnalystDataset {
   meta:{ dates:string[]; poorQoeThreshold:number; revision?:string; schemaVersion?:string; partitioned?:boolean;
+    byeStationInventories?:Array<{technology:'LTE'|'NR';file:string;sha256:string}>;
     source?:string; sourceFiles?:string[]; baseStations?:BaseStation[]; gnssCrs?:string;
     callMeta?:Record<string,{start:string;end:string;startTimestamp?:string;endTimestamp?:string}>; qoeBasis?:string; frequencyEncoding?:string;
   };
@@ -60,6 +63,7 @@ export interface AnalystCall {
   id:string; ci:string; customerId:string; contractId:string|null;
   start:string; end:string; startTimestamp?:string; startSecond:number; endSecond:number; qoe:number|null;
   startCellId:string; endCellId:string;
+  endRat?:'LTE'|'NR'|null;
   durationSeconds?:number;
   /** Last actual GNSS FIX at call end, with age and movement envelope, not a BYE fix. */
   endGnssReference?:GnssReference;
@@ -78,6 +82,7 @@ export interface AnalystDay {
 export interface OverviewCall {
   id:string; rawCallId?:string; customerId:string; contractId:string|null; start:string; end:string; startSecond:number;
   startTimestamp?:string; mos?:number|null; endCellId?:string;
+  endRat?:'LTE'|'NR'|null;
   endType?:string; sipCause?:string; q850Cause?:string; fc?:string;
   qoe:number|null; locationSource:LocationSource; gridIds:string[]; site:string;
   /** Evidence of a geographic join; radio estimates are not verified GNSS. */
@@ -90,8 +95,17 @@ export interface OverviewCallLocation {
   evidence:'gnss'|'estimated'|'bye-cell'; start:string; mos:number|null;
   /** One BYE-proxy nearest point per located CDR call; original track lives in day.samples. */
   representativeBasis?:'cdr-end-nearest'|'bye-cell-site';
-  /** BYE Cell fallback is an LTE site coordinate, not a device location. */
+  /** BYE Cell fallback is a tower reference coordinate, not a device location. */
   byeCellId?:string; byeRuId?:string; byeInventory?:string;
+  byeTechnology?:'LTE'|'NR'; byeInventorySha256?:string;
+  /** MDT RU evidence wins; otherwise inventory order supplies a reference only. */
+  byeSelectionMethod?:'unique'|'mdt'|'first'; byeCandidateCount?:number;
+  /** Positive before CDR end; negative within the permitted after-end tolerance. */
+  byeSelectionDeltaSeconds?:number; byeSelectionMdtRu?:string;
+  /** Registered BYE station PCI; never an observed MDT value. */
+  byePci?:number|null;
+  byeInventoryPciStatus?:'valid'|'missing'|'invalid'|'conflict';
+  byeInventoryPciCandidates?:number[];
   /** Supporting BYE tower coordinate separate from actual GNSS observation point. */
   byeStationLat?:number; byeStationLon?:number;
   /** Distance/time envelope from the last observed GNSS; not an accuracy radius. */
@@ -117,6 +131,7 @@ export interface AdministrativeDongBoundary {
 export interface AnalystOverview {
   schemaVersion:'analyst-overview-v1'; source:AnalystSource; date:string; sourceRevision?:string;
   analyticsVersion?:'overview-analytics-v1';
+  byeInventorySources?:Array<{technology:'LTE'|'NR';file:string;sha256:string}>;
   gridSizeM:60; calls:OverviewCall[]; cells:OverviewCell[];
   spatialUnit?:'administrative-dong'|'grid60';
   administrativeDongs?:AdministrativeDongBoundary[];

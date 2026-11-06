@@ -3,6 +3,7 @@ import {useEffect,useState} from 'react';
 import Link from './document-link';
 import {Activity,ArrowUpRight,ChevronRight,CircleHelp,MapPinned,RadioTower,Users} from 'lucide-react';
 import {ImprovementCandidateMap} from './improvement-candidate-map';
+import {MapPanelFrame} from './map-panel-frame';
 import {callEvidenceUrl,validateImprovementReport,
   type ImprovementCandidate,type ImprovementCandidateReport} from '../../lib/analyst/improvement-candidates';
 import styles from './improvement-candidates.module.css';
@@ -117,7 +118,7 @@ export function ImprovementCandidateWorkspace({sourceRevision}:{sourceRevision:s
     })();
     return()=>ctrl.abort();
   },[sourceRevision]);
-  if(data.loading)return <div className={styles.loadState} role="status">5일 원본 개선 후보를 확인하고 있습니다…</div>;
+  if(data.loading)return <output className={styles.loadState}>5일 원본 개선 후보를 확인하고 있습니다…</output>;
   if(!data.report)return <div className={styles.errorState} role="alert">{data.error??'개선 후보 자료가 없습니다.'}</div>;
   const report=data.report;
   const visible=report.candidates.filter(c=>filter==='all'||c.kind===filter);
@@ -136,24 +137,27 @@ export function ImprovementCandidateWorkspace({sourceRevision}:{sourceRevision:s
       <div><RadioTower size={19}/><span>반복 불량 Cell</span><strong>{num(report.summary.cellCandidateCount)}<small>개</small></strong></div>
     </div>
     <div className={styles.grid}>
-      <section className={styles.mapPanel}>
+      <MapPanelFrame label="반복 불량 후보 지도" className={styles.mapPanel}>{({toggleButton})=><>
         <div className={styles.panelHeading}><strong><MapPinned size={17}/>반복 불량 후보 지도</strong>
-          <span className={styles.legend}><i className={styles.redDot}/>중복 조사 권역 <i className={styles.blueDot}/>기지국 참고점 · 선택 후보 GNSS 관측 표시</span>
+          <div className={styles.mapActions}>
+            <span className={styles.legend}><i className={styles.redDot}/>중복 조사 권역 <i className={styles.blueDot}/>기지국 참고점 · 선택 후보 GNSS 관측 표시</span>
+            {toggleButton}
+          </div>
         </div>
-        <div className={styles.mapHost}>
+        <div className={styles.mapHost} data-map-surface>
           <ImprovementCandidateMap candidates={report.candidates} selectedId={selected.id} onSelect={setSelectedId}/>
         </div>
         <p className={styles.mapFoot}>후보 중심 {report.summary.mappedCandidates}곳 · 선택 후보의 원본 GNSS {selected.relatedGnss.length}점 별도 표시 · 기지국 참고 위치는 UE 위치 아님</p>
-      </section>
+      </>}</MapPanelFrame>
       <section className={styles.listPanel}>
         <div className={styles.panelHeading}><strong>저품질 체감 고객 조사 후보</strong>
           <span className={styles.analysisLabel}>확정 우선순위 아님</span>
         </div>
-        <div className={styles.kindFilters} role="group" aria-label="개선 후보 종류">
+        <fieldset className={styles.kindFilters} aria-label="개선 후보 종류">
           {([['all','전체 5건'],['spatial','MOS 중복 위치 3곳'],['cell','Cell 2개']] as const).map(([value,label])=>
             <button type="button" key={value} aria-pressed={filter===value}
               onClick={()=>chooseFilter(value)}>{label}</button>)}
-        </div>
+        </fieldset>
         <div className={styles.list} aria-label="저품질 체감 고객 후보 선택">
           {visible.map(c=><button key={c.id} type="button" aria-pressed={c.id===selected.id}
             className={styles.candidateRow} onClick={()=>setSelectedId(c.id)}>

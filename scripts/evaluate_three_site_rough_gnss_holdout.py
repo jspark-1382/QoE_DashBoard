@@ -8,10 +8,12 @@ from __future__ import annotations
 import collections,json,math,statistics
 from pathlib import Path
 
-from build_three_site_rough import build_site_catalog,centroid_candidate,distance_m,epoch,INVENTORY
+from build_three_site_rough import build_site_catalog,centroid_candidate,distance_m,epoch
 
 ROOT=Path(__file__).resolve().parent.parent
 manifest=json.loads((ROOT/"public/voice-1030.json").read_text("utf8"))
+inventory_metadata=manifest['meta'].get('stationInventory')
+INVENTORY=(inventory_metadata.get('file') if isinstance(inventory_metadata,dict) else None) or '수도권_LTE_261103.xlsx'
 counter=collections.Counter()
 records=[]
 
@@ -22,7 +24,7 @@ def percentile(values,p):
 for entry in manifest["days"]:
     if not entry.get("sampleCount"):continue
     detail=json.loads((ROOT/"public"/entry["dataPath"]).read_text("utf8"))
-    sites=build_site_catalog(detail.get("baseStations",[]))
+    sites=build_site_catalog(detail.get("baseStations",[]),INVENTORY)
     radio=collections.defaultdict(list)
     fixes=collections.defaultdict(list)
     for row in detail["samples"]:

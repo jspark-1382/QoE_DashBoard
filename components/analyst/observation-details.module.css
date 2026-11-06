@@ -45,6 +45,11 @@
   text-align: right;
   overflow-wrap: anywhere;
 }
+.pciComparison { font-weight: 600; color: #667789; }
+.pciComparison[data-pci-comparison="match"] { color: #27845c; }
+.pciComparison[data-pci-comparison="mismatch"] { color: #b25136; }
+.pciProvenance { margin: 7px 0 10px; color: #667789; font-size: 10px; line-height: 1.5; }
+.pciProvenance span { display: block; overflow-wrap: anywhere; }
 .raw,
 .estimationStatus {
   margin-top: 8px;

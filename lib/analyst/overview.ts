@@ -50,8 +50,9 @@ export function appendOverview(
       startSecond: call.startSecond,
       startTimestamp: call.startTimestamp,
       // CDR END serving Cell ID is not the UE location. Kept so the offline
-      // mapper can label a unique source-verified BYE base-station fallback.
+      // mapper can select a BYE tower reference and preserve its selection basis.
       endCellId: call.endCellId,
+      endRat: call.endRat ?? null,
       qoe: call.qoe,
       mos: call.mos,
       endType: call.endType,

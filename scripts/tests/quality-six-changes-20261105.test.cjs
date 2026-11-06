@@ -28,7 +28,8 @@ test('source 11.REASON field is in original indexed CDR, without treating all lo
  assert(poorDrops.length>0&&poorDrops.length<1403);
 });
 test('five candidates show 42 uniquely affected customers, not 5 candidate sites mislabelled as people',()=>{
- assert.equal(validateImprovementReport(report,'557c39d2c6a9a5b4c69b'),true);
+ const manifest=read('public/voice-1030.json');
+ assert.equal(validateImprovementReport(report,manifest.meta.revision),true);
  assert.equal(report.summary.candidateCount,5);
  assert.equal(report.summary.distinctAffectedCustomers,42);
  assert.equal(report.candidates.filter(x=>x.kind==='spatial').length,3);

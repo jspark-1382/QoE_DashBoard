@@ -42,6 +42,8 @@ yarn-error.log*
 /public/improvement-candidates/
 /public/radio-investigation/
 /public/three-site-rough/
+/public/station-catalog.json
+/public/nr-station-catalog.json
 
 # local QA artifact
 /dashboard-local-preview.png

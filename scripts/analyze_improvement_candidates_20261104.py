@@ -13,6 +13,8 @@ from collections import Counter, defaultdict
 from pathlib import Path
 import json
 import math
+import argparse
+import os
 import sys
 
 import numpy as np
@@ -22,11 +24,13 @@ from sklearn.metrics.pairwise import haversine_distances
 
 ROOT=Path(__file__).resolve().parent.parent
 sys.path.insert(0,str(ROOT/"scripts"))
-from lte_station_catalog import load_unique_bye_cells
+from lte_station_catalog import resolve_lte_master
+from bye_station_catalog import load_bye_catalog, resolve_bye_site, resolve_manifest_nr_catalog
+from inventory_provenance import verify_inventory_provenance
 
 DATES=("2026-10-26","2026-10-27","2026-10-28","2026-10-29","2026-10-30")
 R=6371008.8
-SRC=ROOT/"public"
+SRC=Path(os.environ.get('QOE_PUBLIC_DIR',str(ROOT/"public")))
 
 def newcell():
     return {"scored":0,"poor":0,"customers":defaultdict(list),
@@ -104,18 +108,19 @@ def spatial_holdout(geo,rad):
        "testOneNewCustomer":sum(n>=1 for n in result),
        "testTwoNewCustomers":sum(n>=2 for n in result)}
 
-def radio_ru_screening():
+def radio_ru_screening(manifest,public_dir,inventory):
     """Matched CDR/MDT; one vote per CALL per exact RU+Cell, not per MDT row."""
-    manifest=json.loads((SRC/"voice-1030.json").read_text("utf8"))
     stats=Counter()
     pairs=defaultdict(lambda:{"scored":0,"poor":0,"poor_customers":set(),"dates":set()})
     for entry in manifest["days"]:
         if not entry.get("sampleCount"):continue
-        detail=json.loads((SRC/entry["dataPath"]).read_text("utf8"))
+        detail=json.loads((public_dir/entry["dataPath"]).read_text("utf8"))
+        if detail.get('customerId')!=entry['customerId'] or detail.get('date')!=entry['date']:
+            raise RuntimeError('MDT partition identity mismatch')
         by_call=defaultdict(set)
         for row in detail["samples"]:
             md=row[21] or {}
-            if md.get("baseStationMatched") is not True or md.get("masterInventorySource")!="수도권_LTE_261103.xlsx":
+            if md.get("baseStationMatched") is not True or md.get("masterInventorySource")!=inventory:
                 continue
             site=str(md.get("baseStationId") or "").strip()
             cell=str(md.get("cellId") or "").strip()
@@ -155,14 +160,23 @@ def radio_ru_screening():
     }
 
 
-def build():
+def build(public_dir=SRC,lte_master=None,out=None):
+    public_dir=Path(public_dir).resolve()
+    inventory=resolve_lte_master(lte_master)
+    manifest=json.loads((public_dir/"voice-1030.json").read_text("utf8"))
+    verify_inventory_provenance(manifest,inventory,'improvement screening')
+    revision=manifest['meta']['revision']
+    if not set(DATES).issubset(manifest['meta']['dates']):
+        raise RuntimeError('The fixed five-day screening cohort is missing from the manifest')
     cells=defaultdict(newcell)
     geo=[]
     stats=Counter()
     hours_all=Counter()
     hours_poor=Counter()
     for date in DATES:
-        obj=json.loads((SRC/"analyst-overview"/"MDT"/(date+".json")).read_text("utf8"))
+        obj=json.loads((public_dir/"analyst-overview"/"MDT"/(date+".json")).read_text("utf8"))
+        if obj.get('sourceRevision')!=revision or obj.get('date')!=date or obj.get('source')!='MDT':
+            raise RuntimeError('Overview source/date/revision mismatch')
         all_calls={call["id"]:call for call in obj["calls"]}
         for c in obj["calls"]:
             stats["allCdr"]+=1
@@ -262,9 +276,10 @@ def build():
             "testAtLeastTwoDistinctPoorCustomersAndAboveBaseline":len(stricter),
             "verifiedCells":[k for k,v in stricter],
         }
-    radio_sites,inventory_audit=load_unique_bye_cells(
-        ROOT/"data/BaseStation/수도권_LTE_261103.xlsx",set(cells)
-    )
+    nr_inventory=resolve_manifest_nr_catalog(manifest,inventory)
+    bye_catalog,inventory_audit=load_bye_catalog(inventory,nr_inventory,set(cells))
+    radio_sites={cell:site for cell in cells
+                 if (site:=resolve_bye_site(bye_catalog,cell)) is not None}
     for ratio,info in eligible.items():
         selected=[k for k,v in cells.items() if v["scored"]>=30 and
           len(v["poor_customers"])>=3 and len(v["poor_days"])>=2 and
@@ -302,7 +317,11 @@ def build():
     rough=[]
     rough_combo=defaultdict(list)
     for date in DATES:
-        obj=json.loads((SRC/"three-site-rough"/(date+".json")).read_text("utf8"))
+        obj=json.loads((public_dir/"three-site-rough"/(date+".json")).read_text("utf8"))
+        if obj.get('sourceRevision')!=revision or obj.get('date')!=date:
+            raise RuntimeError('Three-site source/date/revision mismatch')
+        if obj.get('sourceInventory')!=inventory.name:
+            raise RuntimeError('Three-site inventory mismatch')
         for point in obj["points"]:
             if not isinstance(point.get("mos"),(int,float)) or not 1<=point["mos"]<3:
                 continue
@@ -316,7 +335,9 @@ def build():
     ]
     report={
        "purpose":"Exploratory distinct-customer poor-VoLTE improvement-point screening; no confirmed root causes",
-       "sourceCdr":"original source Excel -> project analyst-overview per-day CDR source-revision 557c39d2c6a9a5b4c69b",
+       "sourceRevision":revision,
+       "sourceInventory":inventory.name,
+       "sourceCdr":"original source Excel -> project analyst-overview per-day CDR source-revision "+revision,
        "dates":DATES,
        "source_counts":dict(stats),
        "overallPoorAmongValidMosPct":round(100*baseline,3),
@@ -345,7 +366,7 @@ def build():
        "gnssNewCustomerDateHoldout":{str(rad):spatial_holdout(geo,rad) for rad in (50,100,200)},
        "threeSiteApproximatePoorCalls":len(rough),
        "threeSiteExactThreeRadioSiteCombosWith3PoorCustomers2Days":len(repeated_combos),
-       "mdtMatchedRuCellContext":radio_ru_screening(),
+       "mdtMatchedRuCellContext":radio_ru_screening(manifest,public_dir,inventory.name),
        "warnings":[
           "5-day single selected sampling frame, no true RTP/RTCP impairment onset",
           "GNSS linked MOS-poor calls are highly selected; cluster outputs are candidates not an area poor-call rate",
@@ -357,8 +378,12 @@ def build():
           "Test date for holdout is only one day; exploratory not a causal validation",
        ],
     }
-    out=ROOT/"outputs/improvement-point-screening-20261104.json"
-    out.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding="utf8")
+    default_output_root=ROOT if public_dir==(ROOT/'public').resolve() else public_dir.parent
+    out=Path(out) if out is not None else default_output_root/"outputs/improvement-point-screening-20261104.json"
+    out.parent.mkdir(parents=True,exist_ok=True)
+    temporary=out.with_suffix(out.suffix+'.tmp')
+    temporary.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding="utf8")
+    os.replace(temporary,out)
     print("REPORT",out)
     print(json.dumps({
       "source_counts":report["source_counts"],
@@ -373,4 +398,9 @@ def build():
     },ensure_ascii=False,indent=2))
 
 if __name__=="__main__":
-    build()
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--public-dir',type=Path,default=SRC)
+    parser.add_argument('--lte-master',type=Path,default=None)
+    parser.add_argument('--out',type=Path,default=None)
+    args=parser.parse_args()
+    build(args.public_dir,args.lte_master,args.out)

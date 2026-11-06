@@ -90,7 +90,6 @@ export function buildImprovedView(overview: AnalystOverview, scope: ImprovedScop
   const focusedCalls = visibleHours.filter((call) => focusedCallIds.has(call.id))
     .sort((a, b) => (a.mos ?? 5) - (b.mos ?? 5) ||
       a.startSecond - b.startSecond || a.id.localeCompare(b.id));
-  const locatedPoorCallIds = new Set(locations.map((point) => point.callId));
   const regionById = new Map((overview.administrativeDongs ?? []).map((d) => [d.id, d]));
   const markerByCall = new Map<string, OverviewCallLocation>();
   for (const point of focusedLocations) if (!markerByCall.has(point.callId))
@@ -115,7 +114,7 @@ export function buildImprovedView(overview: AnalystOverview, scope: ImprovedScop
   return {
     validRange, globalSummary, meanMos, hourly,
     visibleHours, regions, locations: focusedLocations, focusedCalls, mapCells,
-    locatedPoorCalls: locatedPoorCallIds.size,
+    locatedPoorCalls: focusedCallIds.size,
     poorInTimeWindow: visibleHours.filter((call) => validMos(call.mos) && call.mos! < 3).length,
     distinctLocatedCustomers: new Set(locations.map((point) => byId.get(point.callId)?.customerId)).size,
     markerByCall, regionById,

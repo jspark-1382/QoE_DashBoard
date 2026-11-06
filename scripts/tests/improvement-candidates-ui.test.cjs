@@ -73,10 +73,11 @@ test('current dashboard includes opt-in mode and keeps original 1-3 day view/tab
  assert(!workspace.includes('2026.10.26 ~ 10.30 원본 5일 고정'));
  assert(!workspace.includes('원인 확정 0건 · 현장 검증 필요'));
  const buttons=ui.indexOf('className={styles.mapModeButtons}');
- const source=ui.indexOf('>데이터 출처 <b>MDT</b>');
+ const customer=ui.indexOf('<QualityCustomerPicker');
+ const source=ui.indexOf('className={styles.analysisBasis}');
  const charts=ui.indexOf('className={styles.charts}');
- assert(buttons>0 && source>buttons && charts>source,
-   'map modes should sit in main filters, immediately before data source, not below charts');
+ assert(buttons>0 && customer>buttons && source>customer && charts>source,
+   'main filters keep map modes, customer search and compact analysis basis above charts');
  assert.equal(ui.match(/className=\{styles\.mapModeButtons\}/g)?.length,1);
  assert(workspace.includes('관련 원본 통화'));
  assert(workspace.includes('validateImprovementReport(report,sourceRevision)'));

@@ -25,6 +25,10 @@ import { ImprovementCandidateWorkspace } from './improvement-candidates';
 import { classifySipReason11,sipReasonLabel,type SipReasonGroup } from '../../lib/analyst/sip-reason';
 import { formatMdtObservation } from '../../lib/analyst/mdt-observation';
 import { onlyDropCalls } from '../../lib/analyst/sip-drop-overview';
+import { QualityCustomerPicker } from './quality-customer-picker';
+import { MapPanelFrame } from './map-panel-frame';
+import { scopeOverviewToCustomers } from '../../lib/analyst/customer-overview-scope';
+import { byeSelectionLabel, byeSelectionDescription } from '../../lib/analyst/bye-selection';
 
 const DATE = '2026-10-30';
 const n = (value:number)=>value.toLocaleString('ko-KR');
@@ -49,10 +53,10 @@ function MicroChart({data,color}:{data:number[];color:string}) {
 function Topbar({date}:{date:string}){
   return <QualityTopNav active="quality" date={date}/>;
 }
-function PanelHeading({icon:Icon,title,caption,actions}:{
-  icon:typeof Activity; title:string; caption?:string; actions?:React.ReactNode;
+function PanelHeading({icon:Icon,title,caption,actions,className}:{
+  icon:typeof Activity; title:string; caption?:string; actions?:React.ReactNode;className?:string;
 }){
-  return <div className={styles.panelHeading}>
+  return <div className={[styles.panelHeading,className].filter(Boolean).join(' ')}>
     <div className={styles.panelTitle}><Icon size={18}/><h2>{title}</h2>
       {caption&&<span className={styles.help} title={caption}><CircleHelp size={14}/></span>}
     </div>
@@ -292,7 +296,7 @@ function Table({calls,selectedBand,distributionMode,regionNames,locationByCall,d
           <td>{radio?number(found.call.sinr,1):'—'}</td>
           <td>{loc?<span className={styles.coordinates}><MapPin size={14}/>{loc.lat.toFixed(loc.positionQuality==='three-site-rough'?3:5)}, {loc.lon.toFixed(loc.positionQuality==='three-site-rough'?3:5)}
             <small>{loc.evidence==='gnss'?'GNSS':loc.evidence==='bye-cell'?'BYE 기지국(UE 아님)':loc.positionQuality==='three-site-rough'?'3사이트 근사(조사 권역)':'3사이트 추정'}</small>
-            {loc.evidence==='bye-cell'&&<small title={`BYE Cell ${loc.byeCellId??''} · RU ${loc.byeRuId??''} · 단말 실제 위치 아님`}>Cell {loc.byeCellId}</small>}
+            {loc.evidence==='bye-cell'&&<small title={`BYE Cell ${loc.byeCellId??''} · RU ${loc.byeRuId??''} · ${byeSelectionDescription(loc)} · 단말 실제 위치 아님`}>{loc.byeTechnology==='NR'?'5G · ':loc.byeTechnology==='LTE'?'LTE · ':''}{byeSelectionLabel(loc)}</small>}
             {loc.secondsBeforeEnd!=null&&<small title="원본 CDR END TIME 기준, 실제 SIP BYE 메시지 시각은 별도 미확인">
               종료 {Math.abs(loc.secondsBeforeEnd).toFixed(1)}초 {loc.secondsBeforeEnd<0?'후':'전'}
             </small>}</span>:'—'}</td>
@@ -323,6 +327,7 @@ export function QualityProposalFour() {
   const [selectedHour,setSelectedHour]=useState<number|null>(null);
   const [district,setDistrict]=useState<string|null>(null);
   const [cohort,setCohort]=useState<ExperienceGroup|null>(null);
+  const [selectedCustomerIds,setSelectedCustomerIds]=useState<string[]>([]);
   const [selectedBand,setSelectedBand]=useState<MosBand|null>(null);
   const [distributionMode,setDistributionMode]=useState<'mos'|'drop'>('mos');
   const [chosenCall,setChosenCall]=useState<string|null>(null);
@@ -391,26 +396,37 @@ export function QualityProposalFour() {
     return ()=>controller.abort();
   },[startDate,selectedDate]);
 
-  const metrics=useMemo(()=>overview?calculateProposalGrades(overview,from,to):null,[overview,from,to]);
-  const hourly=useMemo(()=>overview?buildFourthHourly(overview,from,to):[],[overview,from,to]);
+  const selectedOverview=useMemo(()=>scopeOverviewToCustomers(overview,selectedCustomerIds),[overview,selectedCustomerIds]);
+  const metrics=useMemo(()=>selectedOverview?calculateProposalGrades(selectedOverview,from,to):null,[selectedOverview,from,to]);
+  const hourly=useMemo(()=>selectedOverview?buildFourthHourly(selectedOverview,from,to):[],[selectedOverview,from,to]);
   const analytics=useMemo(()=>{
-    if(!overview)return null;
+    if(!selectedOverview)return null;
     const valid=/^\d\d:\d\d$/;
     if(!valid.test(from)||!valid.test(to))return getOverviewAnalytics([],'mos',3);
     const toMin=(v:string)=>Number(v.slice(0,2))*60+Number(v.slice(3));
     const lower=toMin(from),upper=toMin(to);
-    return getOverviewAnalytics(lower<=upper?overview.calls.filter(call=>{
+    return getOverviewAnalytics(lower<=upper?selectedOverview.calls.filter(call=>{
       const min=Math.floor(call.startSecond/60);
       return min>=lower&&min<=upper;
     }):[],'mos',3);
-  },[overview,from,to]);
+  },[selectedOverview,from,to]);
   const cohortIds=useMemo(()=>{
     if(!cohort||!analytics)return null;
     return new Set(analytics.experience.find(item=>item.id===cohort)?.customerIds??[]);
   },[cohort,analytics]);
-  const displayOverview=useMemo(()=>overview?
-    overlayThreeSiteRough(overview,loaded.rough,evidence!=='bye-cell'):null,
-    [overview,loaded.rough,evidence]);
+  const customerOverview=useMemo(()=>overview?
+    overlayThreeSiteRough(overview,loaded.rough,true):null,[overview,loaded.rough]);
+  const selectedCustomerOverview=useMemo(()=>scopeOverviewToCustomers(customerOverview,selectedCustomerIds),[customerOverview,selectedCustomerIds]);
+  const displayOverview=evidence==='bye-cell'?selectedOverview:selectedCustomerOverview;
+  const customersWithCalls=useMemo(()=>{
+    const lower=Number(from.slice(0,2))*60+Number(from.slice(3));
+    const upper=Number(to.slice(0,2))*60+Number(to.slice(3));
+    return new Set((selectedOverview?.calls??[]).filter(call=>{
+      const minute=Math.floor(call.startSecond/60);
+      return minute>=lower&&minute<=upper;
+    }).map(call=>call.customerId)).size;
+  },[selectedOverview,from,to]);
+  const customerFocusKey=useMemo(()=>JSON.stringify([...selectedCustomerIds].sort()),[selectedCustomerIds]);
   const dropOverview=useMemo(()=>displayOverview?onlyDropCalls(displayOverview):null,[displayOverview]);
   const dropGrades=useMemo(()=>dropOverview?calculateProposalGrades(dropOverview,from,to):null,[dropOverview,from,to]);
   const scopeOverview=distributionMode==='drop'?dropOverview:displayOverview;
@@ -503,6 +519,13 @@ export function QualityProposalFour() {
   const clear=()=>{
     setFrom('00:00');setTo('23:59');setSelectedHour(null);setEvidence('all');
     setCohort(null);setSelectedBand(null);setDistributionMode('mos');setDistrict(null);setChosenCall(null);setDialogOpen(false);setFocus(undefined);
+    setMore(12);setSearch('');setSipFilter('all');setDeep(false);setSelectedCustomerIds([]);
+  };
+  const applyCustomerIds=(ids:string[])=>{
+    setSelectedCustomerIds([...new Set(ids.filter(id=>id.trim()))]);
+    setMapMode('current');setSelectedHour(null);setDistrict(null);setCohort(null);
+    setSelectedBand(null);setDistributionMode('mos');setEvidence('all');
+    setChosenCall(null);setDialogOpen(false);setFocus(undefined);
     setMore(12);setSearch('');setSipFilter('all');setDeep(false);
   };
   const selectCall=(id:string)=>{
@@ -533,14 +556,14 @@ export function QualityProposalFour() {
   },[dialogOpen]);
   const downloadCsv=()=>{
     if(!model||!dataCalls.length)return;
-    const head=['시작','종료','고객 익명 표시ID','행정동','MOS(v5)','SIP 구분 (11.REASON)','원본 SIP 11.REASON','RTP Loss 원본','Jitter 원본','RSRP dBm','SINR dB','위도','경도','위치 근거','대표 관측 UTC','CDR 종료 UTC','종료 전 시간차(초)','BYE Cell ID','BYE RU ID','좌표 선정 방식'];
+    const head=['시작','종료','고객 익명 표시ID','행정동','MOS(v5)','SIP 구분 (11.REASON)','원본 SIP 11.REASON','RTP Loss 원본','Jitter 원본','RSRP dBm','SINR dB','위도','경도','위치 근거','대표 관측 UTC','CDR 종료 UTC','종료 전 시간차(초)','BYE Cell ID','BYE RU ID','좌표 선정 방식','BYE RU 선택 근거','BYE 후보 수','BYE 선택 MDT 종료 전 시간차(초)'];
     const lines=[head,...dataCalls.map(call=>{
       const place=model.markerByCall.get(call.id);
       const day=details[call.customerId+':'+dateOfCall(call,selectedDate)],found=day?.calls.find(c=>c.id===(call.rawCallId??call.id.slice(call.customerId.length+1)));
       const mdt=found?.matchStatus==='MATCHED'&&found.hasMdt;
       return [dateOfCall(call,selectedDate)+' '+call.start,call.end,fourthMaskedCustomer(call.customerId),regionNames.get(place?.areaId??'')??'',
         call.mos??'',sipReasonLabel(classifySipReason11(call.sipCause)),call.sipCause??'',found?.rtp?.txPacketLoss??'',found?.rtp?.txJitter??'',
-        mdt?found.rsrp??'':'',mdt?found.sinr??'':'',place?.lat??'',place?.lon??'',place?.evidence??'',place?.observedAt??'',place?.cdrEndAt??'',place?.secondsBeforeEnd??'',place?.byeCellId??'',place?.byeRuId??'',place?.representativeBasis??''];
+        mdt?found.rsrp??'':'',mdt?found.sinr??'':'',place?.lat??'',place?.lon??'',place?.evidence??'',place?.observedAt??'',place?.cdrEndAt??'',place?.secondsBeforeEnd??'',place?.byeCellId??'',place?.byeRuId??'',place?.representativeBasis??'',place?.byeSelectionMethod??'',place?.byeCandidateCount??'',place?.byeSelectionDeltaSeconds??''];
     })].map(row=>row.map(csvCell).join(','));
     const file=new Blob(['\ufeff'+lines.join('\r\n')],{type:'text/csv;charset=utf-8;'});
     const url=URL.createObjectURL(file);
@@ -585,12 +608,14 @@ export function QualityProposalFour() {
           <button type="button" aria-pressed={mapMode==='current'}
             onClick={()=>{setMapMode('current');setChosenCall(null);setDialogOpen(false);}}>기존 현황</button>
           <button type="button" aria-pressed={mapMode==='improvement'}
+            disabled={selectedCustomerIds.length>0}
+            aria-describedby={selectedCustomerIds.length?'customer-filter-candidate-note':undefined}
             title="2026.10.26~10.30 원본 5일로 계산한 반복 불량 조사 후보"
             onClick={()=>{setMapMode('improvement');setChosenCall(null);setDialogOpen(false);}}>개선 후보 분석</button>
         </fieldset>
-        <span className={styles.staticField}>데이터 출처 <b>MDT</b><ChevronDown size={13}/></span>
-        <span className={styles.staticField}>평가 지표 <b>MOS(v5)</b><ChevronDown size={13}/></span>
-        <span className={styles.staticField}>저품질 기준 <b>MOS &lt; 3.0</b></span>
+        <QualityCustomerPicker dataset={loaded.loading?null:dataset} overview={customerOverview} from={from} to={to}
+          selectedCustomerIds={selectedCustomerIds} onApplyCustomerIds={applyCustomerIds}/>
+        <span className={styles.analysisBasis} title="데이터 출처 MDT · 원본 RTCP MOS(v5) · 저품질 기준 MOS < 3.0">MDT · MOS(v5) · 저품질 &lt; 3.0</span>
         {selectedHour!==null&&<button className={styles.filterApplied} onClick={()=>setSelectedHour(null)}>{selectedHour}시 선택 <X size={13}/></button>}
         {district&&<button className={styles.filterApplied} onClick={()=>focusDistrict(null)}>{regionNames.get(district)} <X size={13}/></button>}
         {selectedBand&&distributionMode==='mos'&&<button className={styles.filterApplied} onClick={()=>chooseBand(null)}
@@ -600,6 +625,16 @@ export function QualityProposalFour() {
         {distributionMode==='drop'&&<span className={styles.filterApplied} aria-label="절단 통화 MOS 등급 필터 적용">SIP Drop · MOS {selectedBand?{poor:'불량',fair:'보통',good:'양호'}[selectedBand]:'불량'} <button type="button" aria-label="MOS 모드로 돌아가기" onClick={()=>chooseDistributionMode('mos')}><X size={13}/></button></span>}
         <button className={styles.reset} onClick={clear} title="필터 초기화" aria-label="전체 필터 초기화"><RotateCcw size={18}/></button>
       </div>
+      {selectedCustomerIds.length>0&&<section className={styles.customerScope} aria-label="선택 고객 필터" aria-live="polite">
+        <div><strong><Users size={16}/>선택 고객 {n(selectedCustomerIds.length)}명 기준</strong>
+          <span>지표·그래프·지도·순위·통화 목록에 적용</span>
+          {!loaded.loading&&customersWithCalls<selectedCustomerIds.length&&<span>
+            현재 기간·시간에 통화가 없는 선택 고객 {n(selectedCustomerIds.length-customersWithCalls)}명
+          </span>}
+          <small id="customer-filter-candidate-note">개선 후보 분석은 전체 고객으로 미리 계산한 자료입니다. 고객 필터를 해제하면 열 수 있습니다.</small>
+        </div>
+        <button type="button" onClick={()=>applyCustomerIds([])} aria-label="선택 고객 필터 해제">전체 고객으로 보기 <X size={14}/></button>
+      </section>}
       {loaded.loading&&<output className={styles.loadState}>{startDate} ~ {selectedDate} CDR·행정동·MDT 자료를 불러오는 중입니다…</output>}
       {loaded.error&&<div className={styles.loadError} role="alert">{loaded.error}</div>}
       {overview&&metrics&&model&&analytics&&<>
@@ -637,8 +672,10 @@ export function QualityProposalFour() {
         {mapMode==='improvement'
           ? <ImprovementCandidateWorkspace sourceRevision={dataset?.meta.revision??''}/>
           : <div className={styles.geography}>
-          <section className={styles.panel}>
+          <MapPanelFrame className={styles.panel} label="통화 종료 위치 지도" suspended={dialogOpen}>
+          {({toggleButton})=><>
             <PanelHeading icon={MapPinned}
+              className={styles.mapPanelHeading}
               title={(distributionMode==='drop'?'절단(Drop) · ':'')+(selectedBand==='good'?'양호 통화 종료 위치 지도':selectedBand==='fair'?'보통 통화 종료 위치 지도':'저품질 통화 종료 위치 지도')}
               caption="GNSS 실측 우선 → GNSS가 없는 통화는 3사이트 RSRP 가중중심을 대략적인 조사 권역으로 표시 → BYE 기지국 참고. 3사이트 중심점은 실제 단말 위치나 검증된 정확도가 아닙니다. 기지국 좌표는 단말 실제 위치가 아닙니다."
               actions={<div className={styles.mapFilters}>
@@ -654,8 +691,9 @@ export function QualityProposalFour() {
                 <button aria-pressed={evidence==='bye-cell'} type="button" onClick={()=>setEvidence('bye-cell')}>
                   BYE 기지국
                 </button>
+                {toggleButton}
               </div>}/>
-            <div className={styles.mapHost}>
+            <div className={styles.mapHost} data-map-surface>
               <AnalystMap
                 source="MDT"
                 scoreBand={selectedBand??'poor'}
@@ -663,7 +701,7 @@ export function QualityProposalFour() {
                 cells={geographicModel?.mapCells??[]}
                 callLocations={geographicModel?.locations??[]}
                 clusterOccurrences
-                focusKey={'proposal-four-'+startDate+'-'+selectedDate}
+                focusKey={'proposal-four-'+startDate+'-'+selectedDate+'-'+customerFocusKey}
                 focusTarget={focus}
                 selectedCellId={district}
                 onCellSelect={focusDistrict}
@@ -678,7 +716,8 @@ export function QualityProposalFour() {
               <small>{`선택 등급 위치 근거 ${n(geographicModel?.locatedPoorCalls??0)}통화 · 3사이트는 대략적인 조사 영역이며 실제 불량 시점 위치가 아님 · BYE Cell은 기지국 좌표`}</small>
               {loaded.roughError&&<small><output>3사이트 후보 자료 미적용: {loaded.roughError}</output></small>}
             </div>
-          </section>
+          </>}
+          </MapPanelFrame>
           <section className={styles.panel}>
             <PanelHeading icon={Signal}
               title={(distributionMode==='drop'?'절단(Drop) · ':'')+(selectedBand==='good'?'양호 통화 위치 기준 행정동 순위':selectedBand==='fair'?'보통 통화 위치 기준 행정동 순위':'종료 위치 기준 행정동 저품질 순위')}
@@ -745,11 +784,14 @@ export function QualityProposalFour() {
                 <span><MapPin size={13}/>{selectedLocation.lat.toFixed(selectedLocation.positionQuality==='three-site-rough'?3:6)}, {selectedLocation.lon.toFixed(selectedLocation.positionQuality==='three-site-rough'?3:6)}</span>
                 <span>{regionNames.get(selectedLocation.areaId)??'행정동 미확인'}</span>
                 {selectedLocation.evidence==='bye-cell'
-                  ? <span>종료 Cell ID {selectedLocation.byeCellId??'미제공'} · RU {selectedLocation.byeRuId??'미제공'}</span>
+                  ? <span>{selectedLocation.byeTechnology==='NR'?'5G (NR) · ':selectedLocation.byeTechnology==='LTE'?'LTE · ':''}종료 Cell ID {selectedLocation.byeCellId??'미제공'} · RU {selectedLocation.byeRuId??'미제공'}</span>
                   : selectedLocation.secondsBeforeEnd!=null
                     ? <span>CDR 종료 {Math.abs(selectedLocation.secondsBeforeEnd).toFixed(1)}초 {selectedLocation.secondsBeforeEnd<0?'후':'전'} 관측</span>
                     : null}
               </div>
+              {selectedLocation.byeRuId&&<p className={styles.dialogLocationNote} data-bye-selection={selectedLocation.byeSelectionMethod??'unknown'}>
+                BYE 기지국 선택: {byeSelectionDescription(selectedLocation)}. 기지국 참고 위치입니다.
+              </p>}
               <p className={styles.dialogLocationNote}>
                 {selectedLocation.evidence==='gnss'&&selectedLocation.possibleRadiusM!=null&&
                   '마지막 실측 GNSS '+(selectedLocation.gnssReferenceAgeSec??0).toFixed(1)+
@@ -766,7 +808,7 @@ export function QualityProposalFour() {
                 {' '}통화 종료 대표 위치는 MOS 저하 순간의 위치를 뜻하지 않습니다.
               </p>
             </>:<p className={styles.dialogLocationUnavailable}>
-              연결 가능한 GNSS·3사이트 이상 추정 또는 유일한 BYE Cell 기지국 좌표가 없습니다.
+              연결 가능한 GNSS·3사이트 이상 추정 또는 BYE Cell 기지국 참고 좌표가 없습니다.
               위치를 임의로 생성하지 않았습니다.
             </p>}
           </section>
@@ -794,8 +836,8 @@ export function QualityProposalFour() {
             {!selectedActual.hasMdt&&<p className={styles.caution}>
               MDT가 없는 통화입니다. 3사이트 RSRP 측량은 수행하지 않습니다.
               {model.markerByCall.get(selected.id)?.evidence==='bye-cell'
-                ? ' BYE Cell의 유일한 기지국 좌표만 대체 위치로 사용했습니다. 실제 단말 위치가 아닙니다.'
-                : ' 종료 Cell ID만으로 기지국을 유일하게 식별할 수 없어 위치를 제공하지 않습니다.'}
+                ? ' BYE Cell의 기지국 참고 좌표를 대체 위치로 사용했습니다. 실제 단말 위치가 아닙니다.'
+                : ' 종료 Cell ID에 연결 가능한 기지국 좌표가 없어 위치를 제공하지 않습니다.'}
             </p>}
             {deep&&<MosCallInvestigation call={selectedActual} samples={selectedDay.samples}/>}
           </>:<p className={styles.loadingDetail}>선택 통화의 CDR 상세를 불러오는 중입니다…</p>}

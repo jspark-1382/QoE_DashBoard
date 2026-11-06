@@ -4,24 +4,83 @@ const fs = require('node:fs'),
   path = require('node:path'),
   crypto = require('node:crypto');
 const { spawnSync } = require('node:child_process');
+const { parseArgs } = require('node:util');
 const { load } = require('./analyst-ts-loader.cjs');
 const { normalizeDay } = load('lib/analyst/data.ts');
 const { appendOverview, getOverviewSummary } = load('lib/analyst/overview.ts');
-const publicDir = path.resolve(__dirname, '../public');
+const { values, positionals } = parseArgs({
+  args: process.argv.slice(2),
+  allowPositionals: true,
+  options: {
+    'public-dir': { type: 'string' },
+    'bye-catalog': { type: 'string' },
+    'nr-catalog': { type: 'string' },
+    help: { type: 'boolean' },
+  },
+});
+if (values.help) {
+  console.log('Usage: node scripts/build-analyst-overview.cjs [MDT|measured] [--public-dir DIR] [--bye-catalog LTE_XLSX] [--nr-catalog NR_XLSX]');
+  process.exit(0);
+}
+if (positionals.length > 1 || (positionals[0] && !['MDT', 'measured'].includes(positionals[0]))) {
+  throw new Error('Source must be MDT or measured');
+}
+const publicDir = path.resolve(values['public-dir'] || process.env.QOE_PUBLIC_DIR || path.resolve(__dirname, '../public'));
+function resolveByeCatalog() {
+  const explicit = values['bye-catalog'] || process.env.QOE_LTE_MASTER;
+  const directory = path.resolve(__dirname, '../data/BaseStation');
+  const newest = explicit ? null : fs.readdirSync(directory)
+    .filter(name => /^수도권_LTE_\d{6}\.xlsx$/u.test(name)).sort().at(-1);
+  const selected = explicit ? path.resolve(explicit) : newest && path.join(directory, newest);
+  if (!selected || !fs.statSync(selected).isFile()) throw new Error('LTE inventory workbook not found');
+  return selected;
+}
+function verifyInventoryProvenance(dataset, inventory) {
+  if (!Object.hasOwn(dataset.meta, 'stationInventory')) return;
+  const declared = dataset.meta.stationInventory;
+  const fail = detail => { throw new Error('Inventory provenance (overview): ' + detail); };
+  if (!declared || typeof declared !== 'object' ||
+      typeof declared.file !== 'string' || !declared.file ||
+      typeof declared.sha256 !== 'string' || !/^[0-9a-f]{64}$/iu.test(declared.sha256)) {
+    fail('stationInventory file/sha256 metadata is incomplete');
+  }
+  if (declared.file !== path.basename(inventory)) fail('selected file does not match the source manifest');
+  const digest = crypto.createHash('sha256').update(fs.readFileSync(inventory)).digest('hex');
+  if (digest !== declared.sha256.toLowerCase()) fail('selected file sha256 does not match the source manifest');
+}
+function resolveNrByeCatalog(dataset) {
+  const declared = dataset.meta.byeStationInventories?.find(source => source.technology === 'NR');
+  const explicit = values['nr-catalog'] || process.env.QOE_NR_MASTER;
+  if (!declared && !explicit) return null;
+  if (!declared || typeof declared.file !== 'string' || !declared.file ||
+      !/^[0-9a-f]{64}$/iu.test(declared.sha256 ?? ''))
+    throw new Error('NR BYE inventory must be declared in the source manifest; rebuild the source dataset first.');
+  const directory = path.resolve(__dirname, '../data/BaseStation');
+  const inventory = explicit ? path.resolve(explicit) : path.join(directory, path.basename(declared.file));
+  if (path.basename(inventory) !== declared.file || !fs.statSync(inventory).isFile())
+    throw new Error('NR BYE inventory does not match the source manifest');
+  const digest = crypto.createHash('sha256').update(fs.readFileSync(inventory)).digest('hex');
+  if (digest !== declared.sha256.toLowerCase()) throw new Error('NR BYE inventory sha256 does not match the source manifest');
+  return inventory;
+}
 for (const [source, filename, folder] of [
   ['MDT', 'voice-1030.json', 'MDT'],
   ['실측', 'executive-data.json', 'measured'],
 ]) {
-  if (process.argv[2] && process.argv[2] !== folder) continue;
+  if (positionals[0] && positionals[0] !== folder) continue;
   const inputPath=path.join(publicDir,filename);
   if(!fs.existsSync(inputPath)){
-    if(process.argv[2])throw new Error(`Missing source dataset: ${filename}`);
+    if(positionals[0])throw new Error(`Missing source dataset: ${filename}`);
     console.log(`Skip optional source: ${filename}`);
     continue;
   }
   const input = fs.readFileSync(inputPath);
   const dataset = JSON.parse(input);
   const revision = dataset.meta.revision;
+  const byeCatalog = source === 'MDT' && dataset.meta.qoeBasis === 'rtcp-mos-v5'
+    ? resolveByeCatalog() : null;
+  if (byeCatalog) verifyInventoryProvenance(dataset, byeCatalog);
+  const nrByeCatalog = byeCatalog ? resolveNrByeCatalog(dataset) : null;
   for (const date of dataset.meta.dates) {
     const overview = {
       schemaVersion: 'analyst-overview-v1',
@@ -102,7 +161,8 @@ for (const [source, filename, folder] of [
           '--public-dir', publicDir,
           '--points', pointsFile,
           '--shp', path.resolve(__dirname, '../data/행정동경계/BND_ADM_DONG_PG.shp'),
-          '--bye-catalog', path.resolve(__dirname, '../data/BaseStation/수도권_LTE_261103.xlsx'),
+          '--bye-catalog', byeCatalog,
+          ...(nrByeCatalog ? ['--nr-catalog', nrByeCatalog] : []),
         ], {
           cwd: path.resolve(__dirname, '..'),
           encoding: 'utf8',

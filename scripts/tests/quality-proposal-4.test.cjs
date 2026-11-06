@@ -194,9 +194,10 @@ test('customer-call analysis shows LTE towers even without GNSS; BYE-only call u
  assert(contract.includes('...callStations'));
  assert(contract.includes('byeStation.byeRuId')===false,'station identifiers are sourced from validated typed inventory, not arbitrary props');
  assert(contract.includes('byeEntry.evidence'));
- assert(contract.includes('stationMarkers.map'));
+ assert(contract.includes('stationPciRows.map'));
+ assert(contract.includes('aria-label="선택 통화 PCI 비교"'));
  assert(contract.includes('stations={stationMarkers}'));
- assert(contract.includes('선택 통화 기지국'));
+ assert(contract.includes('기지국 연결·PCI'));
  assert(map.includes('const stationFitKey=focusKey'));
  assert(map.includes('visibleStationBounds.length'));
  assert(map.includes('map.fitBounds(L.latLngBounds(positions)'));
@@ -208,8 +209,9 @@ test('customer-call analysis shows LTE towers even without GNSS; BYE-only call u
  const detail=JSON.parse(read('public/'+entry.dataPath));
  const call=detail.calls.find(c=>c.start==='21:37:36'&&c.end==='21:39:37');
  assert(call);
- const keys=new Set(detail.samples.filter(s=>s[19]===call.id).flatMap(s=>[s[21]?.baseStationId,s[21]?.cellId]).filter(Boolean));
- const stations=detail.baseStations.filter(s=>keys.has(s.baseStationId)||keys.has(s.cellId));
+ const {selectExactCallStations}=load('lib/analyst/pci-evidence.ts');
+ const observations=detail.samples.filter(s=>s[19]===call.id).map(s=>({baseStationId:s[21]?.baseStationId,cellId:s[21]?.cellId}));
+ const stations=selectExactCallStations(detail.baseStations,observations);
  assert.equal(stations.length,5,'5 station coordinates exist in source, UI must show them');
  assert(stations.every(s=>Number.isFinite(s.latitude)&&Number.isFinite(s.longitude)));
 });

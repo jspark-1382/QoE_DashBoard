@@ -10,6 +10,8 @@ import {
   estimationMethodLabel,
   estimationReason,
 } from '../../lib/analyst/estimation-evidence';
+import type { BaseStation } from '../../lib/location-estimation/types';
+import { getPciEvidence, pciEvidenceReason } from '../../lib/analyst/pci-evidence';
 import styles from './observation-details.module.css';
 const labels = {
   gnss: 'GNSS 관측',
@@ -33,13 +35,16 @@ export function ObservationDetails({
   samples,
   source,
   roughLocation,
+  stations = [],
 }: {
   sample: AnalystSample | null;
   call: AnalystCall | null;
   samples: AnalystSample[];
   source: AnalystSource;
   roughLocation?: OverviewCallLocation;
+  stations?: BaseStation[];
 }) {
+  const pciEvidence = sample ? getPciEvidence(stations, sample, sample.pci) : null;
   const rsrp = samples.filter((s) => s.rsrp !== null),
     sinr = samples.filter((s) => s.sinr !== null),
     both = samples.filter((s) => s.rsrp !== null && s.sinr !== null);
@@ -119,8 +124,14 @@ export function ObservationDetails({
             <dd>{value(sample.rsrq, ' dB')}</dd>
             <dt>SINR</dt>
             <dd>{value(sample.sinr, ' dB')}</dd>
-            <dt>PCI</dt>
+            <dt>관측 PCI</dt>
             <dd>{value(sample.pci)}</dd>
+            <dt>등록 PCI</dt>
+            <dd>{pciEvidence?.registeredPci == null ? '미확인' : value(pciEvidence.registeredPci)}</dd>
+            <dt>PCI 비교</dt>
+            <dd><span className={styles.pciComparison} data-pci-comparison={pciEvidence?.comparison}>
+              {pciEvidence?.comparison === 'match' ? '일치' : pciEvidence?.comparison === 'mismatch' ? '불일치' : '미확인'}
+            </span></dd>
             <dt>Cell ID</dt>
             <dd>{sample.cellId || '미제공'}</dd>
             <dt>기지국 ID</dt>
@@ -132,6 +143,12 @@ export function ObservationDetails({
               </>
             )}
           </dl>
+          {pciEvidence && <p className={styles.pciProvenance}>
+            {pciEvidenceReason(pciEvidence)}
+            {pciEvidence.reason === 'registry-conflict' && pciEvidence.registeredCandidates.length > 0 &&
+              <span>등록 후보: {pciEvidence.registeredCandidates.join(' · ')}</span>}
+            <span>등록 정보: {pciEvidence.inventorySources.join(' · ') || '출처 미제공'}</span>
+          </p>}
         </>
       ) : (
         <p className={styles.empty}>이 통화에 관측 이벤트가 없습니다.</p>

@@ -318,6 +318,7 @@ export function normalizeDay(
       ),
       startCellId: str(call.startCellId),
       endCellId: str(call.endCellId),
+      endRat: call.endRat === 'LTE' || call.endRat === 'NR' ? call.endRat : null,
       startSecond,
       endSecond,
       durationSeconds,

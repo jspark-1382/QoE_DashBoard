@@ -8,6 +8,8 @@ const evidenceHelper = load('lib/analyst/estimation-evidence.ts');
 globalThis.__analystEstimationEvidence = evidenceHelper;
 globalThis.__analystDurationFormatter = load('lib/analyst/call-duration.ts').formatCallDuration;
 globalThis.__analystSipReason = load('lib/analyst/sip-reason.ts');
+globalThis.__analystPciEvidence = load('lib/analyst/pci-evidence.ts');
+globalThis.__analystByeSelection = load('lib/analyst/bye-selection.ts');
 import { renderToStaticMarkup } from 'react-dom/server';
 const helperFile = new URL('./.analyst-map-helper.mjs', import.meta.url);
 await fs.writeFile(
@@ -34,6 +36,14 @@ let code = ts.transpileModule(
     },
   },
 ).outputText;
+code = code.replace(
+  /import\s+\{[^}]+\}\s+from ['"]\.\.\/\.\.\/lib\/analyst\/bye-selection['"];?/s,
+  'const {byeSelectionDescription}=globalThis.__analystByeSelection;',
+);
+code = code.replace(
+  /import\s+\{[^}]+\}\s+from ['"]\.\.\/\.\.\/lib\/analyst\/pci-evidence['"];?/s,
+  'const {buildCallPciRows,pciEvidenceReason,selectExactCallStations}=globalThis.__analystPciEvidence;',
+);
 code = code.replace(
   /import\s+\{[^}]+\}\s+from ['"]\.\.\/\.\.\/lib\/analyst\/call-duration['"];?/s,
   'const formatCallDuration=globalThis.__analystDurationFormatter;',

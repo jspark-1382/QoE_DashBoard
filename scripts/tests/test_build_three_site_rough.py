@@ -1,5 +1,5 @@
 """Safety tests for conservative RSRP-weighted three-site map evidence."""
-import unittest,sys
+import unittest,sys,os,subprocess,tempfile
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parent.parent))
 from build_three_site_rough import centroid_candidate,physical_sites,distance_m
@@ -8,6 +8,25 @@ def row(t,lat,lon,rsrp=-85):
     return {'time':t,'coord':(lat,lon),'rsrp':rsrp,'ru':'RU','cell':'100','timestamp':'2026-10-30T12:00:00+09:00'}
 
 class RoughThreeSiteTest(unittest.TestCase):
+    def test_import_and_help_do_not_require_default_inventory_from_current_directory(self):
+        scripts=Path(__file__).resolve().parent.parent
+        environment={key:value for key,value in os.environ.items() if key!='QOE_LTE_MASTER'}
+        with tempfile.TemporaryDirectory(prefix='qoe-three-site-import-') as directory:
+            imported=subprocess.run([
+                sys.executable,'-B','-X','utf8','-c',
+                'import sys;sys.path.insert(0,sys.argv[1]);'
+                'from build_three_site_rough import build_site_catalog;'
+                'assert build_site_catalog([], "explicit-inventory.xlsx")=={}',
+                str(scripts),
+            ],cwd=directory,env=environment,capture_output=True,text=True)
+            self.assertEqual(imported.returncode,0,imported.stderr)
+            help_result=subprocess.run([
+                sys.executable,'-B','-X','utf8',str(scripts/'build_three_site_rough.py'),'--help',
+                '--lte-master',str(Path(directory)/'explicit-inventory.xlsx'),
+            ],cwd=directory,env=environment,capture_output=True,text=True)
+            self.assertEqual(help_result.returncode,0,help_result.stderr)
+            self.assertIn('--lte-master',help_result.stdout)
+
     def test_no_two_site_handset_location(self):
         self.assertIsNone(centroid_candidate([
             row(100,37.5,127),row(101,37.503,127.002)],105))

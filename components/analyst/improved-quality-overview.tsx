@@ -9,6 +9,7 @@ import { MosCallInvestigation } from './mos-call-investigation';
 import type { AnalystDataset, AnalystDay, AnalystOverview } from '../../lib/analyst/types';
 import styles from './improved-quality-overview.module.css';
 import { QualityTopNav } from './quality-top-nav';
+import { byeSelectionDescription } from '../../lib/analyst/bye-selection';
 
 type Loaded = { dataset: AnalystDataset; overview: AnalystOverview };
 type DataState = { loading: boolean; value: Loaded | null; error: string | null };
@@ -291,7 +292,7 @@ export function ImprovedQualityOverview() {
                     <td>{call.start}</td>
                     <td>{point ? model.regionById.get(point.areaId)?.label ?? '행정동 미확인' : '—'}</td>
                     <td><span className={styles.poorMos}>{call.mos?.toFixed(2) ?? '—'} · {grades(call.mos)}</span></td>
-                    <td>{point?.evidence==='gnss'?'GNSS 관측':point?.evidence==='bye-cell'?'BYE 기지국(UE 좌표 아님)':'3사이트 무선 추정'}</td>
+                    <td>{point?.evidence==='gnss'?'GNSS 관측':point?.evidence==='bye-cell'?<span title={byeSelectionDescription(point)}>BYE 기지국(UE 좌표 아님) · {byeSelectionDescription(point)}</span>:'3사이트 무선 추정'}</td>
                     <td><button type="button" className={styles.inspect}
                       onClick={() => setSelectedCallId(call.id)}>통화 분석</button></td>
                   </tr>;
@@ -313,6 +314,9 @@ export function ImprovedQualityOverview() {
                 <button type="button" onClick={()=>setSelectedCallId(null)}>닫기</button>
               </div>
             </div>
+            {selectedLocation?.byeRuId&&<p data-bye-selection={selectedLocation.byeSelectionMethod??'unknown'}>
+              BYE 기지국 선택: {byeSelectionDescription(selectedLocation)} · 기지국 참고 위치
+            </p>}
             {detail.loading && <p className={styles.state}>CDR·RTP·MDT 근거를 불러오는 중…</p>}
             {detail.error && <p className={styles.error}>{detail.error}</p>}
             {detail.day && selectedDayCall &&

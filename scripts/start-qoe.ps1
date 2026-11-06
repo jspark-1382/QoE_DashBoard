@@ -54,11 +54,34 @@ function Wait-Ready([string]$Address, $StartedProcess, [string]$LogPath) {
 }
 
 function Start-LocalService([string]$ScriptPath, [string]$Name) {
-    $stdout = Join-Path $runtime ($Name + '.out.log')
-    $stderr = Join-Path $runtime ($Name + '.err.log')
-    Start-Process -FilePath $node.Source -ArgumentList ('"' + $ScriptPath + '"') `
-        -WorkingDirectory $root -WindowStyle Hidden -PassThru `
-        -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+    $worker = Join-Path $root 'scripts\start-qoe-service.ps1'
+    $requestId = [Guid]::NewGuid().ToString('N')
+    $resultPath = Join-Path $runtime ($Name + '.' + $requestId + '.started.json')
+    $shell = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
+    $command = '"' + $shell + '" -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "' +
+        $worker + '" -Service "' + $Name + '" -RequestId "' + $requestId + '" -NodePath "' + $node.Source + '"'
+    $startup = New-CimInstance Win32_ProcessStartup -ClientOnly -Property @{ ShowWindow = [uint16]0 }
+    $created = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{
+        CommandLine = $command; CurrentDirectory = $root; ProcessStartupInformation = $startup
+    }
+    if ($created.ReturnValue -ne 0) { throw "Windows could not start $Name (code $($created.ReturnValue))." }
+    $timer = [Diagnostics.Stopwatch]::StartNew()
+    try {
+        while ($timer.Elapsed.TotalSeconds -lt 20) {
+            if (Test-Path -LiteralPath $resultPath) {
+                $result = Get-Content -LiteralPath $resultPath -Raw | ConvertFrom-Json
+                if ($result.requestId -ne $requestId) { throw 'Unexpected service launch response.' }
+                if ($result.error) { throw $result.error }
+                $child = Get-Process -Id ([int]$result.pid) -ErrorAction SilentlyContinue
+                if (!$child) { throw "The $Name service exited during startup. Check its error log." }
+                return $child
+            }
+            Start-Sleep -Milliseconds 100
+        }
+        throw "Windows did not report the $Name process. Check .tools\qoe-local-server."
+    } finally {
+        if (Test-Path -LiteralPath $resultPath) { [IO.File]::Delete($resultPath) }
+    }
 }
 
 try {
@@ -75,7 +98,8 @@ try {
         (Join-Path $root 'dist\client\qoe\_next\static'),
         (Join-Path $root 'node_modules\vinext\dist\server\prod-server.js'),
         $previewScript,
-        $forwardScript
+        $forwardScript,
+        (Join-Path $PSScriptRoot 'start-qoe-service.ps1')
     )
     foreach ($item in $required) {
         if (!(Test-Path -LiteralPath $item)) {
@@ -122,6 +146,20 @@ try {
     if ($previewListeners.Count -ne 1 -or $previewListeners[0].LocalAddress -ne '127.0.0.1' -or
         $forwardListeners.Count -ne 2 -or @($forwardListeners | Select-Object -ExpandProperty OwningProcess -Unique).Count -ne 1) {
         throw 'The local service listeners are incomplete. Check the logs in .tools\qoe-local-server.'
+    }
+    $currentStatus = @{
+        pid = $forwardListeners[0].OwningProcess
+        upstreamPid = $previewListeners[0].OwningProcess
+        upstreamPort = 3014
+        url = 'http://localhost:3001/qoe/'
+        mode = 'built-preview'
+    }
+    # Launcher reads and writes share the same mutex. Keep the existing file's
+    # identity/ACL; Windows file replacement can fail while the service is healthy.
+    try {
+        [IO.File]::WriteAllText($statusPath, ($currentStatus | ConvertTo-Json), (New-Object Text.UTF8Encoding($false)))
+    } catch {
+        Write-Warning ('The server is ready, but its PID record could not be saved: ' + $_.Exception.Message)
     }
     Write-Host "QoE is ready: $url"
     if (!$NoBrowser) { Start-Process $url }

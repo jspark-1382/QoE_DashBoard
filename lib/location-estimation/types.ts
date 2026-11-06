@@ -5,6 +5,12 @@ export type BaseStation = Point & {
   baseStationId: string; cellId: string; frequency: number | null;
   txPowerDbm?: number | null; txPowerType?: string; isVirtual: boolean;
   pci?: number | null; provenanceUnknown?: boolean;
+  /** Inventory evidence, separate from the original observed PCI. */
+  inventorySource?: string;
+  /** Radio access technology of an explicitly tagged inventory row. */
+  technology?: 'LTE' | 'NR';
+  inventoryPciStatus?: 'valid' | 'missing' | 'invalid' | 'conflict';
+  inventoryPciCandidates?: number[];
 };
 export type MdtSample = {
   timestamp: number; cellId: string; baseStationId: string; frequency: number | null;

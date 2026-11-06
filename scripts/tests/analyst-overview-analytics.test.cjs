@@ -379,7 +379,7 @@ test('published overview builder writes the analytics contract and fields from s
       {
         require: createRequire(script),
         __dirname: path.join(fixtureRoot, 'scripts'),
-        process: { argv: ['node', script, 'measured'] },
+        process: { argv: ['node', script, 'measured'], env: {} },
         console: { log() {} },
       },
       { filename: script },

@@ -8,7 +8,7 @@ a tower, not a handset. No custom model confidence is fabricated.
 from __future__ import annotations
 from collections import Counter,defaultdict
 from pathlib import Path
-import json, math, statistics, os, sys
+import argparse, json, math, statistics, os, sys
 
 import numpy as np
 from sklearn.cluster import DBSCAN
@@ -16,8 +16,10 @@ from sklearn.metrics.pairwise import haversine_distances
 
 ROOT=Path(__file__).resolve().parent.parent
 sys.path.insert(0,str(ROOT/"scripts"))
-from lte_station_catalog import load_unique_bye_cells
-PUBLIC=ROOT/"public"
+from lte_station_catalog import resolve_lte_master
+from bye_station_catalog import load_bye_catalog, resolve_bye_site, resolve_manifest_nr_catalog
+from inventory_provenance import verify_inventory_provenance
+PUBLIC=Path(os.environ.get('QOE_PUBLIC_DIR',str(ROOT/"public")))
 R=6371008.8
 DATES=["2026-10-26","2026-10-27","2026-10-28","2026-10-29","2026-10-30"]
 TRAIN_DATES=set(DATES[:-1])
@@ -40,11 +42,17 @@ def distance(a,b):
     return float(haversine_distances(np.radians([[a["lat"],a["lon"]]]),
              np.radians([[b["lat"],b["lon"]]])).item()*R)
 
-def main():
-    manifest=json.loads((PUBLIC/"voice-1030.json").read_text("utf8"))
-    report=json.loads((ROOT/"outputs/improvement-point-screening-20261104.json").read_text("utf8"))
+def main(public_dir=PUBLIC,lte_master=None,screening_report=None,out=None):
+    public_dir=Path(public_dir).resolve()
+    inventory=resolve_lte_master(lte_master)
+    manifest=json.loads((public_dir/"voice-1030.json").read_text("utf8"))
+    verify_inventory_provenance(manifest,inventory,'improvement candidate UI')
+    default_output_root=ROOT if public_dir==(ROOT/'public').resolve() else public_dir.parent
+    screening_report=Path(screening_report) if screening_report is not None else default_output_root/"outputs/improvement-point-screening-20261104.json"
+    report=json.loads(screening_report.read_text("utf8"))
     revision=manifest["meta"]["revision"]
-    assert revision=="557c39d2c6a9a5b4c69b"
+    if report.get('sourceRevision')!=revision or report.get('sourceInventory')!=inventory.name:
+        raise RuntimeError('Screening report source revision/inventory mismatch; regenerate it before publication')
     assert report["source_counts"]=={"allCdr":184232,"unscored":53292,"scored":130940,"poor":1403}
     assert report["gnssNewCustomerDateHoldout"]["100"]["testTwoNewCustomers"]==3
     assert set(report["holdoutTrainFirst4DaysTestLastDay"]["2"]["newCustomerValidationCells"])==set(CANDIDATE_CELLS)
@@ -53,8 +61,9 @@ def main():
     by_cell=defaultdict(list)
     all_calls={}
     for date in DATES:
-        source=json.loads((PUBLIC/"analyst-overview"/"MDT"/(date+".json")).read_text("utf8"))
-        if source["sourceRevision"]!=revision:raise RuntimeError("Overview revision mismatch")
+        source=json.loads((public_dir/"analyst-overview"/"MDT"/(date+".json")).read_text("utf8"))
+        if source.get("sourceRevision")!=revision or source.get('date')!=date or source.get('source')!='MDT':
+            raise RuntimeError("Overview source/date/revision mismatch")
         calls={c["id"]:c for c in source["calls"]}
         for call in source["calls"]:
             all_calls[call["id"]]=(date,call)
@@ -85,9 +94,10 @@ def main():
     def ref(c):
         return {"date":c["date"],"customerId":c["customer"],"callId":c["callId"],
             "mos":round(float(c["mos"]),3),"endCellId":c["endCell"],"start":c["start"]}
-    sites,audit=load_unique_bye_cells(
-        ROOT/"data"/"BaseStation"/"수도권_LTE_261103.xlsx",CANDIDATE_CELLS
-    )
+    nr_inventory=resolve_manifest_nr_catalog(manifest,inventory)
+    bye_catalog,audit=load_bye_catalog(inventory,nr_inventory,CANDIDATE_CELLS)
+    sites={cell:site for cell in CANDIDATE_CELLS
+           if (site:=resolve_bye_site(bye_catalog,cell)) is not None}
     candidates=[]
     for ids in groups.values():
         samples=[train[i] for i in ids]
@@ -161,7 +171,10 @@ def main():
           "label":"종료 Cell "+cellid,
           "location":({"lat":tower["lat"],"lon":tower["lon"],"radiusM":None,
             "source":"UNIQUE_INVENTORY_CELL_RU_SITE",
-            "ruId":tower["ruId"],"meaning":"인벤토리의 기지국 참고 좌표로서 실제 단말 불량 위치가 아님"}
+            "ruId":tower["ruId"],"inventorySource":tower['source'],
+            "pci":tower.get('pci'),"inventoryPciStatus":tower.get('inventoryPciStatus'),
+            "inventoryPciCandidates":tower.get('inventoryPciCandidates',[]),
+            "meaning":"인벤토리의 기지국 참고 좌표로서 실제 단말 불량 위치가 아님"}
             if tower else None),
           "locationUnknownReason":None if tower else
             "CDR 종료 Cell ID 단독으로 인벤토리의 RU·좌표를 유일하게 결정할 수 없음. 지도에는 표시하지 않음",
@@ -213,7 +226,7 @@ def main():
             entry=entries.get((date,customer))
             if entry is None:continue
             if (date,customer) not in partition_cache:
-                partition_cache[(date,customer)]=json.loads((PUBLIC/entry["dataPath"]).read_text("utf8"))
+                partition_cache[(date,customer)]=json.loads((public_dir/entry["dataPath"]).read_text("utf8"))
             detail=partition_cache[(date,customer)]
             short=callId[len(customer)+1:]
             for row in detail["samples"]:
@@ -242,7 +255,7 @@ def main():
             if not entry:continue
             detail=partition_cache.get((refentry["date"],refentry["customerId"]))
             if detail is None:
-                detail=json.loads((PUBLIC/entry["dataPath"]).read_text("utf8"))
+                detail=json.loads((public_dir/entry["dataPath"]).read_text("utf8"))
                 partition_cache[(refentry["date"],refentry["customerId"])]=detail
             short_id=refentry["callId"].split(":",1)[1]
             call=next((c for c in detail["calls"] if c["id"]==short_id and c.get("matchStatus")=="MATCHED"),None)
@@ -261,8 +274,9 @@ def main():
 
     output={
       "schemaVersion":"qoe-improvement-candidates-v1","sourceRevision":revision,
+      "sourceInventory":inventory.name,
       "analysisDates":DATES,"trainingDates":DATES[:-1],"verificationDate":TEST_DATE,
-      "analysisWindowNote":"선택한 1~3일 품질 현황 필터와 독립적인 5일 원본 고정 분석",
+      "analysisWindowNote":"품질 현황의 조회 기간과 독립적인 5일 원본 고정 분석",
       "sourceBasis":"SIP CDR MOS(v5), GNSS representative MDT locations, LTE RU/Cell inventory; no packet-level impairment onset",
       "algorithm":"100m DBSCAN train 4 days + held-out-new-customer GNSS repeat; independently recurring CDR END Cell",
       "summary":{"cdrCalls":184232,"mosScored":130940,"poorCalls":1403,
@@ -279,7 +293,7 @@ def main():
       ],
       "candidates":candidates,
     }
-    dest=PUBLIC/"improvement-candidates"/"2026-10-26_2026-10-30.json"
+    dest=Path(out) if out is not None else public_dir/"improvement-candidates"/"2026-10-26_2026-10-30.json"
     dest.parent.mkdir(parents=True,exist_ok=True)
     temp=dest.with_suffix(".json.tmp")
     temp.write_text(json.dumps(output,ensure_ascii=False,separators=(",",":")),encoding="utf8")
@@ -292,4 +306,10 @@ def main():
     },ensure_ascii=False,indent=2))
 
 if __name__=="__main__":
- main()
+    parser=argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--public-dir',type=Path,default=PUBLIC)
+    parser.add_argument('--lte-master',type=Path,default=None)
+    parser.add_argument('--screening-report',type=Path,default=None)
+    parser.add_argument('--out',type=Path,default=None)
+    args=parser.parse_args()
+    main(args.public_dir,args.lte_master,args.screening_report,args.out)
