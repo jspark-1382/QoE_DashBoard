@@ -100,16 +100,16 @@ export function ExecutiveTimeChart({ samples, episodes, selectedCallId, selected
     <div className="exec-chart-bar">
       <div className="exec-chart-legend">
         <span className="qoe">QoE</span>
-        <span className="mos">MOS</span>
+        <span className="mos">QoE</span>
         {showSignal && <span className="signal">신호품질 <em>정규화</em></span>}
         <span className="mos"><em className="exec-lab">저하구간</em></span>
       </div>
-      <span className="exec-chart-aggregate">QoE 콜 단위 · MOS {windowSeconds}초 중앙값</span>
+      <span className="exec-chart-aggregate">QoE 콜 단위 · QoE {windowSeconds}초 중앙값</span>
       <div className="exec-chart-toggle">
         <button type="button" className={showSignal ? 'on' : ''} onClick={() => setShowSignal(value => !value)}>RSRP/SINR {showSignal ? '숨김' : '보기'}</button>
       </div>
     </div>
-    <svg className="exec-time-chart" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" aria-label="선택 고객 시간대별 QoE, MOS" onClick={event=>{
+    <svg className="exec-time-chart" viewBox={`0 0 ${width} ${height}`} preserveAspectRatio="none" aria-label="선택 고객 시간대별 QoE, QoE" onClick={event=>{
       const bounds=event.currentTarget.getBoundingClientRect();
       const at=start+clamp(((event.clientX-bounds.left)/bounds.width*width-left)/(right-left),0,1)*(end-start);
       const index=samples.reduce((best,sample,i)=>Math.abs(sample.second-at)<Math.abs(samples[best].second-at)?i:best,0);
@@ -147,6 +147,6 @@ export function ExecutiveTimeChart({ samples, episodes, selectedCallId, selected
       {selected && <g className="selected-time"><line x1={x(selected.second)} y1={top} x2={x(selected.second)} y2={bottom} /><circle cx={x(selected.second)} cy={y(selected.qoe)} r="5" /></g>}
       {ticks.map(second => <text className="time-tick" key={second} x={x(second)} y="202" textAnchor="middle">{fmt(second)}</text>)}
     </svg>
-    {selected && <div className="exec-chart-tooltip"><b>{selected.time}</b><span>QoE <strong>{selected.qoe.toFixed(2)}</strong></span><span>MOS <strong>{selected.mos?.toFixed(2) ?? '-'}</strong></span><span>RSRP <strong>{selected.rsrp?.toFixed(1) ?? '-'} dBm</strong></span><span>SINR <strong>{selected.sinr?.toFixed(1) ?? '-'} dB</strong></span></div>}
+    {selected && <div className="exec-chart-tooltip"><b>{selected.time}</b><span>QoE <strong>{selected.qoe.toFixed(2)}</strong></span><span>QoE <strong>{selected.mos?.toFixed(2) ?? '-'}</strong></span><span>RSRP <strong>{selected.rsrp?.toFixed(1) ?? '-'} dBm</strong></span><span>SINR <strong>{selected.sinr?.toFixed(1) ?? '-'} dB</strong></span></div>}
   </div>;
 }

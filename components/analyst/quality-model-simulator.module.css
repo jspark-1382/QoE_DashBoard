@@ -1,0 +1,283 @@
+.simulator{flex:0 0 auto;border:1px solid #b7d9e4;border-radius:12px;background:#fff;overflow:hidden;box-shadow:0 2px 12px #1d4f7110;min-width:0}
+.top{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:13px 12px 9px}
+.top>div>span{display:flex;align-items:center;gap:5px;color:#218d8b;font-size:10px;font-weight:850}
+.top h4{font-size:15px;color:#204a60;font-weight:850;line-height:1.45;margin:5px 0 0}
+.top button{flex-shrink:0;display:flex;align-items:center;gap:5px;background:#eef6fa;border:1px solid #d2e4ed;color:#456e87;border-radius:7px;padding:7px 9px;font-size:10px;font-weight:850;cursor:pointer}
+.banner{display:flex;align-items:flex-start;gap:7px;background:#fff7e8;border:1px solid #f0d7b4;border-radius:8px;color:#765c39;font-size:10px;line-height:1.7;padding:9px 10px;margin:0 12px 11px}
+.banner svg{flex-shrink:0;margin-top:2px}
+.scenarios{display:flex;flex-wrap:wrap;gap:6px;padding:0 12px}
+.scenarios button{flex:1 1 130px;min-width:0;padding:8px 7px;line-height:1.45;border-radius:8px;background:#f7fafc;border:1px solid #d8e6eb;color:#527388;font-size:10px;font-weight:760;cursor:pointer}
+.scenarios button[aria-pressed="true"]{background:#e5f8f2;border-color:#43b3a9;color:#137f77}
+.caseNote{margin:8px 13px 12px;font-size:10px;color:#6e8b9c;line-height:1.65}
+.phases{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;padding:10px 10px;background:#eff6f9;border-top:1px solid #dcebf0;border-bottom:1px solid #dcebf0}
+.phases button{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:4px;border:1px solid #dbe8ec;background:#fff;border-radius:7px;padding:7px 3px;color:#668298;font-size:10px;line-height:1.4;font-weight:750;cursor:pointer}
+.phases button span{width:16px;height:16px;display:grid;place-items:center;border-radius:50%;background:#e3eef4;font-size:9px}
+.phases button[aria-current="step"]{background:#e1f7ef;border-color:#40b3a5;color:#11776e;box-shadow:0 0 0 1px #2ab3ab20}
+.phases button[aria-current="step"] span{background:#1da99d;color:#fff}
+.stepTitle{padding:12px 13px 0;display:flex;justify-content:space-between;align-items:center;gap:9px}
+.stepTitle>div>span{font-size:10px;color:#85a0b3;letter-spacing:.03em;font-weight:850}
+.stepTitle h5{font-size:14px;color:#234b66;margin:3px 0 0;line-height:1.45;font-weight:900}
+.stepTitle>b{font-size:10px;line-height:1.5;padding:6px 8px;border-radius:7px;white-space:nowrap;color:#157c6f;background:#e9f8ef}
+.stepStory{margin:9px 13px 11px;font-size:11px;line-height:1.8;color:#385f77}
+.figure{padding:0 12px}
+.figure svg{width:100%;height:auto;display:block;border:1px solid #e0edf3;border-radius:9px}
+.legend{display:flex;flex-wrap:wrap;align-items:center;gap:7px 11px;margin:9px 12px 13px;font-size:10px;color:#557a90;line-height:1.45}
+.legend span{display:flex;gap:5px;align-items:center}
+.legend i{display:inline-block;flex-shrink:0;width:10px;height:10px;border-radius:50%}
+.gnss{background:#277fa9}.radio{background:#8d77bd}.normal{background:#98a8b8}.validation{background:#1b9c86}
+.controls{margin:0 12px 11px;padding:11px 12px;border:1px solid #d9e7ee;background:#f9fcfe;border-radius:9px}
+.controls h5{margin:0 0 11px;display:flex;gap:6px;align-items:center;color:#3f6981;font-size:12px}
+.slider{display:flex;flex-direction:column;gap:5px;margin:10px 0}
+.slider label{display:flex;justify-content:space-between;gap:8px;font-size:11px;color:#57798f}
+.slider label strong{color:#107a81;font-variant-numeric:tabular-nums}
+.slider input{width:100%;accent-color:#23a697;cursor:pointer}
+.marks{display:flex;justify-content:space-between;font-variant-numeric:tabular-nums;font-size:10px;color:#8b9eaf}
+.calculation{margin:0 12px 12px;padding:11px;border:1px solid #dfd7be;background:#fffbf0;border-radius:9px;display:flex;flex-direction:column;gap:7px}
+.calculation>div:first-child{display:flex;flex-wrap:wrap;gap:5px 10px;align-items:center}
+.calculation>div:first-child span{font-size:10px;color:#967444}
+.calculation>div:first-child strong{font-size:12px;color:#775e31}
+.calculation code{font-size:10px;line-height:1.7;color:#794e18;background:#fff8e8;padding:8px;border-radius:5px;white-space:normal;overflow-wrap:anywhere}
+.calculation p{font-size:11px;line-height:1.75;margin:0;color:#755e3c}
+.calculation small{font-size:10px;color:#9d6539;line-height:1.6}
+.curves{display:flex;flex-direction:column;gap:6px}
+.curves strong{font-size:11px;color:#625e8d}
+.curves svg{width:100%;height:auto;background:#fff;border:1px solid #e1dbd6;border-radius:6px;display:block}
+.curves p{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:10px!important;color:#63788e!important}
+.priorDot,.posteriorDot{height:4px;width:17px;border-radius:4px;background:#7589b7;display:inline-block}
+.posteriorDot{background:#d7872d}
+.candidatePicker{padding:12px;margin:0 12px 12px;border:1px solid #dce8ed;border-radius:9px;display:flex;flex-direction:column;gap:9px}
+.candidatePicker>span{font-size:11px;font-weight:800;color:#486d84}
+.candidatePicker>div{display:flex;gap:5px;flex-wrap:wrap}
+.candidatePicker button{border:1px solid #d0e3eb;border-radius:7px;background:#fff;color:#49758e;padding:7px 8px;font-size:10px;font-weight:760;cursor:pointer}
+.candidatePicker button[aria-pressed="true"]{background:#e7f7ee;border-color:#3ca996;color:#147968}
+.candidatePicker p{font-size:10px;color:#937349;line-height:1.6;margin:0}
+.criteria,.realMetrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin:0 12px 10px}
+.criteria>div,.realMetrics>div{border:1px solid #dce8ee;background:#f3f9fb;border-radius:7px;padding:8px;display:flex;flex-direction:column;gap:4px}
+.criteria span,.realMetrics span{font-size:10px;color:#6b859b;line-height:1.45}
+.criteria strong,.realMetrics b{font-size:13px;color:#215976;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.why{display:flex;align-items:flex-start;gap:6px;margin:0 12px 12px;color:#456b86;line-height:1.7;font-size:11px;border-left:3px solid #2aa3a3;background:#f1faf9;border-radius:7px;padding:10px}
+.why svg{flex-shrink:0;margin-top:2px}
+.final{margin:0 12px 11px;border:1px solid #b6ddc7;border-radius:9px;background:#effaf2;padding:11px}
+.final strong{font-size:12px;color:#2a7963}
+.final p{font-size:11px;line-height:1.65;color:#456f60;margin:6px 0}
+.progress{margin:0 12px;height:5px;background:#e7eff3;border-radius:5px;overflow:hidden}
+.progress span{display:block;height:100%;background:#21a798;transition:width .2s}
+.actions{padding:11px 12px 15px;display:flex;justify-content:space-between;gap:5px}
+.actions button{display:inline-flex;gap:5px;justify-content:center;align-items:center;min-width:0;padding:8px 8px;background:#eff9f7;color:#177f75;border:1px solid #c2e0df;border-radius:7px;cursor:pointer;font-size:10px;font-weight:850}
+.actions button:last-child{background:#197c83;color:#fff}
+.actions button:disabled{opacity:.44;cursor:default}
+.realExample{margin:0 12px 13px;padding:12px;border:1px solid #cce0e8;border-radius:11px;background:#fff}
+.realHeading{display:flex;align-items:center;gap:7px;margin-bottom:11px;color:#22858a}
+.realHeading>div{display:flex;flex-direction:column;gap:4px}
+.realHeading span{font-size:10px;color:#558498;font-weight:780}
+.realHeading h4{font-size:14px;color:#23576e;margin:0}
+.realExample>svg{width:100%;height:auto;display:block;border:1px solid #e1edf0;border-radius:9px;margin-bottom:10px}
+.realMetrics{margin:0 0 9px}
+.realExample>p{font-size:10px;line-height:1.75;color:#59758b;margin:9px 0}
+.realExample>p strong{color:#216d78}
+.realExample .alert{background:#fff3dc;border:1px solid #f1d1a2;border-radius:6px;color:#a06937;padding:8px}
+.error,.loading{display:block;border-radius:8px;padding:12px;background:#fff5ed;color:#94612d;font-size:11px;line-height:1.7}
+button:focus-visible,input:focus-visible{outline:3px solid #45b9cc;outline-offset:2px}
+@media(max-width:480px){.phases{gap:3px;padding:6px}.phases button{font-size:9px;padding:6px 2px}.scenarios button{flex-basis:90px}.stepStory{font-size:10px}}
+.zoomBar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 8px;margin:0 12px 8px}
+.zoomBar>span{flex:1 1 160px;font-size:10px;color:#67869a;line-height:1.45}
+.zoomBar>div{display:flex;gap:4px}
+.zoomBar button{border:1px solid #d0e0e8;border-radius:6px;padding:6px 8px;color:#567c93;background:#f5fafc;font-size:10px;cursor:pointer;font-weight:800}
+.zoomBar button[aria-pressed="true"]{border-color:#3ea79b;background:#e2f8ef;color:#147c6e}
+.zoomBar button:disabled{cursor:default;opacity:.5}
+
+
+/* Fit the seven-step learning experience into the simulator popup, rather than
+   allowing a full-width 420x280 SVG to become 600px tall. */
+.simulator{overflow:visible;}
+.top{padding:7px 10px 5px;}
+.top h4{margin:2px 0 0;font-size:13px;}
+.banner{padding:5px 7px;margin:0 10px 6px;line-height:1.35;}
+.scenarios{gap:4px;padding:0 10px;}
+.scenarios button{padding:5px 6px;flex-basis:105px;line-height:1.25;}
+.caseNote{margin:4px 10px 7px;line-height:1.3;}
+.phases{grid-template-columns:repeat(7,minmax(0,1fr));gap:3px;padding:6px 8px;}
+.phases button{font-size:9px;line-height:1.25;gap:3px;white-space:normal;padding:5px 2px;flex-wrap:nowrap;}
+.phases button span{width:15px;height:15px;flex-shrink:0;}
+.stepTitle{padding:7px 10px 0;}
+.stepTitle h5{font-size:12px;margin-top:1px;line-height:1.3;}
+.stepStory{margin:4px 10px 7px;font-size:10px;line-height:1.4;}
+.learningBody{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);align-items:start;gap:9px;padding:0 10px;}
+.visualColumn,.parameterColumn{min-width:0;display:flex;flex-direction:column;gap:6px;}
+.zoomBar{margin:0;gap:4px;}
+.zoomBar>span{font-size:9px;line-height:1.3;}
+.zoomBar button{font-size:9px;padding:5px 7px;}
+.figure{padding:0;}
+.figure svg{width:min(100%,460px);max-height:270px;height:auto;object-fit:contain;margin:0 auto;}
+.legend{margin:0;gap:4px 9px;font-size:9px;line-height:1.25;}
+.controls{margin:0;padding:8px 10px;}
+.controls h5{font-size:11px;margin-bottom:5px;}
+.slider{margin:5px 0;gap:3px;}
+.slider label{font-size:10px;}
+.slider input{margin:0;height:15px;min-height:15px;}
+.marks{font-size:9px;}
+.calculation{margin:0;padding:8px;gap:4px;}
+.calculation code{padding:5px;font-size:9px;line-height:1.4;}
+.calculation p{font-size:10px;line-height:1.45;}
+.calculation small{font-size:9px;line-height:1.4;}
+.curves svg{max-height:115px;object-fit:contain;}
+.candidatePicker{margin:7px 10px;padding:8px;}
+.criteria{margin:6px 10px;gap:5px;}
+.criteria>div{padding:6px;}
+.why{margin:6px 10px;padding:7px 8px;font-size:10px;line-height:1.35;}
+.final{margin:6px 10px;padding:8px;}
+.progress{margin:0 10px;}
+.actions{position:sticky;bottom:0;z-index:12;background:#fff;border-top:1px solid #dfeaf0;box-shadow:0 -4px 10px #1b4e6819;padding:7px 10px;}
+.actions button{padding:7px 10px;}
+.actualDisclosure{margin:7px 10px 11px;padding:0;border:1px solid #cde2e9;border-radius:9px;background:#f8fcfe;}
+.actualDisclosure summary{cursor:pointer;color:#276b83;font-size:11px;line-height:1.4;font-weight:800;padding:9px 11px;}
+.actualDisclosure[open] summary{border-bottom:1px solid #dce8ed;}
+.actualDisclosure .realExample{margin:8px;box-shadow:none;}
+@media(max-width:700px){
+ .learningBody{grid-template-columns:minmax(0,1fr);gap:8px;padding:0 8px;}
+ .figure svg{width:min(100%,360px);max-height:240px;}
+ .phases{grid-template-columns:repeat(4,minmax(0,1fr));gap:3px;padding:5px 6px;}
+ .phases button{flex-wrap:wrap;padding:4px 2px;}
+ .scenarios button{flex-basis:90px;}
+ .calculation{margin:0;}
+ .controls{margin:0;}
+}
+@media(max-height:780px) and (min-width:701px){
+ .banner{padding:4px 6px;}
+ .scenarios button{padding:4px;}
+ .phases{padding:4px 7px;}
+ .figure svg{width:min(100%,390px);max-height:230px;}
+ .why{padding:5px 7px;margin:5px 10px;}
+}
+
+
+@media(max-height:780px) and (min-width:701px){.caseNote{margin-bottom:4px}.stepStory{margin-bottom:5px}}
+
+/* Remove tiny overflow so the default desktop view is truly scroll-free. */
+.actualDisclosure{margin-top:4px;margin-bottom:6px;}
+
+/* Full-screen readable model teaching view, aligned with DBSCAN. */
+.simulator{display:flex;flex-direction:column;min-height:100%;}
+.top{padding:14px 22px 9px;}
+.top>div>span{font-size:13px;}
+.top h4{font-size:21px;}
+.top button{font-size:13px;padding:9px 12px;}
+.banner{margin:0 20px 10px;padding:10px 13px;font-size:13px;line-height:1.5;}
+.scenarios{gap:8px;padding:0 20px;}
+.scenarios button{flex:1 1 145px;font-size:13px;padding:9px 10px;line-height:1.4;}
+.caseNote{margin:7px 20px 9px;font-size:12px;line-height:1.5;}
+.phases{padding:10px 16px;gap:7px;}
+.phases button{font-size:13px;line-height:1.35;padding:10px 5px;gap:6px;}
+.phases button span{width:22px;height:22px;font-size:12px;}
+.stepTitle{padding:11px 20px 0;}
+.stepTitle>div>span{font-size:12px;}
+.stepTitle h5{font-size:19px;}
+.stepTitle>b{font-size:13px;padding:7px 11px;}
+.stepStory{margin:7px 20px 12px;font-size:14px;line-height:1.5;}
+.learningBody{flex:1 0 auto;grid-template-columns:minmax(0,1.12fr) minmax(340px,.88fr);gap:24px;padding:0 20px 10px;}
+.visualColumn,.parameterColumn{gap:11px;}
+.zoomBar{gap:7px;}
+.zoomBar>span{font-size:12px;line-height:1.5;}
+.zoomBar button{font-size:12px;padding:8px 10px;}
+.figure svg{width:min(100%,690px);height:auto;max-height:min(400px,43dvh);}
+.legend{font-size:12px;line-height:1.5;gap:8px 14px;}
+.controls{padding:16px;gap:9px;}
+.controls h5{font-size:15px;margin-bottom:9px;}
+.slider{margin:9px 0;gap:6px;}
+.slider label{font-size:14px;}
+.slider input{height:23px;min-height:23px;}
+.marks{font-size:11px;}
+.calculation{padding:15px;gap:9px;}
+.calculation>div:first-child span{font-size:12px;}
+.calculation>div:first-child strong{font-size:15px;}
+.calculation code{font-size:13px;line-height:1.55;padding:11px;}
+.calculation p{font-size:13px;line-height:1.55;}
+.calculation small{font-size:12px;line-height:1.45;}
+.curves svg{max-height:190px;}
+.candidatePicker{margin:7px 20px;padding:12px;gap:7px;}
+.candidatePicker>span{font-size:14px;}
+.candidatePicker button{font-size:12px;padding:8px 12px;}
+.criteria{margin:7px 20px;gap:8px;grid-template-columns:repeat(4,minmax(0,1fr));}
+.criteria>div{padding:10px;}
+.criteria span{font-size:12px;}
+.criteria strong{font-size:14px;}
+.why{margin:9px 20px;padding:11px 13px;font-size:13px;line-height:1.5;}
+.final{margin:7px 20px;padding:13px;}
+.final strong{font-size:15px;}
+.final p{font-size:13px;}
+.progress{height:7px;margin:0 20px;}
+.actions{padding:12px 20px;min-height:63px;}
+.actions button{font-size:14px;padding:10px 18px;}
+.actualDisclosure{margin:8px 20px 12px;}
+.actualDisclosure summary{font-size:13px;padding:11px 14px;}
+@media(max-width:1100px) and (min-width:701px){
+ .learningBody{gap:14px;grid-template-columns:minmax(0,1fr) minmax(270px,.9fr);}
+ .phases button{font-size:11px;}
+ .figure svg{max-height:min(320px,39dvh);}
+ .criteria{grid-template-columns:repeat(2,minmax(0,1fr));}
+ .stepStory{font-size:12px;}
+}
+@media(max-height:820px) and (min-width:701px){
+ .top{padding:8px 15px 5px;}
+ .banner{margin:0 15px 5px;padding:6px 10px;font-size:12px;}
+ .scenarios{padding:0 15px;}
+ .scenarios button{padding:5px;font-size:12px;}
+ .caseNote{margin:4px 15px 6px;}
+ .phases{padding:6px 11px;}
+ .phases button{font-size:12px;padding:6px 3px;}
+ .stepTitle{padding:6px 15px 0;}
+ .stepStory{margin:4px 15px 7px;}
+ .learningBody{padding:0 15px 6px;gap:13px;}
+ .figure svg{max-height:min(300px,36dvh);}
+ .why{margin:5px 15px;padding:8px;}
+ .actions{padding:8px 15px;min-height:52px;}
+ .actualDisclosure{margin:6px 15px;}
+}
+@media(max-width:700px){
+ .simulator{min-height:0;}
+ .top{padding:10px 10px 6px;}
+ .top h4{font-size:17px;}
+ .top>div>span{font-size:12px;}
+ .banner{margin:0 8px 7px;padding:8px;font-size:12px;}
+ .scenarios{padding:0 8px;gap:5px;}
+ .scenarios button{font-size:11px;padding:7px;flex-basis:105px;}
+ .caseNote{margin:5px 9px 7px;font-size:12px;}
+ .phases{grid-template-columns:repeat(4,minmax(0,1fr));padding:7px;gap:4px;}
+ .phases button{flex-wrap:wrap;font-size:11px;padding:6px 3px;}
+ .stepTitle{padding:8px 10px 0;}
+ .stepTitle h5{font-size:16px;}
+ .stepStory{margin:6px 10px;font-size:12px;}
+ .learningBody{grid-template-columns:1fr;gap:10px;padding:0 9px;}
+ .zoomBar>span{font-size:11px;}
+ .zoomBar button{font-size:11px;padding:7px;}
+ .figure svg{width:100%;max-height:275px;}
+ .controls{padding:11px;}
+ .controls h5{font-size:13px;}
+ .slider label{font-size:12px;}
+ .calculation code{font-size:12px;}
+ .calculation p{font-size:12px;}
+ .legend{font-size:11px;}
+ .criteria{grid-template-columns:repeat(2,minmax(0,1fr));margin:6px 9px;}
+ .why{margin:7px 9px;font-size:12px;}
+ .candidatePicker{margin:7px 9px;}
+ .actions{padding:9px;min-height:54px;}
+ .actions button{font-size:12px;padding:8px 10px;}
+ .actualDisclosure{margin:7px 9px;}
+}
+
+
+/* Keep the enlarged HDBSCAN/alternative diagram wholly above the persistent
+   step controls in the common 1600×900/960 desktop viewport. */
+@media(min-width:1101px) and (min-height:821px){
+ .top{padding-top:10px;padding-bottom:5px;}
+ .banner{margin-bottom:7px;padding-top:8px;padding-bottom:8px;}
+ .scenarios button{padding-top:7px;padding-bottom:7px;}
+ .caseNote{margin-top:5px;margin-bottom:5px;}
+ .phases{padding-top:7px;padding-bottom:7px;}
+ .stepTitle{padding-top:7px;}
+ .stepStory{margin-top:5px;margin-bottom:7px;}
+ .zoomBar{gap:5px;}
+ .zoomBar button{padding-top:5px;padding-bottom:5px;}
+ .figure svg{width:min(100%,600px);max-height:min(330px,35dvh);}
+}
+

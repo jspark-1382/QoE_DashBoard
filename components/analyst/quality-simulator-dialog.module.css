@@ -1,0 +1,115 @@
+.backdrop{
+ position:fixed;inset:0;z-index:3000;display:flex;align-items:center;justify-content:center;
+ padding:clamp(9px,2.5vw,28px);background:rgba(16,40,59,.73);backdrop-filter:blur(2px);
+}
+.dialog{
+ display:flex;flex-direction:column;min-height:0;min-width:0;
+ width:min(1080px,100%);height:min(890px,100%);max-height:calc(100dvh - 20px);
+ background:#fff;border:1px solid #bed5e3;border-radius:15px;overflow:hidden;
+ box-shadow:0 20px 80px rgba(0,20,40,.48);
+}
+.header{flex:0 0 auto;display:flex;align-items:flex-start;justify-content:space-between;gap:16px;background:#f5fafc;border-bottom:1px solid #d9e7ee;padding:15px 20px;}
+.heading{flex:1;min-width:0;}
+.heading>span{display:flex;align-items:center;gap:7px;color:#10877d;font-size:11px;font-weight:850;}
+.heading h2{font-size:20px;color:#214c64;font-weight:850;margin:5px 0 3px;line-height:1.35;}
+.heading p{font-size:11px;color:#6d8698;line-height:1.5;margin:0;}
+.close{flex:0 0 auto;display:flex;align-items:center;gap:6px;border:1px solid #b8d4df;background:#fff;color:#30617c;border-radius:8px;padding:9px 11px;font-size:12px;font-weight:800;cursor:pointer;}
+.close:hover{background:#e9f6fa;}
+.close:focus-visible{outline:3px solid #23ac9f;outline-offset:2px;}
+.content{flex:1 1 0;min-height:0;overflow:auto;overscroll-behavior:contain;padding:17px 20px 24px;background:#f6fafc;scrollbar-width:thin;}
+.content>div,.content>section{margin:0 auto;max-width:960px;}
+@media(max-width:700px){
+ .backdrop{padding:0;}
+ .dialog{width:100%;height:100dvh;max-height:100dvh;border-radius:0;border:0;}
+ .header{padding:11px 12px;gap:6px;}
+ .heading h2{font-size:15px;}
+ .heading p{font-size:10px;}
+ .close{padding:7px 9px;font-size:11px;}
+ .content{padding:9px 10px 18px;}
+}
+@media(prefers-reduced-motion:reduce){.backdrop{backdrop-filter:none;}}
+
+.backdropDismiss{position:absolute;inset:0;border:0;cursor:default;background:transparent;z-index:0;}
+.dialog{position:relative;z-index:1;margin:0;}
+
+
+/* More vertical room for the interactive stage, with a predictable scrollport.
+   If content is taller than the viewport, the step buttons inside remain sticky. */
+.dialog{height:min(890px,calc(100dvh - 18px));max-height:calc(100dvh - 18px);}
+.header{padding:9px 14px;gap:10px;}
+.heading>span{font-size:10px;}
+.heading h2{font-size:17px;margin:3px 0 2px;line-height:1.25;}
+.heading p{font-size:10px;line-height:1.3;}
+.close{padding:7px 9px;}
+.content{padding:9px 12px 12px;scrollbar-gutter:stable;overscroll-behavior:contain;}
+@media(max-width:700px){
+ .dialog{height:100dvh;max-height:100dvh;}
+ .header{padding:8px 10px;}
+ .heading h2{font-size:14px;}
+ .heading p{font-size:9px;}
+ .content{padding:6px 7px 10px;}
+}
+
+
+/* Avoid large unused white space after the compact learning layout. */
+@media(min-width:701px){.dialog{height:min(805px,calc(100dvh - 18px));}}
+
+
+/* Explanation and criteria share the popup; they do not occupy map sidebar space. */
+.header{align-items:center;flex-wrap:wrap;}
+.viewNav{display:flex;gap:4px;align-items:center;flex:0 1 auto;min-width:0;}
+.viewNav button{border:1px solid #cbdfe7;background:#fff;color:#527489;border-radius:7px;padding:7px 8px;font-size:10px;font-weight:800;white-space:nowrap;cursor:pointer;}
+.viewNav button[aria-pressed="true"]{background:#def6ef;color:#0b7e6b;border-color:#4dbca7;}
+.viewNav button:focus-visible{outline:3px solid #30b0a4;outline-offset:1px;}
+.referenceContent{width:100%;min-height:0;padding:5px 3px;}
+.referenceContent :global([aria-label="조사 후보 지도 알고리즘 설명"]){border:0;max-width:none;}
+.referenceContent :global([aria-label="선택 모델 알고리즘 검증 기준"]){width:100%;max-width:none;flex:none;border:0;min-height:0;}
+@media(max-width:700px){
+ .viewNav{order:3;flex-basis:100%;justify-content:center;}
+ .viewNav button{flex:1 1 0;padding:6px 4px;font-size:9px;}
+}
+
+
+.simulationView{width:100%;margin-inline:auto;max-width:960px;}
+.simulationView[hidden],.referenceContent[hidden]{display:none!important;}
+
+
+/* Readable immersive simulator: occupy almost the entire viewport, not a small
+   1080px card with a large unused bottom area. Popup only; no map changes. */
+.backdrop{padding:12px;}
+.dialog{width:min(1580px,calc(100vw - 24px));height:calc(100dvh - 24px);max-height:calc(100dvh - 24px);max-width:none;}
+@media(min-width:701px){.dialog{height:calc(100dvh - 24px);}}
+.header{padding:12px 22px;gap:12px;min-height:82px;align-items:center;}
+.heading>span{font-size:13px;line-height:1.35;}
+.heading>span svg{width:19px;height:19px;}
+.heading h2{font-size:24px;line-height:1.28;margin:3px 0;}
+.heading p{font-size:13px;line-height:1.45;}
+.viewNav{gap:7px;}
+.viewNav button{font-size:13px;padding:11px 14px;border-radius:9px;}
+.close{font-size:14px;padding:10px 13px;}
+.content{padding:12px 18px 15px;}
+.content>div,.content>section{max-width:none;}
+.simulationView{max-width:none;min-height:100%;display:flex;flex-direction:column;}
+.simulationView>section{flex:1 0 auto;}
+.referenceContent{max-width:1100px;margin:0 auto;}
+@media(max-width:1000px) and (min-width:701px){
+ .header{padding:9px 14px;min-height:68px;}
+ .heading h2{font-size:19px;}
+ .heading p{font-size:11px;}
+ .viewNav button{font-size:11px;padding:8px;}
+ .content{padding:9px 10px;}
+}
+@media(max-width:700px){
+ .backdrop{padding:0;}
+ .dialog{width:100%;height:100dvh;max-height:100dvh;border-radius:0;}
+ .header{padding:8px 10px;min-height:0;gap:5px;}
+ .heading h2{font-size:17px;}
+ .heading>span{font-size:11px;}
+ .heading p{font-size:11px;}
+ .viewNav{gap:4px;}
+ .viewNav button{font-size:11px;padding:8px 4px;}
+ .close{font-size:12px;padding:7px;}
+ .content{padding:8px 8px 14px;}
+ .simulationView{min-height:0;}
+}
+

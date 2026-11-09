@@ -235,3 +235,31 @@ VITE_VWORLD_API_KEY=발급받은_VWorld_키
 ```
 
 `npm run local`로 다시 시작하면 자동으로 적용됩니다. 키와 `.env` 파일은 Git에 포함되지 않습니다. 키가 없어도 측정점과 품질 분포는 로컬 배경 위에서 확인할 수 있습니다.
+
+
+## 음성 체감지표 개선 1안 (2026-11-07)
+
+상단 **기존안 바로 오른쪽의 개선 1안**은 `/qoe/overview-improvement-1`에서 확인합니다. 기존 품질 현황과 기존안의 본문/집계는 유지합니다. 새 화면은 GNSS·엄격한 검토를 통과한 위치만 지역 후보에 사용하며 BYE 기지국/거친 3사이트 추정은 지역 후보에서 제외합니다.
+
+```powershell
+npm.cmd run data:voice-improvement-1
+npm.cmd run test:voice-improvement-1
+```
+
+생성물은 `public/voice-improvement-1/`에 분리하고 원본 JSON은 덮어쓰지 않습니다. 기본 빌드는 가용 날짜의 연속 기간별 하루 전체 시간 결과를 만듭니다. 다른 시간 범위를 선택하면 해당 조건을 별도 생성해야 하며, 기존 5일 후보로 대체하지 않습니다. 화면의 전체 CDR 분모와 hour/고객 상세 탐색은 구분합니다.
+
+기존안과 개선 1안을 오갈 때 기간·시간·MOS·비교 원본 버전을 전달합니다. 현장 녹음·SCAN·외곽 실데이터가 제공되지 않으면 미확보 상태로 표시합니다. 구간별 MOS 및 NQI/WING 연계는 추가 자료와 성능 검토가 필요한 후속 범위입니다.
+
+설계: [개선 1안 설계](docs/superpowers/specs/2026-11-07-voice-experience-improvement-1-design.md). 구현 계획: [개발 계획](docs/superpowers/plans/2026-11-07-voice-experience-improvement-1.md). 과거 개선1/2/3안 경로 설명은 이력이며 새 경로와 다릅니다.
+
+
+## 품질 현황 기반 개선 1안 (수정 방향)
+
+개선 1안은 `/qoe/?variant=improvement1`에서 기존 품질 현황의 KPI4개·차트3개·지도/순위·통화표·팝업을 그대로 사용합니다. `/qoe/`가 원본 비교 모드입니다. 상단 개선 1안 탭은 기존안 오른쪽을 유지합니다. 이전 독립 실험 주소는 새 모드로 이동하며 독립 대시보드는 사용하지 않습니다.
+
+위치 수집률은 기존 KPI 아래 보조 정보로, 후보 조사는 기존 지도와 통화표 안에서 제공합니다. 후보 자료는 작은 요약과 선택 후보 상세로 분할하며 전체207MB 보고서는 초기 로딩에 사용하지 않습니다.
+
+
+### 별도 미리보기의 VWorld 지도 설정
+
+프로젝트 하위의 별도 빌드 폴더를 만들었을 때는 빌드 전에 `node scripts/sync-qoe-preview-settings.cjs outputs/voice-improvement-1-preview`를 실행합니다. 원본 `.env.local`의 VWorld 항목만 반영하며 다른 설정은 복사하지 않습니다. 지도 설정은 클라이언트 빌드에 반영되므로 설정 반영 후 다시 빌드해야 합니다.

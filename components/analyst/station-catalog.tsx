@@ -88,7 +88,7 @@ export function StationCatalogWorkspace(){
               <p className={styles.note}>기지국 좌표는 고객 위치가 아닙니다. 동일 PCI의 재사용만으로 간섭·충돌을 판단할 수 없습니다.</p>
             </section>
             <section className={styles.panel}><div className={styles.audit}><h2>MDT 비교 범위</h2>
-              {observations?<><p>{observations.dates[0]} ~ {observations.dates.at(-1)} · LTE CDR 연계 MDT</p><dl><div><dt>전체 관측</dt><dd>{n(observations.total)}건</dd></div><div><dt>RU+Cell 정확 일치</dt><dd>{n(observations.exactMatched)}건</dd></div><div><dt>등록 셀 미확인</dt><dd>{n(observations.unregistered)}건</dd></div><div><dt>일치 셀 중 PCI 비교 불가</dt><dd>{n(observations.unavailable)}건</dd></div></dl></>:<p>{isNr?'MDT 무선 관측은 LTE입니다. 5G 관측 PCI·GNSS 자료는 없으며, SIP CDR의 5G 종료 Cell은 현황에서 BYE 기지국 참고 위치로 표시합니다. 복수 후보는 MDT 장비 일치 우선, 없으면 첫 후보를 사용합니다.':'MDT 관측 집계가 없습니다.'}</p>}
+              {observations?<><p>{observations.dates[0]} ~ {observations.dates.at(-1)} · LTE CDR 연계 MDT</p><dl><div><dt>전체 관측</dt><dd>{n(observations.total)}건</dd></div><div><dt>RU+Cell 정확 일치</dt><dd>{n(observations.exactMatched)}건</dd></div><div><dt>등록 셀 미확인</dt><dd>{n(observations.unregistered)}건</dd></div><div><dt>일치 셀 중 PCI 비교 불가</dt><dd>{n(observations.unavailable)}건</dd></div></dl></>:<p>{isNr?'MDT 무선 관측은 LTE입니다. 5G 관측 PCI·GPS 자료는 없으며, SIP CDR의 5G 종료 Cell은 현황에서 BYE 기지국 참고 위치로 표시합니다. 복수 후보는 MDT 장비 일치 우선, 없으면 첫 후보를 사용합니다.':'MDT 관측 집계가 없습니다.'}</p>}
               <p className={styles.note}>측정일과 인벤토리 파일 날짜가 다릅니다. 고객·통화 분석에서 관측 원값과 비교 근거를 확인할 수 있습니다.</p>
             </div></section>
           </aside>

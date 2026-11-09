@@ -1,0 +1,46 @@
+const assert=require('node:assert/strict');
+const {chromium}=require(process.argv[2]||'playwright');
+const root=(process.argv[3]||'http://127.0.0.1:3019/qoe').replace(/\/$/,'');
+const url=root+'/?variant=improvement2&dateStart=2026-10-26&dateEnd=2026-10-30&mapMode=improvement';
+(async()=>{
+ const browser=await chromium.launch({channel:'msedge',headless:true});
+ try{
+ const p=await browser.newPage({viewport:{width:1440,height:900}});
+ const errors=[],failed=[];
+ p.on('pageerror',e=>errors.push(e.message));
+ p.on('response',r=>{if(r.url().includes('/quality-improvement-full/')&&r.status()!==200)failed.push({status:r.status(),path:r.url().split('/').pop()})});
+ await p.goto(url,{waitUntil:'domcontentloaded'});
+ const list=p.getByRole('region',{name:'조사 후보 지역 목록'});
+ await list.getByRole('button',{name:/후보 지역 8/}).waitFor({timeout:90000});
+ const evidence=p.getByLabel('선택 후보 고객 통화 근거');
+ await evidence.waitFor({timeout:30000});
+ const start=await evidence.innerText();
+ assert(start.includes('미실시'),'all mode must clarify independent test was not run');
+ assert((await evidence.locator('details').count())>=3,'Expected actual customer records in the default full candidate');
+ const candidate=p.getByRole('region',{name:'선택 후보 지역 요약'});
+ assert(!(await candidate.innerText()).includes('일치하지 않습니다.'),'Evidence/summary inconsistency');
+ await list.getByRole('button',{name:/후보 지역 8/}).click();
+ await p.waitForTimeout(500);
+ assert(!(await candidate.innerText()).includes('일치하지 않습니다.'),'Candidate 8 evidence inconsistency');
+ assert((await evidence.locator('details').count())>=3,'Candidate 8 lacks customer evidence');
+ await evidence.locator('details').first().locator('summary').click();
+ assert((await evidence.locator('details').first().innerText()).includes('MOS'),'Customer call evidence not expanded');
+ const map=p.getByLabel('개선 후보 지도').first();
+ await map.locator('.leaflet-container').waitFor();
+ await p.getByRole('button',{name:'지도 전체 화면'}).click();
+ const dialog=p.getByRole('dialog',{name:'개선 2안 조사 후보 지도'});
+ const guide=dialog.getByLabel('조사 후보 지도 알고리즘 설명');
+ await guide.waitFor();
+ assert((await guide.innerText()).includes('현재는 전체 기간 후보 분석 모드')===false,'Detailed note must be collapsed by default');
+ assert((await guide.innerText()).includes('가상 연습용'));
+ await p.keyboard.press('Escape');
+ await p.getByRole('region',{name:'후보 분석 목적 선택'}).getByRole('button',{name:'알고리즘 성능 검증 (기간 분리)'}).click();
+ await list.getByRole('button',{name:/후보 지역 7/}).waitFor({timeout:35000});
+ const oldEvidence=p.getByLabel('선택 후보 고객 통화 근거');
+ await oldEvidence.waitFor();
+ assert((await oldEvidence.innerText()).includes('평가')||(await oldEvidence.innerText()).includes('검증'));
+ assert.deepEqual(failed,[]);
+ assert.deepEqual(errors,[]);
+ console.log(JSON.stringify({pass:true,allModeCustomerEvidence:true,selectedLastCandidate:true,fullscreen:true,evaluationCustomerEvidence:true,errors,failed}));
+ }finally{await browser.close();}
+})().catch(e=>{console.error(e.stack||e.message);process.exitCode=1});

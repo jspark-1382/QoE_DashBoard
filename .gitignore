@@ -64,3 +64,12 @@ next-env.d.ts
 
 # python bytecode from extract/test scripts
 __pycache__/
+
+# isolated voice experience proposal outputs
+/public/voice-improvement-1/
+
+/public/quality-improvement/
+/public/quality-improvement-full/
+/public/quality-models/
+/public/quality-models-full/
+/public/quality-model-simulations/

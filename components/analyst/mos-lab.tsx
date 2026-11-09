@@ -27,7 +27,7 @@ export function MosLab() {
     async function load() {
       try {
         const dataset = await loadDataset('MDT', controller.signal);
-        if (dataset.meta.qoeBasis !== 'rtcp-mos-v5') throw Error('원본 데이터는 10월 30일 RTCP MOS(v5) 형식이어야 합니다.');
+        if (dataset.meta.qoeBasis !== 'rtcp-mos-v5') throw Error('원본 데이터는 10월 30일 RTCP QoE(v5) 형식이어야 합니다.');
         const date = '2026-10-30';
         if (!dataset.meta.dates.includes(date)) throw Error('10월 30일 원본이 없습니다.');
         const overview = await loadOverview(dataset, 'MDT', date, controller.signal);
@@ -78,7 +78,7 @@ export function MosLab() {
     setUploadError(null);
     if (!file) return;
     if (!data.overview) {
-      setUploadError('원본 MOS 데이터가 로딩되지 않았습니다.');
+      setUploadError('원본 QoE 데이터가 로딩되지 않았습니다.');
       return;
     }
     if (file.size > 12 * 1024 * 1024) {
@@ -107,35 +107,35 @@ export function MosLab() {
       <header className={styles.header}>
         <div>
           <Link href="/" className={styles.back}>← 품질 현황</Link>
-          <h1>MOS 알고리즘 비교 연구실</h1>
-          <p>원본 RTCP MOS(v5)를 보존하면서 개선 모델의 산출물을 동일 통화 기준으로 비교합니다.</p>
+          <h1>QoE 알고리즘 비교 연구실</h1>
+          <p>원본 RTCP QoE(v5)를 보존하면서 개선 모델의 산출물을 동일 통화 기준으로 비교합니다.</p>
         </div>
         <div className={styles.status}>10월 30일 기준 · 모델 검증 준비</div>
       </header>
 
-      {data.loading && <output className={styles.notice}>원본 MOS 데이터를 불러오는 중입니다…</output>}
+      {data.loading && <output className={styles.notice}>원본 QoE 데이터를 불러오는 중입니다…</output>}
       {data.error && <div className={styles.error} role="alert">원본 자료를 확인할 수 없습니다: {data.error}</div>}
 
       {totals && (
         <>
-          <section aria-label="원본 MOS v5 기준선" className={styles.baseline}>
+          <section aria-label="원본 QoE v5 기준선" className={styles.baseline}>
             <div className={styles.sectionHeading}>
-              <div><h2>원본 MOS(v5) 기준선</h2><p>비교 전에는 원본만 표시하며 개선 모델의 가상 점수를 생성하지 않습니다.</p></div>
+              <div><h2>원본 QoE(v5) 기준선</h2><p>비교 전에는 원본만 표시하며 개선 모델의 가상 점수를 생성하지 않습니다.</p></div>
               <span className={styles.revision}>원본 버전 {data.overview?.sourceRevision?.slice(0, 10)}</span>
             </div>
             <div className={styles.statGrid}>
               <div className={styles.stat}><span>전체 통화</span><strong>{pretty(data.overview!.calls.length)}</strong><small>원본 CDR</small></div>
-              <div className={styles.stat}><span>유효 MOS</span><strong>{pretty(denominator)}</strong><small>평가 분모</small></div>
-              <div className={styles.stat}><span>불량</span><strong className={styles.red}>{pretty(totals.POOR)}</strong><small>MOS &lt; 3.0</small></div>
-              <div className={styles.stat}><span>주의</span><strong className={styles.amber}>{pretty(totals.WARNING)}</strong><small>3.0 ≤ MOS &lt; 3.5</small></div>
-              <div className={styles.stat}><span>양호</span><strong className={styles.green}>{pretty(totals.GOOD)}</strong><small>MOS ≥ 3.5</small></div>
+              <div className={styles.stat}><span>유효 QoE</span><strong>{pretty(denominator)}</strong><small>평가 분모</small></div>
+              <div className={styles.stat}><span>불량</span><strong className={styles.red}>{pretty(totals.POOR)}</strong><small>QoE &lt; 3.0</small></div>
+              <div className={styles.stat}><span>주의</span><strong className={styles.amber}>{pretty(totals.WARNING)}</strong><small>3.0 ≤ QoE &lt; 3.5</small></div>
+              <div className={styles.stat}><span>양호</span><strong className={styles.green}>{pretty(totals.GOOD)}</strong><small>QoE ≥ 3.5</small></div>
               <div className={styles.stat}><span>미평가</span><strong>{pretty(totals.UNAVAILABLE)}</strong><small>등급 계산 제외</small></div>
             </div>
           </section>
 
-          <section className={styles.uploadPanel} aria-label="MOS 개선 모델 결과 업로드">
+          <section className={styles.uploadPanel} aria-label="QoE 개선 모델 결과 업로드">
             <div className={styles.sectionHeading}>
-              <div><h2>개선 MOS 결과 연결</h2><p>모델 학습·실행은 별도 단계입니다. 이 화면에서는 모델이 생성한 JSON을 읽어 비교합니다.</p></div>
+              <div><h2>개선 QoE 결과 연결</h2><p>모델 학습·실행은 별도 단계입니다. 이 화면에서는 모델이 생성한 JSON을 읽어 비교합니다.</p></div>
               <button type="button" onClick={downloadTemplate} className={styles.secondary}>JSON 입력 양식 받기 (20개 통화)</button>
             </div>
             <div className={styles.workflow}>
@@ -144,7 +144,7 @@ export function MosLab() {
             <div className={styles.uploadRow}>
               <input
                 ref={fileRef}
-                aria-label="개선 MOS JSON 파일"
+                aria-label="개선 QoE JSON 파일"
                 type="file"
                 accept=".json,application/json"
                 onChange={(event) => void onUpload(event.target.files?.[0])}
@@ -154,21 +154,21 @@ export function MosLab() {
                 if (fileRef.current) fileRef.current.value = '';
               }}>비교 결과 초기화</button>}
             </div>
-            <p className={styles.hint}>JSON 필수 속성: <code>algorithmVersion</code>, <code>sourceRevision</code>, <code>date</code>, <code>records: [&#123;callId, mosImproved&#125;]</code>. 개선 MOS는 1~5 또는 null이어야 합니다. 입력 양식의 null을 실제 모델 결과로 바꿔 넣으세요.</p>
+            <p className={styles.hint}>JSON 필수 속성: <code>algorithmVersion</code>, <code>sourceRevision</code>, <code>date</code>, <code>records: [&#123;callId, mosImproved&#125;]</code>. 개선 QoE는 1~5 또는 null이어야 합니다. 입력 양식의 null을 실제 모델 결과로 바꿔 넣으세요.</p>
             <p className={styles.hint}>파일은 브라우저 내에서 비교하며 서버로 업로드하지 않습니다. 통화 ID·원본 버전이 맞지 않거나 중복된 결과는 검증에서 제외 또는 거부합니다.</p>
             {fileName && <p className={styles.fileName}>선택 파일: {fileName}</p>}
             {uploadError && <p role="alert" className={styles.error}>{uploadError}</p>}
             {!comparison && !uploadError && <div className={styles.empty}>
-              <strong>등록된 개선 MOS 모델 결과 없음</strong>
+              <strong>등록된 개선 QoE 모델 결과 없음</strong>
               <p>원본 v5가 현재 기준입니다. 실제 모델 출력을 업로드하면 등급별 변화와 통화별 차이를 분석합니다.</p>
             </div>}
           </section>
 
           {comparison && (
             <>
-              <section className={styles.baseline} aria-label="개선 MOS 비교 결과">
+              <section className={styles.baseline} aria-label="개선 QoE 비교 결과">
                 <div className={styles.sectionHeading}>
-                  <div><h2>모델 비교 · {comparison.algorithmVersion}</h2><p>동일 통화 {pretty(candidateTotal)}건의 원본 MOS와 후보 MOS를 대조했습니다.</p></div>
+                  <div><h2>모델 비교 · {comparison.algorithmVersion}</h2><p>동일 통화 {pretty(candidateTotal)}건의 원본 QoE와 후보 QoE를 대조했습니다.</p></div>
                   <span className={styles.revision}>모델 결과 연동</span>
                 </div>
                 <div className={styles.statGrid}>
@@ -182,7 +182,7 @@ export function MosLab() {
                 <p className={styles.hint}>
                   연결 ID {pretty(comparison.matchedIds)}건 · 미확인 ID {pretty(comparison.unknownIds)}건 · 원본 미평가 {pretty(comparison.unscoredOriginal)}건 · 개선값 미제공 {pretty(comparison.missingCandidate)}건 · 등급 유지 {pretty(comparison.unchanged)}건
                 </p>
-                {candidateTotal === 0 ? <div className={styles.empty}>유효한 MOS 쌍이 없어 비교 통계를 산출할 수 없습니다.</div> : <>
+                {candidateTotal === 0 ? <div className={styles.empty}>유효한 QoE 쌍이 없어 비교 통계를 산출할 수 없습니다.</div> : <>
                   <h3 className={styles.subheading}>동일 통화 기준 품질등급 분포</h3>
                   <div className={styles.legend}><span><i className={styles.originalDot} />원본 v5</span><span><i className={styles.improvedDot} />개선 후보</span></div>
                   <div className={styles.gradeChart}>
@@ -196,7 +196,7 @@ export function MosLab() {
                       </div>
                     ))}
                   </div>
-                  <h3 className={styles.subheading}>MOS 값 차이가 큰 통화 (상위 20개)</h3>
+                  <h3 className={styles.subheading}>QoE 값 차이가 큰 통화 (상위 20개)</h3>
                   <div className={styles.tableScroll}><table><thead><tr><th>통화 ID</th><th>원본 v5</th><th>개선 후보</th><th>값 차이</th><th>등급 변화</th></tr></thead><tbody>
                     {comparison.greatestDifferences.map((row) => (
                       <tr key={row.callId}><td title={row.callId}>{row.callId.slice(0, 18)}…</td><td>{point(row.original)}</td><td>{point(row.candidate)}</td>
@@ -206,7 +206,7 @@ export function MosLab() {
                   </tbody></table></div>
                 </>}
               </section>
-              <aside className={styles.caution}>MOS가 높아졌다는 사실만으로 사용자 체감 음성품질의 실질적인 개선이나 정확도 향상을 입증할 수 없습니다. 독립적인 음성 녹음·주관평가 또는 검증 레이블로 모델을 검증해야 합니다.</aside>
+              <aside className={styles.caution}>QoE가 높아졌다는 사실만으로 사용자 체감 음성품질의 실질적인 개선이나 정확도 향상을 입증할 수 없습니다. 독립적인 음성 녹음·주관평가 또는 검증 레이블로 모델을 검증해야 합니다.</aside>
             </>
           )}
         </>

@@ -1,0 +1,70 @@
+.guide{height:100%;min-height:0;min-width:0;display:flex;flex-direction:column;background:#f7fbff;border-right:1px solid #cedfea;color:#254459;font-size:12px;line-height:1.65}
+.stickyTitle{flex:0 0 auto;padding:17px 19px 13px;background:linear-gradient(135deg,#153950,#226579);color:#f5feff}
+.kicker{font-size:10px;color:#a1f3da;display:flex;align-items:center;gap:6px;font-weight:800}
+.stickyTitle h3{font-size:19px;line-height:1.4;letter-spacing:-.02em;margin:6px 0;font-weight:850}
+.stickyTitle p{font-size:11px;color:#d7edf3;line-height:1.65;margin:0}
+.scrollCue{font-size:10px!important;color:#c3eff4!important;margin:8px 0 0!important;line-height:1.5!important}
+.miniFlow{margin-top:10px;display:flex;gap:4px;align-items:center;flex-wrap:wrap}
+.miniFlow span{font-weight:750;font-size:10px;padding:3px 6px;border:1px solid #ffffff38;border-radius:6px;background:#ffffff18}
+.miniFlow b{color:#96d8e9;font-size:13px}
+.articles{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:14px 13px 0;display:flex;flex-direction:column;gap:12px;scrollbar-width:thin}
+.articles > *{flex:0 0 auto}
+/* The fullscreen explainer is independently scrollable. Never shrink its
+   diagrams/controls to fit the remaining viewport height and silently clip them. */
+.referenceToggle{border:1px solid #dae7ef;border-radius:10px;background:#fff;min-width:0;overflow:hidden}
+.referenceToggle>summary{cursor:pointer;list-style:disclosure-closed;color:#32617b;font-size:12px;font-weight:850;padding:13px 16px;line-height:1.5}
+.referenceToggle[open]>summary{border-bottom:1px solid #e1eaf1;background:#f3f8fb}
+.referenceToggle .step{border-radius:8px}
+.referenceBody{display:flex;flex-direction:column;gap:9px;padding:9px}
+.referenceToggle>.step{border:0}
+
+.step{background:#fff;border:1px solid #dce8ef;border-radius:11px;padding:13px 13px 12px;min-width:0}
+.step h4{display:flex;align-items:center;gap:7px;color:#1e4b64;font-size:14px;line-height:1.45;font-weight:850;margin:0 0 9px}
+.step h4 svg{color:#1a8e9c;flex-shrink:0}
+.stepNum{display:grid;place-items:center;border-radius:7px;background:#dff5f2;color:#147c74;font-weight:900;font-size:11px;height:25px;width:29px;flex-shrink:0}
+.step p{margin:8px 0;font-size:12px;color:#4b6679;line-height:1.8;overflow-wrap:anywhere}
+.step p b{color:#244960}
+.em{color:#146f83;font-weight:800;font-style:normal}
+.rule{display:flex;flex-direction:column;gap:3px;border:1px solid #d3e7ed;background:#f0f8fb;border-radius:9px;padding:9px 11px;margin:8px 0}
+.rule>b{font-size:10px;color:#407286}
+.rule>strong{font-size:14px;color:#176977;font-variant-numeric:tabular-nums}
+.rule span{color:#5e7b8f;font-size:11px;line-height:1.6}
+.actual{border:1px solid #c5e1dc;border-left:3px solid #2aa693;border-radius:8px;background:#f3faf8;margin:9px 0;padding:10px}
+.actual>b{font-size:11px;color:#18796f}
+.actual dl{display:flex;flex-direction:column;gap:6px;margin:8px 0 0}
+.actual dl div{display:grid;grid-template-columns:83px minmax(0,1fr);gap:6px;align-items:start}
+.actual dt{font-size:10px;color:#547987}
+.actual dd{margin:0;word-break:break-word;font-weight:750;color:#235069;font-size:10px;line-height:1.5}
+.note{display:flex;align-items:flex-start;gap:6px;padding:9px;background:#f5f8fb;color:#647d8e!important;border-radius:7px;font-size:11px!important}
+.note svg{flex-shrink:0;margin-top:2px;color:#5e9daf}
+.compare{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin:9px 0}
+.compare>div{border:1px solid #dce8ef;border-radius:7px;padding:9px;display:flex;flex-direction:column;gap:4px;font-size:10px;line-height:1.55}
+.compare b{font-size:11px}
+.compare span{color:#638095}
+.accept{background:#eff9f4;color:#14765f}.reject{background:#fff5ee;color:#9c653c}
+.ruleGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin:10px 0}
+.ruleGrid>div{display:flex;flex-direction:column;align-items:flex-start;padding:9px;border:1px solid #dce9f0;background:#f7fbfe;border-radius:7px;gap:5px}
+.ruleGrid b{font-size:17px;line-height:1.3;color:#1d6684;font-variant-numeric:tabular-nums}
+.ruleGrid span{font-size:10px;color:#68859c;line-height:1.5}
+.step code{font-family:inherit;font-size:10px;color:#255778;background:#edf4f8;padding:3px 4px;word-break:break-word;border-radius:4px}
+.example{border:2px solid #9bd3c5;background:#f8fdfa;border-radius:11px;overflow:hidden}
+.exampleHeading{display:flex;align-items:center;gap:9px;padding:12px 13px;background:#e6f6f0;border-bottom:1px solid #bce5d7;color:#158071}
+.exampleHeading svg{flex-shrink:0}
+.exampleHeading>div{display:flex;flex-direction:column}
+.exampleHeading span{font-size:10px;font-weight:800}
+.exampleHeading h4{font-size:16px;color:#145e55;margin:0;line-height:1.45}
+.exampleBody{padding:12px}
+.exampleStats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;margin-bottom:10px}
+.exampleStats>div{display:flex;flex-direction:column;gap:3px;border:1px solid #cce5dc;border-radius:7px;background:#fff;padding:8px}
+.exampleStats b{font-size:17px;color:#155e61}
+.exampleStats span{font-size:10px;color:#6f8d86}
+.exampleBody p{color:#43675e;font-size:12px;line-height:1.8;margin:8px 0}
+.exampleBody p b{color:#116c65}
+.statusRow{background:#eaf5ef;border-radius:7px;padding:10px;color:#416a60;font-size:11px;line-height:1.5}
+.statusRow strong{color:#167b6d}
+.exampleHelp{padding:0 12px 12px;margin:0;color:#6a9387;font-size:10px;line-height:1.6}
+.conclusion{background:#f5f9fc;border:1px solid #dae7ef;padding:10px;display:flex;flex-direction:column;gap:6px;border-radius:8px}
+.conclusion b{color:#196f83}
+.conclusion span{font-size:11px;color:#537189;line-height:1.6}
+.source{margin:0;padding:12px 17px;flex:0 0 auto;background:#e9f3f8;color:#58798e;font-size:10px;line-height:1.65}
+@media(max-width:900px){.stickyTitle{padding:13px}.stickyTitle h3{font-size:16px}.articles{padding:10px}.step{padding:11px}.source{padding:8px 12px}}

@@ -5,7 +5,7 @@ export const ADAPTIVE_CONFIG = {
   // n=0.75 (very flat, distributed-antenna traces; RMSE 9.5dB), P0=-83.7dBm@100m, and RSRP turns
   // non-monotonic beyond 1.5km so ring distance is capped there.
   referenceDistanceM: 100, referenceRsrpDbm: -83.7, pathlossExponent: 0.75,
-  calibrationLabel: 'LTE+MDT GNSS 23.7k쌍 캘리브레이션(2026-10-14) · 거리 정보 약함',
+  calibrationLabel: 'LTE+MDT GPS 23.7k쌍 캘리브레이션(2026-10-14) · 거리 정보 약함',
   minDistanceM: 20, maxDistanceM: 1500, timeDecayTauSec: 10,
   siteRsrpMode: 'max' as 'max'|'median'|'mean', rsrpWeightDivisor: 20, minRsrpWeight: .1,
   maxSpeedKmh: 200, jumpAction: 'reduce-confidence' as 'reduce-confidence'|'exclude'|'smooth',

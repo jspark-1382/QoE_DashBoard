@@ -143,7 +143,7 @@ export function QualityCustomerPicker({ dataset, overview, from, to, selectedCus
           <output aria-live="polite">{count(result.total)}명</output>
           <span>불량 통화 많은 순 · 25명씩</span>
         </div>
-        <p className={styles.counterNote}>불량: 유효 MOS 3 미만 · 위치: 좌표가 연결된 통화</p>
+        <p className={styles.counterNote}>불량: 유효 QoE 3 미만 · 위치: 좌표가 연결된 통화</p>
         <div className={styles.selectionTools}>
           <button type="button" disabled={!result.rows.length}
             onClick={() => setDraftIds(ids => updateQualityCustomerSelection(ids, result.rows.map(row => row.customerId), !allPageSelected))}>

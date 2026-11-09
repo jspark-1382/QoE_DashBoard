@@ -69,9 +69,9 @@ export function calculateProposalGrades(
   return {
     evaluated, unavailable, mean:evaluated?sum/evaluated:null,
     bands:[
-      make('poor','불량','MOS < 3.0','#e35d64'),
-      make('fair','보통','3.0 ≤ MOS < 3.5','#efa93b'),
-      make('good','양호','MOS ≥ 3.5','#279d78'),
+      make('poor','불량','QoE < 3.0','#e35d64'),
+      make('fair','보통','3.0 ≤ QoE < 3.5','#efa93b'),
+      make('good','양호','QoE ≥ 3.5','#279d78'),
     ],
     hours,
   };

@@ -160,7 +160,7 @@ export function analyzeRootCause(samples: ExecutiveSample[], episode: PoorEpisod
     {
       key: 'interference', label: '간섭 의심 (PCI)', strength: strength(Math.min(lowSinr, normalRsrp), segment.length),
       evidenceCount: Math.min(lowSinr, normalRsrp) + simultaneous,
-      evidence: [`SINR 3 dB 미만 ${lowSinr.toLocaleString()}건`, `RSRP 정상 범위 ${normalRsrp.toLocaleString()}건`, `MOS 동시 저하 ${simultaneous.toLocaleString()}건`],
+      evidence: [`SINR 3 dB 미만 ${lowSinr.toLocaleString()}건`, `RSRP 정상 범위 ${normalRsrp.toLocaleString()}건`, `QoE 동시 저하 ${simultaneous.toLocaleString()}건`],
     },
     {
       key: 'coverage', label: 'Coverage 부족', strength: strength(lowRsrp, segment.length), evidenceCount: lowRsrp,
@@ -183,8 +183,8 @@ export function analyzeRootCause(samples: ExecutiveSample[], episode: PoorEpisod
       strength: strength(mosObserved ? radioNormalLowMos : radioOkLowQoe, segment.length),
       evidenceCount: mosObserved ? radioNormalLowMos : radioOkLowQoe,
       evidence: mosObserved
-        ? [`MOS 2.8 미만 ${lowMos.toLocaleString()}건`, `무선 정상·MOS 저하 ${radioNormalLowMos.toLocaleString()}건`, '단말 자체 상태 데이터 없음']
-        : [`MOS 미측정(MDT) · 무선 정상인데 QoE 3.0 미만 ${radioOkLowQoe.toLocaleString()}건`],
+        ? [`QoE 2.8 미만 ${lowMos.toLocaleString()}건`, `무선 정상·QoE 저하 ${radioNormalLowMos.toLocaleString()}건`, '단말 자체 상태 데이터 없음']
+        : [`QoE 미측정(MDT) · 무선 정상인데 QoE 3.0 미만 ${radioOkLowQoe.toLocaleString()}건`],
     },
   ];
   return causes.sort((a, b) => b.evidenceCount - a.evidenceCount);
@@ -211,7 +211,7 @@ export function buildCustomerJourney(samples: ExecutiveSample[], episode: PoorEp
   const sinrIndex = segmentIndices.filter(index => samples[index].sinr != null).sort((a, b) => samples[a].sinr! - samples[b].sinr!)[0];
   if (sinrIndex != null) events.push({ id: `${episode.id}-sinr`, type: 'signal', time: samples[sinrIndex].time, title: 'SINR 최저', detail: `${samples[sinrIndex].sinr!.toFixed(1)} dB`, sampleIndex: sinrIndex, episodeId: episode.id });
   const mosIndex = segmentIndices.filter(index => samples[index].mos != null).sort((a, b) => samples[a].mos! - samples[b].mos!)[0];
-  if (mosIndex != null) events.push({ id: `${episode.id}-mos`, type: 'mos', time: samples[mosIndex].time, title: 'MOS 최저', detail: samples[mosIndex].mos!.toFixed(2), sampleIndex: mosIndex, episodeId: episode.id });
+  if (mosIndex != null) events.push({ id: `${episode.id}-mos`, type: 'mos', time: samples[mosIndex].time, title: 'QoE 최저', detail: samples[mosIndex].mos!.toFixed(2), sampleIndex: mosIndex, episodeId: episode.id });
 
   const windowStart = Math.max(1, episode.startIndex - 5);
   const windowEnd = Math.min(samples.length - 1, episode.endIndex + 5);

@@ -114,7 +114,7 @@ export function ContractPicker({
                   setPage(0);
                 }}
               />{' '}
-              GNSS 없는 고객만 (0건 확인)
+              GPS 없는 고객만 (0건 확인)
             </label>
           )}
           <label>
@@ -132,7 +132,7 @@ export function ContractPicker({
           </label>
         </div>
         <output className={styles.resultCount}>
-          {result.total.toLocaleString()}개 고객 · 통화 / 관측 / GNSS는 해당
+          {result.total.toLocaleString()}개 고객 · 통화 / 관측 / GPS는 해당
           일자 기준, 미제공은 0건과 다릅니다.
         </output>
         <div className={styles.table}>
@@ -142,7 +142,7 @@ export function ContractPicker({
                 <th>원본 고객번호 / 고객</th>
                 <th>통화</th>
                 <th>관측</th>
-                <th>GNSS</th>
+                <th>GPS</th>
                 <th>선택</th>
               </tr>
             </thead>

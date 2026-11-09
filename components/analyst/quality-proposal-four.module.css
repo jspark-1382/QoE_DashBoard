@@ -346,3 +346,29 @@
   .distributionSelect select{max-width:146px;font-size:10px}
 }
 
+.coverageDetails,.popupEvidence{border:1px solid #dce6ed;border-radius:9px;background:#f8fbfd;padding:10px 14px;color:#50647a;font-size:12px;line-height:1.65}
+.coverageDetails summary,.popupEvidence summary{cursor:pointer;color:#28465d;font-weight:650}
+.coverageDetails summary span{font-weight:400;margin-left:12px;color:#657d8f}
+.coverageDetails p,.popupEvidence p{margin:8px 0 0}
+.investigationScope{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:10px 18px;background:#f3f9fa;border-bottom:1px solid #e0ebed;color:#41616c;font-size:12px}
+.investigationScope button{border:1px solid #d1e2e4;border-radius:5px;background:#fff;padding:5px 9px;color:#3d626d;cursor:pointer}
+.investigationScope button[aria-pressed=true]{background:#e1f3f0;border-color:#70b7aa;color:#176b61}
+.candidateMember{display:block;color:#16837c;font-size:10px;margin-top:3px}
+/* Improvement 2: preserve existing layout for current and improvement 1. */
+.improvementTwo .geography{grid-template-columns:minmax(0,1.95fr) minmax(320px,.65fr)}
+.improvementTwo .mapHost{height:430px;min-height:430px}
+@media(max-width:1100px){.improvementTwo .geography{grid-template-columns:1fr}}
+@media(max-width:680px){.improvementTwo .mapHost{height:315px;min-height:315px}}
+@media(max-width:680px){
+  /* Keep two mode buttons together on their own filter row on narrow screens. */
+  .improvementTwo .mapModeButtons{flex:1 1 100%;width:100%;max-width:100%;min-width:0;margin:0}
+  .improvementTwo .mapModeButtons button{min-width:0;white-space:normal}
+}
+
+/* Red frames identify the executive review's requested functions only in improvement 2. */
+.improvementTwo[data-review-mode="on"] .kpis,.improvementTwo[data-review-mode="on"] .charts,.improvementTwo[data-review-mode="on"] .geography,.improvementTwo[data-review-mode="on"] :global(#qoe-proposal-four-calls){position:relative;outline:3px solid #e12636;outline-offset:2px;border-radius:12px}
+.improvementTwo[data-review-mode="on"] .kpis::before,.improvementTwo[data-review-mode="on"] .charts::before,.improvementTwo[data-review-mode="on"] .geography::before,.improvementTwo[data-review-mode="on"] :global(#qoe-proposal-four-calls)::before{position:absolute;z-index:10;right:12px;top:-11px;padding:3px 9px;border-radius:5px;background:#d82435;color:#fff;font-size:10px;font-weight:800;line-height:1.4;white-space:nowrap;pointer-events:none}
+.improvementTwo[data-review-mode="on"] .kpis::before,.improvementTwo[data-review-mode="on"] .charts::before,.improvementTwo[data-review-mode="on"] .geography::before{content:attr(data-request-label)}
+.improvementTwo[data-review-mode="on"] :global(#qoe-proposal-four-calls)::before{content:"본부장 요구 · 고객별 기간 통화"}
+@media(max-width:680px){.improvementTwo .kpis::before,.improvementTwo .charts::before,.improvementTwo .geography::before,.improvementTwo :global(#qoe-proposal-four-calls)::before{right:7px;font-size:9px}}
+

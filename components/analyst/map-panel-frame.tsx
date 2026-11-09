@@ -8,16 +8,28 @@ interface Props {
   label:string;
   className?:string;
   suspended?:boolean;
-  children:(controls:{expanded:boolean;toggleButton:ReactNode})=>ReactNode;
+  openRequest?:number;
+  fullscreenToolbar?:ReactNode;
+  initiallyExpanded?:boolean;
+  onExpandedChange?:(value:boolean)=>void;
+  children:(controls:{expanded:boolean;toggleButton:ReactNode;close:()=>void})=>ReactNode;
 }
 
 const FOCUSABLE='a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),summary,[tabindex],[contenteditable="true"]';
 
 /** Keeps the map mounted while its existing panel fills the viewport. */
-export function MapPanelFrame({label,className,suspended=false,children}:Props){
-  const [expanded,setExpanded]=useState(false);
+export function MapPanelFrame({label,className,suspended=false,openRequest,fullscreenToolbar,initiallyExpanded=false,onExpandedChange,children}:Props){
+  const [expanded,setExpanded]=useState(initiallyExpanded);
+  useEffect(()=>onExpandedChange?.(expanded),[expanded,onExpandedChange]);
   const frameRef=useRef<HTMLElement|null>(null);
   const toggleRef=useRef<HTMLButtonElement|null>(null);
+  const previousOpenRequest=useRef(openRequest);
+  useEffect(()=>{
+    if(openRequest!==undefined&&openRequest!==previousOpenRequest.current){
+      previousOpenRequest.current=openRequest;
+      setExpanded(true);
+    }
+  },[openRequest]);
 
   useEffect(()=>{
     if(!expanded)return;
@@ -95,6 +107,7 @@ export function MapPanelFrame({label,className,suspended=false,children}:Props){
   return <section ref={frameRef} className={[styles.frame,className,expanded?styles.expanded:''].filter(Boolean).join(' ')}
     aria-label={label} role={expanded?'dialog':undefined} aria-modal={expanded&&!suspended?true:undefined}
     aria-hidden={expanded&&suspended?true:undefined} inert={expanded&&suspended?true:undefined} tabIndex={-1}>
-    {children({expanded,toggleButton})}
+    {expanded&&fullscreenToolbar&&<div className={styles.fullscreenToolbar} aria-label="전체화면 모델 및 분석 설정">{fullscreenToolbar}</div>}
+    {children({expanded,toggleButton,close:()=>setExpanded(false)})}
   </section>;
 }

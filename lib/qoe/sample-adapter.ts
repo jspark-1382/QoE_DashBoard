@@ -31,7 +31,7 @@ export const sampleSnapshot: QoeSnapshot = {
     { key:'interference',label:'Interference 의심',rule:'RSRP 정상 + SINR 낮음',probability:54 },
     { key:'capacity',label:'Capacity 의심',rule:'Radio 정상 + Throughput 낮음',probability:87 },
     { key:'mobility',label:'Mobility / HO 문제',rule:'PCI 빈번 변경',probability:43 },
-    { key:'core',label:'Core / App / Server 문제',rule:'Radio 정상 + MOS 낮음',probability:29 },
+    { key:'core',label:'Core / App / Server 문제',rule:'Radio 정상 + QoE 낮음',probability:29 },
   ],
   journey: [
     {time:'10:01',location:'강남역',pci:101,rsrp:-82,sinr:18,mos:4.3,qoe:4.4,event:'-',x:10},
@@ -55,6 +55,6 @@ export const sampleSnapshot: QoeSnapshot = {
 };
 
 export class SampleQoeAdapter implements QoeDataAdapter {
-  readonly sourceName = 'MOS + PCI 샘플';
+  readonly sourceName = 'QoE + PCI 샘플';
   async loadSnapshot() { return sampleSnapshot; }
 }

@@ -44,7 +44,7 @@ export function reviewAdaptivePosition(
     position.method !== 'MULTILATERATION' ||
     position.siteCount < policy.minDistinctSites ||
     new Set(sites.map(site => site.siteId)).size < policy.minDistinctSites
-  ) reasons.push('독립 기지국 3곳 미만 · 3변 측량 근거 부족');
+  ) reasons.push('독립 기지국 3곳 미만 · 삼각 측량 근거 부족');
   if (cappedSiteFraction > policy.maxCappedSiteFraction)
     reasons.push(`거리 포화 ${cappedSites}/${sites.length}곳 · 거리 구분 불가`);
   if (

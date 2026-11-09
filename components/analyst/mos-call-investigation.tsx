@@ -13,17 +13,17 @@ const num = (v: number) => v.toLocaleString('ko-KR');
 export function MosCallInvestigation({call, samples}: Props) {
   const result = useMemo(() => evaluateCallEvidence(call, samples), [call, samples]);
   return (
-    <section className={styles.panel} aria-label="통화별 MOS 원인 근거 분석">
+    <section className={styles.panel} aria-label="통화별 QoE 원인 근거 분석">
       <div className={styles.heading}>
         <div>
-          <h3>통화별 MOS 원인 근거 분석</h3>
-          <p>RTCP MOS(v5)와 SIP CDR 전송 지표, 연결된 MDT 무선 관측을 함께 확인합니다.</p>
+          <h3>통화별 QoE 원인 근거 분석</h3>
+          <p>RTCP QoE(v5)와 SIP CDR 전송 지표, 연결된 MDT 무선 관측을 함께 확인합니다.</p>
         </div>
         <span className={[styles.grade, styles[result.grade.toLowerCase()]].join(' ')}>{titles[result.grade]}</span>
       </div>
       <div className={styles.topGrid}>
         <div className={styles.score}>
-          <span>원본 RTCP MOS(v5)</span>
+          <span>원본 RTCP QoE(v5)</span>
           <strong>{result.mos == null ? '—' : result.mos.toFixed(3)}</strong>
           <small>불량 &lt; 3.0 · 주의 &lt; 3.5 · 양호 ≥ 3.5</small>
         </div>
@@ -67,9 +67,9 @@ export function MosCallInvestigation({call, samples}: Props) {
           <p className={styles.radioNote}>
             {result.hasRadio
               ? '고객 통화 내 MDT 샘플의 최솟값을 계산했습니다. 기지국 연결은 고객번호·시각 단독 후보이며 최종 식별자 검증이 필요합니다.'
-              : '연계할 수 있는 MDT 무선 샘플이 없어 MOS 저하와 무선 관측을 대조할 수 없습니다.'}
+              : '연계할 수 있는 MDT 무선 샘플이 없어 QoE 저하와 무선 관측을 대조할 수 없습니다.'}
           </p>
-          <Link className={styles.labLink} href="/mos-lab">MOS 모델 비교 연구 화면</Link>
+          <Link className={styles.labLink} href="/mos-lab">QoE 모델 비교 연구 화면</Link>
         </div>
       </div>
     </section>

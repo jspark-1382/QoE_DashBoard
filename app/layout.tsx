@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: '고객체감품질(QoE) 분석 플랫폼',
-  description: 'MOS·PCI·MDT 유사 데이터 기반 로컬 고객체감품질 분석 플랫폼',
+  description: 'QoE·PCI·MDT 유사 데이터 기반 로컬 고객체감품질 분석 플랫폼',
 };
 
 export default function RootLayout({

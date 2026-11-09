@@ -21,6 +21,7 @@ vm.runInThisContext('(function(require,module,exports){' + compiled + '\n})', {
   filename,
 })(require, componentModule, componentModule.exports);
 const DocumentLink = componentModule.exports.default;
+const { withQoeBasePath } = componentModule.exports;
 
 test('document links apply the QoE base path without changing queries or fragments', () => {
   const cases = [
@@ -44,6 +45,7 @@ test('document links apply the QoE base path without changing queries or fragmen
     const element = DocumentLink({ href, children: 'Open' });
     assert.equal(element.type, 'a');
     assert.equal(element.props.href, expected, href);
+    assert.equal(withQoeBasePath(href), expected, 'shared URL helper must match DocumentLink');
     assert.equal(element.props.onClick, undefined, 'navigation must use the browser default');
     assert.equal(element.props.onMouseEnter, undefined, 'navigation must not start framework prefetching');
   }

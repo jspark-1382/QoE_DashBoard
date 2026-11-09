@@ -3,3 +3,24 @@
 .map :global(.leaflet-container){height:100%;width:100%;z-index:1}
 .notice{position:absolute;z-index:500;bottom:34px;left:10px;background:#fffef6e9;border:1px solid #d6c9a1;color:#69593d;border-radius:6px;padding:5px 9px;font-size:11px;max-width:80%}
 .hint{position:absolute;z-index:500;bottom:7px;left:8px;background:#ffffffee;border:1px solid #c8dbe8;color:#46637a;border-radius:6px;padding:4px 7px;font-size:10px;pointer-events:none}
+
+/* Reference layout: genuine candidate labels only (never mock coordinates). */
+.referenceMap :global(.leaflet-tooltip.quality-candidate-label){
+  background:#fff;color:#375d72;border:1px solid #a6bfcd;border-radius:8px;
+  box-shadow:0 2px 8px #2f54642b;padding:6px 10px;font-size:12px;font-weight:800;
+  white-space:nowrap;pointer-events:none;
+}
+.referenceMap :global(.leaflet-tooltip.quality-candidate-label-active){
+  background:#fff;color:#ad2938;border:1.6px solid #db4854;font-size:13px;
+  padding:9px 12px;box-shadow:0 3px 12px #9929322b;z-index:900!important;
+}
+.referenceMap :global(.quality-candidate-radius-label){
+  display:grid;place-items:center;border:1px solid #edb5b9;color:#b72f3b;background:#fff7f8e8;
+  border-radius:5px;font-size:11px;font-weight:850;white-space:nowrap;pointer-events:none;
+}
+.referenceMap .hint{font-size:9px;background:#ffffffdd;max-width:calc(100% - 115px);}
+@media(max-width:700px){
+ .referenceMap :global(.leaflet-tooltip.quality-candidate-label){font-size:10px;padding:4px 7px;}
+ .referenceMap :global(.leaflet-tooltip.quality-candidate-label-active){font-size:11px;padding:6px 8px;}
+}
+

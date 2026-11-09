@@ -9,7 +9,7 @@ const metricRules = {
   rsrp: { label: 'RSRP', threshold: -105, unit: 'dBm' },
   rsrq: { label: 'RSRQ', threshold: -15, unit: 'dB' },
   sinr: { label: 'SINR', threshold: 3, unit: 'dB' },
-  qoe: { label: 'MOS', threshold: 3.0, unit: '' },
+  qoe: { label: 'QoE', threshold: 3.0, unit: '' },
 };
 const measurementColors = {
   poor: '#b64536',

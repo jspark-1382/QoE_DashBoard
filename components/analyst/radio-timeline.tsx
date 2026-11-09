@@ -19,7 +19,7 @@ const bands = [
 ] as const;
 const extraBands = [
   { key: 'rsrq', label: 'RSRQ', unit: 'dB', min: -30, max: 0 },
-  { key: 'mos', label: 'MOS', unit: '점', min: 1, max: 5 },
+  { key: 'mos', label: 'QoE', unit: '점', min: 1, max: 5 },
 ] as const;
 type Band = (typeof bands)[number] | (typeof extraBands)[number];
 export function RadioTimeline({

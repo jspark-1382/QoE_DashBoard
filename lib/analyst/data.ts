@@ -15,9 +15,9 @@ import type {
   LocationSource,
 } from './types';
 export const locationLabels: Record<LocationSource, string> = {
-  gnss: 'GNSS 관측',
+  gnss: 'GPS 관측',
   interpolated: '보간',
-  radio: '무선 추정',
+  radio: '삼각 측량',
   station: '기지국',
   measured: '실측 위치',
   unavailable: '위치 근거 없음',
@@ -228,7 +228,7 @@ export function normalizeDay(
         if(displacement>anchor.movementRadiusM){
           review.accepted=false;
           review.reasons.push(
-            '최근 GNSS 기준 이동 가능 범위 이탈 · '+
+            '최근 GPS 기준 이동 가능 범위 이탈 · '+
             Math.round(displacement)+'m > '+anchor.movementRadiusM+'m',
           );
         }

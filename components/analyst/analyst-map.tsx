@@ -33,6 +33,8 @@ interface Props {
   scoreBand?:'poor'|'fair'|'good';
   /** Zoom-aware clustering of overlapping call locations. */
   clusterOccurrences?: boolean;
+  /** Improvement mode keeps distinct location evidence in separate clusters. */
+  separateEvidence?: boolean;
   onCallLocationSelect?: (callId: string) => void;
   selectedIndex?: number | null;
   selectedCellId?: string | null;
@@ -78,6 +80,7 @@ export function AnalystMap({
   administrativeDongs = EMPTY_ADMIN_DONGS,
   callLocations = EMPTY_CALL_LOCATIONS,
   clusterOccurrences = false,
+  separateEvidence = false,
   scoreBand = 'poor',
   onCallLocationSelect,
   stations = EMPTY_STATIONS,
@@ -218,9 +221,9 @@ export function AnalystMap({
           }).bindTooltip(
             '<b>' + esc(district.label) + '</b><br/>' +
             (cell
-              ? gradeLabel + ' ' + cell.total + '통화 · GNSS/다변측량/BYE 기지국 위치 근거 (지역 불량률 미산출)' +
-                '<br/>위치 근거: GNSS ' + (cell.gnssCalls ?? 0) +
-                '통화 · 3사이트 추정 ' + (cell.estimatedCalls ?? 0) +
+              ? gradeLabel + ' ' + cell.total + '통화 · GPS/삼각 측량/BYE 기지국 위치 근거 (지역 불량률 미산출)' +
+                '<br/>위치 근거: GPS ' + (cell.gnssCalls ?? 0) +
+                '통화 · 삼각 측량 ' + (cell.estimatedCalls ?? 0) +
                 '통화 · BYE Cell 기지국 ' + (cell.byeCellCalls ?? 0) +
                 '통화 (기지국 좌표, 단말 좌표 아님)'
               : '연계된 통화 위치 없음'),
@@ -244,11 +247,14 @@ export function AnalystMap({
             ? map.project([location.lat,location.lon],clusterZoom)
             : null;
           const bucketPx = clusterZoom <= 13 ? 55 : 42;
-          const key = projection
+          const evidenceKey = separateEvidence
+            ? [location.evidence,location.referenceBasis??'',location.positionQuality??''].join(':')+':' : '';
+          const key = evidenceKey + (projection
             ? 'cluster:' + Math.floor(projection.x / bucketPx) + ':' +
-              Math.floor(projection.y / bucketPx)
+              Math.floor(projection.y / bucketPx) +
+              (separateEvidence ? ':' + location.evidence : '')
             : [location.areaId, location.evidence,
-              location.lat.toFixed(5), location.lon.toFixed(5)].join(':');
+              location.lat.toFixed(5), location.lon.toFixed(5)].join(':'));
           const bucket = markerGroups.get(key) ?? [];
           bucket.push(location);
           markerGroups.set(key, bucket);
@@ -264,16 +270,16 @@ export function AnalystMap({
           const position: [number,number] = [point.lat,point.lon];
           focusBounds.push(position);
           const isByeSite = point.evidence==='bye-cell';
-          const label = lastKnown ? '마지막 GNSS 실측 기준점 (통화 종료 실측 위치 아님)' :
-            observed ? 'GNSS 관측 (정확도 미제공)' :
+          const label = lastKnown ? '마지막 GPS 실측 기준점 (통화 종료 실측 위치 아님)' :
+            observed ? 'GPS 관측 (정확도 미제공)' :
             isByeSite ? 'BYE Cell 기지국 위치 (단말 실제 위치 아님)' :
-            roughThreeSite ? '3사이트 근사 조사 권역 중심 (실제 UE 위치 아님)' :
-            '3사이트 무선 추정 (정확도 미검증)';
+            roughThreeSite ? '삼각 측량 근사 조사 권역 중심 (실제 UE 위치 아님)' :
+            '삼각 측량 (정확도 미검증)';
           const count = callsAtPoint.length;
           const uniqueCalls = new Set(callsAtPoint.map(item=>item.callId)).size;
           const isCluster = clusterOccurrences && clusterZoom < 17 && count > 1;
-          const iconSize = isCluster ? 34 : 26;
-          const markerClass = isCluster ? styles.occurrenceGrouped :
+          const iconSize = isCluster && !separateEvidence ? 34 : 26;
+          const markerClass = isCluster && !separateEvidence ? styles.occurrenceGrouped :
             lastKnown ? styles.occurrenceGnssReference :
             observed ? styles.occurrenceGnss :
             isByeSite ? styles.occurrenceByeCell :
@@ -294,7 +300,9 @@ export function AnalystMap({
           popup.appendChild(heading);
           const provenance = document.createElement('p');
           provenance.textContent = isCluster
-            ? 'GNSS/3사이트 추정/BYE Cell 기지국 위치 군집 · 확대 후 개별 근거 확인'
+            ? separateEvidence
+              ? label + ' 군집 · 확대 후 개별 위치 확인'
+              : 'GPS/삼각 측량/BYE Cell 기지국 위치 군집 · 확대 후 개별 근거 확인'
             : `${label} · ${point.lat.toFixed(roughThreeSite?3:6)}, ${point.lon.toFixed(roughThreeSite?3:6)}` +
               (isByeSite
                 ? ` · ${point.byeTechnology==='NR'?'5G (NR) · ':point.byeTechnology==='LTE'?'LTE · ':''}Cell ID ${point.byeCellId??'미제공'} · RU ${point.byeRuId??'미제공'} · ${byeSelectionDescription(point)} · 기지국 위치를 종료 통화의 대표점으로 사용`
@@ -304,7 +312,7 @@ export function AnalystMap({
           popup.appendChild(provenance);
           if(!isCluster && observed && point.possibleRadiusM!=null){
             const info=document.createElement('p');
-            info.textContent='종료 시점 GNSS 실측이 아님 · 최근 GNSS 기준 관측 '+
+            info.textContent='종료 시점 GPS 실측이 아님 · 최근 GPS 기준 관측 '+
               (point.gnssReferenceAgeSec??point.secondsBeforeEnd??0).toFixed(1)+'초 전' +
               ' · 이동 가능 범위 약 '+Math.round(point.possibleRadiusM).toLocaleString()+
               'm (120km/h, 기준점 오차 250m 가정)' +
@@ -318,7 +326,7 @@ export function AnalystMap({
                 radius:point.possibleRadiusM,color:'#078e82',
                 weight:2,dashArray:'5 5',fillOpacity:0.055,
                 fillColor:'#079b86',
-              }).bindTooltip('마지막 GNSS 기준 이동 가능 영역 · 실제 단말 이동경로 아님').addTo(layer);
+              }).bindTooltip('마지막 GPS 기준 이동 가능 영역 · 실제 단말 이동경로 아님').addTo(layer);
               if(point.byeRuId&&point.byeStationLat!=null&&point.byeStationLon!=null){
                 const site:[number,number]=[point.byeStationLat,point.byeStationLon];
                 // The mini-map must include BOTH actual GNSS and the separate BYE site.
@@ -329,7 +337,7 @@ export function AnalystMap({
                 })}).bindTooltip(byeSelectionDescription(point)+' · BYE 기지국 · 단말 위치 아님').addTo(layer);
                 L.polyline([position,site],{
                   color:'#b87a31',weight:2,opacity:.75,dashArray:'3 7',
-                }).bindTooltip('GNSS 기준점–BYE 기지국 연결 · 실제 고객 이동 경로 아님').addTo(layer);
+                }).bindTooltip('GPS 기준점–BYE 기지국 연결 · 실제 고객 이동 경로 아님').addTo(layer);
               }
             }
           }
@@ -344,7 +352,7 @@ export function AnalystMap({
               L.circle(position,{
                 radius:point.roughSearchRadiusM,color:'#ca8a20',
                 dashArray:'7 6',weight:2,fillColor:'#dba34d',fillOpacity:0.025,
-              }).bindTooltip('3사이트 기반 대략 조사 권역 · 정확도 검증 구간 아님').addTo(layer);
+              }).bindTooltip('삼각 측량 기반 대략 조사 권역 · 정확도 검증 구간 아님').addTo(layer);
             }
             if(callLocations.length===1) {
               for(const site of point.usedStations??[]) {
@@ -368,7 +376,7 @@ export function AnalystMap({
               point.estimationMethod === 'MULTILATERATION'
                 ? `3개 이상 독립 사이트 무선 위치 추정 (${point.usedSiteCount} Site)`
                 : point.usedSiteCount === 2
-                  ? '2개 사이트 기반 근사 위치 (3변 측량 아님)'
+                  ? '2개 사이트 기반 근사 위치 (삼각 측량 아님)'
                   : '무선 위치 추정 (방법 미확인)';
             const spread = point.modelUncertaintyM != null &&
               Number.isFinite(point.modelUncertaintyM)
@@ -389,7 +397,7 @@ export function AnalystMap({
             const button = document.createElement('button');
             button.type = 'button';
             button.textContent =
-              `${entry.start} · MOS ${entry.mos == null ? '미평가' : entry.mos.toFixed(2)} · 통화 분석`;
+              `${entry.start} · QoE ${entry.mos == null ? '미평가' : entry.mos.toFixed(2)} · 통화 분석`;
             button.addEventListener('click', () => {
               map.closePopup();
               selectionCallbacks.current.onCallLocationSelect?.(entry.callId);
@@ -461,7 +469,7 @@ export function AnalystMap({
           { color: emphasizeLocationSource?'#098e83':'#63788a', weight: emphasizeLocationSource?2.2:1.5, opacity: emphasizeLocationSource?0.8:0.55 },
         )
           .bindTooltip(
-            'GNSS·실측 관측 연결 · 공백/이상 이동 구간은 연결하지 않음',
+            'GPS·실측 관측 연결 · 공백/이상 이동 구간은 연결하지 않음',
           )
           .addTo(layer);
       }
@@ -479,7 +487,7 @@ export function AnalystMap({
         const sourceName=emphasizeLocationSource
           ? s.locationSource==='radio'?'무선 측량 추정 (실측 아님)'
             : s.locationSource==='interpolated'?'보간 추정 (실측 아님)'
-              : 'GNSS 관측 (실제 제공 좌표)'
+              : 'GPS 관측 (실제 제공 좌표)'
           : locationLabels[s.locationSource];
         const label=sourceName+' '+s.time+' · 표본 '+s.index;
         const method=estimate&&s.estimation
@@ -489,8 +497,8 @@ export function AnalystMap({
           s.lat!.toFixed(6)+', '+s.lon!.toFixed(6)+
           '<br/>RSRP '+(s.rsrp??'미제공')+' dBm · SINR '+(s.sinr??'미제공')+
           ' dB'+method+'<br/>'+
-          (estimate?'추정 좌표로 실제 GNSS 실측 위치가 아닙니다. 정확도 검증 전.':
-            '원본 GNSS/실측 관측 · 측정 정확도 정보 없음')+
+          (estimate?'추정 좌표로 실제 GPS 실측 위치가 아닙니다. 정확도 검증 전.':
+            '원본 GPS/실측 관측 · 측정 정확도 정보 없음')+
           (emphasizeLocationSource&&qualityPoor?'<br/>선택 품질 지표 저하 관측 (빨간 테두리)':'');
         const marker = estimate
           ? L.marker(point, {
@@ -620,13 +628,13 @@ export function AnalystMap({
           color:'#0b8d82',weight:2,dashArray:'6 5',
           fillColor:'#14a397',fillOpacity:0.065,
         }).bindTooltip(
-          '최근 GNSS 관측 기준 이동 가능 영역 (가정)' +
+          '최근 GPS 관측 기준 이동 가능 영역 (가정)' +
           ' · '+age+'초 경과 · 반경 '+radius.toLocaleString()+'m' +
           ' · 위치 정확도나 실제 이동경로를 뜻하지 않음',
         ).addTo(layer);
         L.circleMarker(fix,{renderer:svg,radius:10,color:'#046e64',
           weight:3,dashArray:'3 3',fillColor:'#0b8d82',fillOpacity:.9})
-          .bindTooltip('마지막 GNSS 실측 기준점 · 종료 시각 GNSS 측정 아님')
+          .bindTooltip('마지막 GPS 실측 기준점 · 종료 시각 GPS 측정 아님')
           .addTo(layer);
         if(showStations&&byeSiteCellId){
           const bye=stations.find(site=>site.cellId===byeSiteCellId&&
@@ -636,7 +644,7 @@ export function AnalystMap({
             L.polyline([fix,[bye.latitude,bye.longitude]],{
               color:'#af772f',weight:2,opacity:.75,dashArray:'3 7',
             }).bindTooltip(
-              'GNSS 기준점과 BYE 종료 기지국의 위치 관계만 표시 · 실제 단말 경로가 아닙니다',
+              'GPS 기준점과 BYE 종료 기지국의 위치 관계만 표시 · 실제 단말 경로가 아닙니다',
             ).addTo(layer);
           }
         }
@@ -684,6 +692,7 @@ export function AnalystMap({
     administrativeDongs,
     callLocations,
     clusterOccurrences,
+    separateEvidence,
     clusterZoom,
     scoreBand,
     gradeLabel,

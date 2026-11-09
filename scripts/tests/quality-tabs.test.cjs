@@ -10,7 +10,8 @@ test('main route renders current quality overview, while original remains under 
  assert.match(source,/await searchParams/);
  assert.match(source,/view === 'overview' \|\| view === 'contract'/);
  assert.match(source,/return <AnalystDashboard \/>/);
- assert.match(source,/return <QualityProposalFour \/>/);
+ assert.match(source,/return <QualityProposalFour variant=/);
+ assert(source.includes("?'improvement1':'current'"));
  assert(read('app/overview-proposal-4/page.tsx').includes('<QualityProposalFour />'),
    'keep older bookmarks accessible as an alias');
 });
@@ -25,11 +26,11 @@ test('all active navigation bars use quality overview, legacy, customer and MOS 
    for(const n of [1,2,3])
      assert(!item.includes('href="/overview-proposal-'+n+'"'),'retired tab must be absent');
  }
- const order=['품질 현황','고객·통화 분석','MOS 알고리즘 비교','기지국·PCI','기존안'];
+ const order=['품질 현황','고객·통화 분석','QoE 알고리즘 비교','기지국·PCI','기존안'];
  const positions=order.map(label=>top.indexOf('>'+label));
  assert(positions.every(x=>x>=0),'shared tabs have all requested labels');
  assert(positions.every((x,i)=>i===0||positions[i-1]<x),'legacy must be after MOS');
- assert(fresh.includes('<QualityTopNav active="quality" date={date}/>'));
+ assert(fresh.includes('<QualityTopNav')&&fresh.includes('improvement1')&&fresh.includes('qualityHref'));
  assert(legacy.includes('resolved.view === \'overview\' ? \'legacy\' : \'contract\''));
  assert(mos.includes('active="mos"'));
  assert(legacy.includes('<h1>기존안 · 품질 현황</h1>'));

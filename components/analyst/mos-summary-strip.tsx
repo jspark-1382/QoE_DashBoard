@@ -21,11 +21,11 @@ const grades: {id: ScoreBand; range: string}[] = [
 export function MosSummaryStrip({ analytics, selectedBand, onSelectBand }: Props) {
   const missingRate = pct(analytics.unscored, analytics.total);
   return (
-    <section className={styles.panel} aria-label="MOS 품질 등급별 종합 현황">
+    <section className={styles.panel} aria-label="QoE 품질 등급별 종합 현황">
       <div className={styles.heading}>
         <div>
-          <h2>RTCP MOS(v5) 품질등급</h2>
-          <p>10월 30일 SIP CDR · 원본 MOS 기준, 등급을 누르면 해당 통화로 필터링됩니다.</p>
+          <h2>RTCP QoE(v5) 품질등급</h2>
+          <p>10월 30일 SIP CDR · 원본 QoE 기준, 등급을 누르면 해당 통화로 필터링됩니다.</p>
         </div>
         <span className={styles.source}>원본 v5 · 고정 기준 3.0 / 3.5</span>
       </div>
@@ -52,13 +52,13 @@ export function MosSummaryStrip({ analytics, selectedBand, onSelectBand }: Props
           );
         })}
         <div className={styles.missing}>
-          <span className={styles.name}><i className={styles.dot} aria-hidden="true" />미평가<small>MOS ‘_’ / 누락</small></span>
+          <span className={styles.name}><i className={styles.dot} aria-hidden="true" />미평가<small>QoE ‘_’ / 누락</small></span>
           <strong>{number(analytics.unscored)}<span> 통화</span></strong>
           <span className={styles.percent}>전체 통화 대비 {missingRate}</span>
         </div>
       </div>
       <p className={styles.footnote}>
-        불량률·주의율의 분모는 유효 MOS {number(analytics.evaluated)}건입니다.
+        불량률·주의율의 분모는 유효 QoE {number(analytics.evaluated)}건입니다.
         미평가 {number(analytics.unscored)}건은 불량·양호로 간주하지 않습니다.
       </p>
     </section>

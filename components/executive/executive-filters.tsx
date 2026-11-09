@@ -56,7 +56,7 @@ export function ExecutiveFilters({ customers, customerId, date, dates, site, sit
     </FilterField>
     <FilterField label="서비스" icon={<Waves />}>
       <select aria-label="서비스" value="Voice" disabled><option>Voice</option></select>
-      <b>{source === 'MDT' ? 'MDT 통화 기록 · MOS 없음' : 'MOS 실측 서비스'}</b>
+      <b>{source === 'MDT' ? 'MDT 통화 기록 · QoE 없음' : 'QoE 실측 서비스'}</b>
     </FilterField>
     <FilterField label="데이터 구분" icon={<Radio />}>
       <select aria-label="MDT 또는 실측" value={source} onChange={event => onSourceChange(event.target.value as '실측' | 'MDT')}>

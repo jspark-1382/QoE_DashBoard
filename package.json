@@ -37,7 +37,11 @@
     "build:local": "vinext build --mode local-preview",
     "start": "wrangler dev --config dist/server/wrangler.json",
     "lint": "oxlint",
-    "format": "oxfmt"
+    "format": "oxfmt",
+    "data:voice-improvement-1": "node scripts/build-voice-improvement-1-input.cjs --out-dir outputs/voice-improvement-1-input && python scripts/build_voice_improvement_1.py --input outputs/voice-improvement-1-input/input.json --out-dir public/voice-improvement-1 --all-ranges",
+    "test:voice-improvement-1": "node --test scripts/tests/voice-improvement-1-*.test.cjs && python -B -m unittest discover -s scripts/tests -p test_voice_improvement_1.py",
+    "data:quality-improvement": "node scripts/export-quality-improvement.cjs",
+    "test:quality-improvement": "node --test scripts/tests/quality-comparison-state.test.cjs scripts/tests/quality-improvement*.test.cjs"
   },
   "dependencies": {
     "@base-ui/react": "1.7.0",

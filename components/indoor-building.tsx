@@ -13,7 +13,7 @@ type Props = {
   onFloorChange: (code: string) => void;
 };
 
-const metricLabel: Record<IndoorMetric, string> = { qoe: 'QoE', mos: 'MOS', rsrp: 'RSRP', rsrq: 'RSRQ', sinr: 'SINR' };
+const metricLabel: Record<IndoorMetric, string> = { qoe: 'QoE', mos: 'QoE', rsrp: 'RSRP', rsrq: 'RSRQ', sinr: 'SINR' };
 
 function quality(value: number | null, metric: IndoorMetric) {
   if (value == null) return { color: '#526a7a', className: 'none' };
@@ -77,7 +77,7 @@ export function IndoorBuilding({ data, metric, buildingName, floorCode, onBuildi
       <aside className="floor-inspector">
         <header><span className="floor-badge">{selected.code}</span><div><b>{selected.name}</b><small>{building.name}</small></div><i className={quality(selected[metric], metric).className} /></header>
         <div className="floor-primary"><span>{metricLabel[metric]} 층 평균</span><strong>{metricValue(selected, metric)}</strong><small>저품질 측정 비율 {selected.poorRate}%</small></div>
-        <div className="floor-kpis"><div><span>RSRP</span><b>{selected.rsrp?.toFixed(1) ?? '-'}<small>dBm</small></b></div><div><span>SINR</span><b>{selected.sinr?.toFixed(1) ?? '-'}<small>dB</small></b></div><div><span>MOS</span><b>{selected.mos?.toFixed(2) ?? '-'}</b></div><div><span>QoE</span><b>{selected.qoe?.toFixed(2) ?? '-'}</b></div></div>
+        <div className="floor-kpis"><div><span>RSRP</span><b>{selected.rsrp?.toFixed(1) ?? '-'}<small>dBm</small></b></div><div><span>SINR</span><b>{selected.sinr?.toFixed(1) ?? '-'}<small>dB</small></b></div><div><span>QoE</span><b>{selected.mos?.toFixed(2) ?? '-'}</b></div><div><span>QoE</span><b>{selected.qoe?.toFixed(2) ?? '-'}</b></div></div>
         <div className="pci-floor-list"><h4><Signal /> 주요 PCI</h4>{selected.topPcis.slice(0, 3).map(cell => <div key={`${cell.rat}-${cell.pci}`}><span><i className={cell.rat === 'NR5G' ? 'nr' : ''}>{cell.rat === 'NR5G' ? '5G' : 'L'}</i>PCI {cell.pci}</span><b>{cell.samples.toLocaleString()}건</b><em>QoE {cell.qoe?.toFixed(2) ?? '-'}</em></div>)}</div>
         <p><Layers3 /> 건물의 층 표시를 선택하면 해당 층 무선 품질과 주요 PCI가 표시됩니다.</p>
       </aside>

@@ -1,0 +1,337 @@
+.workspace{display:flex;flex-direction:column;gap:12px;min-width:0}
+.kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.kpis>div{background:#fff;border:1px solid #dae6ef;border-radius:12px;min-width:0;padding:13px 16px;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:4px 12px}
+.kpis span{color:#54718a;font-size:12px;font-weight:750;display:flex;align-items:center;gap:6px;min-width:0}
+.kpis span svg{color:#258cab;flex-shrink:0}
+.kpis strong{font-size:24px;font-weight:850;color:#1d405b;white-space:nowrap}
+.kpis small{grid-column:1/-1;color:#778b9f;font-size:10px;line-height:1.55}
+.workspaceGrid{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(390px,.85fr);gap:13px;align-items:start}
+:global([data-review-mode="on"]) .workspaceGrid{outline:3px solid #e12636;outline-offset:3px;border-radius:12px;position:relative}
+:global([data-review-mode="on"]) .workspaceGrid::before{content:"본부장 요구 · 위치 및 고객 조사";position:absolute;top:-11px;right:12px;z-index:10;border-radius:5px;background:#d82435;color:#fff;padding:3px 8px;font-size:10px;font-weight:800;pointer-events:none}
+.mapColumn{min-width:0;position:sticky;top:78px;display:flex;flex-direction:column;gap:9px}
+.mapPanel{display:flex;flex-direction:column;background:#fff;border:1px solid #dce8f2;border-radius:13px;height:clamp(545px,72vh,740px);min-width:0;overflow:hidden}
+.mapHeading{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:15px 17px 8px;flex-shrink:0}
+.mapHeading h2{display:flex;align-items:center;gap:7px;color:#1c4660;font-size:15px;margin:0 0 4px;font-weight:850}
+.mapHeading h2 svg{color:#2091a5}
+.mapHeading p{font-size:11px;color:#71889a;margin:0;line-height:1.45}
+/* Always retain a stable Leaflet map host while fullscreen toggles.
+   Only fullscreen reveals the independent, scrollable algorithm rail. */
+.fullscreenWorkspace{display:flex;flex:1 1 0;min-height:0;min-width:0;overflow:hidden}
+.algorithmRail{width:0;flex:0 0 0;min-width:0;overflow:hidden}
+.algorithmRail[hidden]{display:none}
+.fullscreenWorkspace[data-expanded="true"] .algorithmRail{display:block;flex:0 0 clamp(360px,31vw,500px);width:auto;height:100%;overflow:hidden}
+.fullscreenMapArea{flex:1 1 0;min-width:0;min-height:0;display:flex;flex-direction:column}
+.fullscreenWorkspace[data-expanded="true"] .mapSurface{min-height:0}
+@media(max-width:960px){
+  .fullscreenWorkspace[data-expanded="true"] .algorithmRail{flex-basis:clamp(320px,39vw,360px)}
+}
+@media(max-width:700px){
+  .fullscreenWorkspace[data-expanded="true"]{flex-direction:column}
+  .fullscreenWorkspace[data-expanded="true"] .algorithmRail{flex:0 0 42%;height:42%;width:100%;border-right:0;border-bottom:1px solid #dce7ef}
+  .fullscreenWorkspace[data-expanded="true"] .fullscreenMapArea{flex:1 1 0;min-height:0}
+  .fullscreenWorkspace[data-expanded="true"] .mapLegend{padding:6px 12px}
+}
+.mapLegend{display:flex;flex-wrap:wrap;align-items:center;gap:7px 14px;padding:8px 17px 11px;border-bottom:1px solid #edf2f7;font-size:10px;color:#5b7388;flex-shrink:0}
+.mapLegend span{display:flex;align-items:center;gap:5px}
+.mapLegend i{display:inline-block;width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.selectedDot{background:#f5bd42;border:2px solid #ab650e}
+.otherDot{background:#98afbe;border:1px solid #fff}
+.gnssDot{background:#e7a13d}
+.verifiedDot{background:#13a890}
+.radioDot{background:#8376c5}
+.mapSurface{flex:1;position:relative;min-height:0;margin:10px 12px;border-radius:8px;overflow:hidden}
+.mapBottom{margin:0;padding:11px 16px;color:#72859a;font-size:10px;line-height:1.5;flex-shrink:0}
+.mapHelp{border:1px solid #dee8ef;border-radius:9px;background:#fff;padding:10px 13px;color:#678094;font-size:11px}
+.mapHelp summary{cursor:pointer;display:flex;align-items:center;gap:6px;font-weight:750;color:#3e6179}
+.mapHelp p{font-size:11px;line-height:1.65;margin:9px 0 2px}
+.inspectPanel{min-width:0;display:flex;flex-direction:column;gap:11px}
+.regionList,.selectedRegion,.customerPanel{min-width:0;border:1px solid #dce8f2;background:#fff;border-radius:12px;overflow:visible}
+.regionList>header,.customerPanel>header{padding:14px 14px 9px}
+.regionList h2,.customerPanel h2{font-size:14px;font-weight:850;color:#24475e;margin:0 0 4px;display:flex;gap:6px;align-items:center}
+.regionList h2 span{background:#eaf3f8;border-radius:7px;padding:3px 7px;font-size:11px;color:#2b6986}
+.regionList header p,.customerPanel header p{font-size:10px;line-height:1.5;color:#8495a5;margin:0}
+.regionRows{padding:0 9px 10px;display:flex;flex-direction:column;gap:5px}
+.regionRow{display:flex;align-items:center;gap:9px;border:1px solid #e4ecf2;border-radius:8px;min-width:0;width:100%;text-align:left;background:#fbfdff;color:#314d63;cursor:pointer;padding:8px 7px}
+.regionRow:hover{background:#f2f8ff;border-color:#a5cadf}
+.regionRow:focus-visible{outline:3px solid #168da4;outline-offset:2px}
+.regionRow[aria-pressed="true"]{border-color:#29a99c;background:#edf9f5;box-shadow:inset 3px 0 #20aa9b}
+.regionNo{font-size:11px;border-radius:7px;width:25px;height:27px;flex-shrink:0;background:#e7eff5;color:#3f718e;display:grid;place-items:center;font-weight:850}
+.regionRow[aria-pressed="true"] .regionNo{background:#c9eee3;color:#146f61}
+.regionCopy{display:flex;flex-direction:column;min-width:0;gap:3px;flex:1}
+.regionCopy b{font-size:11px;line-height:1.35;white-space:normal}
+.regionCopy small{color:#7891a5;font-size:10px;line-height:1.3}
+.regionState{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;border-radius:5px;padding:4px 6px;font-size:9px;font-weight:800;line-height:1.35;text-align:center;background:#edf4fb;color:#3b6c94}
+.regionState[data-tone="repeat"]{background:#dff7ed;color:#148169}
+.regionState[data-tone="review"]{background:#fff0d9;color:#95611b}
+.regionState[data-tone="pending"]{background:#edf1f5;color:#6d8296}
+.rowArrow{flex-shrink:0;color:#a4b5c3}
+.empty{font-size:12px;color:#8293a5;padding:15px}
+.selectedRegion{border-color:#a8d9d4;padding:14px}
+.selectedHeading{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.selectedHeading small{font-size:10px;color:#178779;font-weight:800}
+.selectedHeading h2{font-size:15px;color:#154c5a;margin:3px 0 0;line-height:1.4}
+.summaryMetrics{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:13px}
+.summaryMetrics>div{display:flex;flex-direction:column;gap:5px;background:#f5f9fc;border:1px solid #e2edf4;border-radius:7px;padding:9px 11px}
+.summaryMetrics span{font-size:10px;color:#728a9b;font-weight:700}
+.summaryMetrics strong{font-size:19px;color:#244960;font-variant-numeric:tabular-nums}
+.locationSource{font-size:11px;font-weight:700;color:#466d81;margin:11px 0 0;line-height:1.6}
+.locationSource small{font-weight:500;color:#7a94a5}
+.interpretation{padding:10px 11px;background:#f0f8f5;border-left:3px solid #23a58c;color:#435f58;font-size:11px;line-height:1.7;margin:12px 0}
+.interpretation strong{color:#146e60;white-space:nowrap}
+.coordinate{display:block;color:#7b8da1;font-size:10px;line-height:1.5}
+.error{padding:9px;border:1px solid #eab7aa;background:#fff4f3;display:flex;gap:6px;color:#9d3b31;font-size:11px;margin-top:9px}
+.customerPanel{padding-bottom:14px}
+.customerPanel>header h2 svg{color:#188f97}
+.customerPanel :global([aria-label="후보별 고객 통화 및 반복 검증"]){margin:0 13px 11px}
+.loading{color:#647b90;font-size:11px;padding:13px}
+.investigate{display:flex;align-items:center;justify-content:center;gap:6px;margin:9px 13px 0;width:calc(100% - 26px);border:1px solid #137e90;border-radius:8px;padding:11px 10px;background:#167f95;color:#fff;font-size:12px;font-weight:800;cursor:pointer}
+.investigate:hover{background:#0d6b7e}
+.investigate:focus-visible{outline:3px solid #40c7b3;outline-offset:2px}
+.rawDetail{margin:12px 13px 0;border:1px solid #dce8ef;border-radius:8px;background:#f8fbfd;color:#3d6780;padding:11px}
+.rawDetail>summary{font-size:11px;font-weight:780;cursor:pointer}
+.rawDetail :global([aria-label="선택 개선 후보 상세 근거"]){overflow:visible;max-height:none;flex:none}
+.customerEvidence{min-width:0}
+.customerCounts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;padding-top:3px}
+.customerCounts>div{border:1px solid #ddebf1;background:#f7fbfd;border-radius:7px;padding:8px;display:flex;flex-direction:column;gap:5px;min-width:0}
+.customerCounts span{font-size:10px;color:#69849b;line-height:1.4}
+.customerCounts strong{font-size:15px;color:#24506c}
+.customerNote{margin:10px 0;color:#59758b;font-size:10px;line-height:1.6;display:flex;gap:6px}
+.customerNote>svg{flex-shrink:0;color:#2493a1}
+.customerRows{display:flex;flex-direction:column;gap:6px}
+.customerRow{border:1px solid #dfeaf2;border-radius:8px;background:#fff;min-width:0}
+.customerRow[open]{background:#f8fbfe;border-color:#a7cfd9}
+.customerRow summary{display:flex;align-items:center;gap:7px;padding:9px 10px;cursor:pointer;list-style:none}
+.customerRow summary::-webkit-details-marker{display:none}
+.customerRow summary>svg{flex-shrink:0;color:#7d9aae;transition:transform .15s}
+.customerRow[open] summary>svg{transform:rotate(180deg)}
+.customerAlias{font-size:10px;color:#197f86;font-weight:850;background:#e8f5f3;padding:5px 6px;border-radius:5px;flex-shrink:0}
+.customerFacts{display:flex;flex-direction:column;gap:3px;min-width:0;flex:1;color:#395c75;font-size:10px;font-weight:750;line-height:1.4}
+.customerFacts small{color:#8193a3;font-size:9px;font-weight:500}
+.customerRepeat{color:#8a6972;font-size:9px;white-space:nowrap}
+.customerDetails{padding:0 9px 8px}
+.customerCall{border-top:1px solid #e0ebf0;padding:8px 3px;display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px;font-size:10px;color:#45687c}
+.customerCall b{color:#2b5570}
+.customerCall small{color:#698b9d}
+.evidenceNotice{margin:11px 0 0;padding:9px;background:#f3f7fa;border-radius:6px;color:#778b9c;font-size:10px;line-height:1.6}
+.explain{font-size:11px;line-height:1.5;color:#778a9b;margin:0;padding:2px}
+@media(max-width:1260px){.workspaceGrid{grid-template-columns:minmax(0,1.25fr) minmax(350px,1fr)}.regionState{font-size:9px}}
+@media(max-width:1020px){.workspaceGrid{grid-template-columns:minmax(0,1fr)}.mapColumn{position:static}.mapPanel{height:550px}.inspectPanel{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}.customerPanel{grid-column:1/-1}}
+@media(max-width:690px){.kpis{grid-template-columns:minmax(0,1fr)}.kpis>div{padding:11px 14px}.workspaceGrid{gap:10px}.mapPanel{height:420px}.inspectPanel{display:flex;flex-direction:column}.inspectPanel>*{width:100%}.regionRows{display:grid;grid-template-columns:1fr}.regionState{max-width:105px}.mapLegend{gap:8px}.mapHeading{padding:12px}.mapHeading h2{font-size:13px}.mapHeading p{font-size:10px}.mapSurface{margin:7px}.mapBottom{padding:8px 11px}}
+
+/* Candidate-page redesign: match Quality Overview map + right evidence structure. */
+.workspace{gap:9px}
+.kpis{gap:9px}
+.kpis>div{padding:11px 14px;grid-template-columns:minmax(0,1fr) auto;gap:2px 9px;border-radius:10px;min-height:69px}
+.kpis span{font-size:11px}
+.kpis strong{font-size:22px}
+.kpis small{font-size:9px;line-height:1.35}
+.workspaceGrid{grid-template-columns:minmax(0,1.67fr) minmax(365px,.9fr);gap:10px;align-items:start}
+.mapPanel{height:clamp(505px,65vh,690px);border-radius:11px}
+.mapHeading{padding:11px 13px 7px}
+.mapHeading h2{font-size:14px}
+.mapHeading p{font-size:10px}
+.mapLegend{padding:6px 13px 8px}
+.mapSurface{margin:7px 9px}
+.mapBottom{padding:6px 12px;font-size:9px;line-height:1.4}
+.inspectPanel{gap:8px}
+.regionList,.selectedRegion,.customerPanel{border-radius:10px}
+.regionList{overflow:hidden}
+.regionList>header{padding:10px 12px 8px}
+.regionList h2{font-size:13px}
+.regionList header p{font-size:9px}
+.regionRows{max-height:215px;overflow-y:auto;overscroll-behavior:contain;padding:0 8px 8px;gap:4px;scrollbar-width:thin}
+.regionRow{padding:7px 6px;gap:7px}
+.regionRow .regionNo{height:24px;width:23px}
+.regionCopy b{font-size:10px}
+.regionCopy small{font-size:9px}
+.regionState{font-size:9px;max-width:94px}
+.selectedRegion{padding:10px 12px}
+.selectedHeading h2{font-size:13px}
+.summaryMetrics{margin-top:8px;gap:5px}
+.summaryMetrics>div{padding:7px 9px;gap:3px}
+.summaryMetrics span{font-size:9px}
+.summaryMetrics strong{font-size:16px}
+.locationSource{font-size:10px;margin-top:8px}
+.interpretation{padding:8px 9px;font-size:10px;margin:8px 0}
+.customerPanel>header{padding:10px 12px 7px}
+.customerPanel h2{font-size:12px}
+.customerPanel header p{font-size:9px}
+.inspectPanel[data-detail-tab="summary"] .customerPanel :global([aria-label="선택 후보 고객 통화 근거"]){max-height:168px;overflow-y:auto;scrollbar-width:thin}
+.detailTabs{display:flex;align-items:center;gap:4px;min-width:0;padding:5px;border:1px solid #dce8ef;border-radius:9px;background:#fff}
+.detailTabs button{flex:1;min-width:0;cursor:pointer;border:0;border-radius:6px;background:transparent;color:#617f90;padding:8px 5px;font-size:10px;line-height:1.4;font-weight:800}
+.detailTabs button[aria-selected="true"]{background:#e2f7f1;color:#137c6d;box-shadow:inset 0 -2px #2bb1a0}
+.detailTabs button:focus-visible{outline:3px solid #3abca8;outline-offset:1px}
+.rfPanel{background:#fff;border:1px solid #dce8ef;border-radius:10px;padding:12px;min-width:0}
+.rfPanel h3{margin:0 0 7px;font-size:13px;color:#224f67}
+.rfPanel p{font-size:10px;line-height:1.6;color:#607e90}
+.rfFacts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin:10px 0}
+.rfFacts>span{display:flex;flex-direction:column;gap:6px;background:#f1f8fb;border:1px solid #e0edf2;border-radius:7px;padding:8px;font-size:9px;color:#66849a}
+.rfFacts b{font-size:13px;color:#2a5369}
+@media(max-width:1260px){.workspaceGrid{grid-template-columns:minmax(0,1.3fr) minmax(350px,1fr)}}
+@media(max-width:1020px){.workspaceGrid{grid-template-columns:minmax(0,1fr)}.mapColumn{position:static}.mapPanel{height:530px}.inspectPanel{display:flex;flex-direction:column}}
+@media(max-width:690px){.kpis{grid-template-columns:minmax(0,1fr)}.mapPanel{height:440px}.regionRows{max-height:230px}.inspectPanel>*{width:100%}.rfFacts{grid-template-columns:repeat(3,minmax(0,1fr))}}
+
+
+/* Fullscreen map interpretation rail, based on the approved left-panel mockup. */
+.mapPanel[role="dialog"] .mapHeading{position:absolute;top:8px;right:9px;z-index:900;margin:0;padding:0;border:0;background:transparent;max-height:none;overflow:visible}
+.mapPanel[role="dialog"] .mapHeading>div{display:none}
+.mapPanel[role="dialog"] .mapHeading button{background:#fff;box-shadow:0 2px 7px #254c6425}
+.mapPanel[role="dialog"] .fullscreenWorkspace{height:100%;flex:1 1 0}
+.fullscreenWorkspace[data-expanded="true"] .algorithmRail{display:flex;flex-direction:column;background:#fff;border-right:1px solid #dce8ef}
+.railFixed{flex:0 0 auto;min-width:0;max-height:63%;overflow-y:auto;background:#fff;scrollbar-width:thin}
+.railTitle{padding:15px 16px 9px}
+.railTitle h2{display:flex;gap:8px;align-items:center;margin:0;color:#214d68;font-size:17px;font-weight:850;line-height:1.35}
+.railTitle h2 svg{color:#168ea4;flex:none}
+.railTitle p{font-size:10px;line-height:1.5;color:#71899b;margin:7px 0 0}
+.algorithmRail .mapLegend{border:0;padding:7px 16px 10px;gap:8px 12px;font-size:10px}
+.railSelected{margin:4px 13px 12px;border:1px solid #d4e5ed;border-radius:10px;overflow:hidden;background:#fafeff}
+.railSelectedTitle{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:9px 11px;border-bottom:1px solid #e5edf2}
+.railSelectedTitle strong{font-size:12px;line-height:1.4;color:#21506a;min-width:0;overflow-wrap:anywhere}
+.railSelectedTitle>span{flex:none;border:1px solid #a8decc;background:#e4f7ef;color:#167e64;padding:3px 6px;font-size:9px;font-weight:800;border-radius:6px}
+.railStats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));padding:10px 6px;gap:0}
+.railStats>div{display:flex;flex-direction:column;gap:5px;align-items:center;text-align:center;padding:0 3px}
+.railStats>div+div{border-left:1px solid #dbe7ee}
+.railStats span{font-size:9px;white-space:normal;line-height:1.35;color:#7390a3}
+.railStats b{font-size:14px;color:#234e68;font-variant-numeric:tabular-nums}
+.railTabs{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:3px;padding:5px 12px 9px}
+.railTabs button{min-width:0;background:#f4f8fb;color:#5e7f91;border:1px solid #e2ebf0;border-radius:7px;padding:9px 2px;font-size:10px;font-weight:800;line-height:1.25;cursor:pointer}
+.railTabs button[aria-selected="true"]{color:#117c73;background:#dff6f0;border-color:#58c2b2}
+.railTabs button:focus-visible{outline:3px solid #38adad;outline-offset:1px}
+.railContent{display:flex;flex:1 1 0;min-height:0;min-width:0;overflow:hidden;border-top:1px solid #e3edf2}
+.railContent .guide{flex:1;min-width:0;border:0}
+.railMapMeaning{height:100%;overflow-y:auto;overscroll-behavior:contain;padding:16px;background:#f8fcfe}
+.railMapMeaning h3{font-size:14px;color:#205069;margin:0 0 12px}
+.railMapMeaning p{font-size:11px;line-height:1.8;color:#4e6f82;background:#fff;border:1px solid #dce8ef;padding:11px;border-radius:8px}
+.mapPanel[role="dialog"] .mapSurface{margin:8px;border-radius:10px}
+.mapPanel[role="dialog"] .fullscreenMapArea{min-height:0}
+@media(max-width:700px){
+ .fullscreenWorkspace[data-expanded="true"] .algorithmRail{flex:0 0 56%;height:56%;width:100%;border-right:0}
+ .railTitle{padding:9px 11px 4px}
+ .railTitle h2{font-size:15px}
+ .railTitle p{font-size:9px;margin:3px 0 0}
+ .algorithmRail .mapLegend{padding:5px 11px;gap:4px 9px}
+ .railSelected{margin:4px 10px 7px}
+ .railSelectedTitle{padding:6px 9px}
+ .railStats{padding:7px 5px}
+ .railStats b{font-size:12px}
+ .railStats span{font-size:8px}
+ .railTabs{padding:4px 9px 6px}
+ .railTabs button{font-size:9px;padding:6px 2px}
+ .railFixed{max-height:64%}
+ .mapPanel[role="dialog"] .mapHeading{top:6px;right:7px}
+}
+
+
+/* Reference-image matched full-screen panel: one card, three tabs, bottom actions. */
+.fullscreenWorkspace[data-expanded="true"] .algorithmRail{
+ flex:0 0 clamp(390px,31vw,510px);width:auto;display:flex;flex-direction:column;
+ background:#fff;
+}
+.mapPanel[role="dialog"] .railFixed{flex:0 0 auto;max-height:62%;overflow-y:auto;background:#fff;}
+.mapPanel[role="dialog"] .railTitle{padding:24px 20px 10px;}
+.mapPanel[role="dialog"] .railTitle h2{font-size:22px;font-weight:850;letter-spacing:-.6px;}
+.mapPanel[role="dialog"] .railTitle h2 svg{width:25px;height:25px;}
+.mapPanel[role="dialog"] .railTitle p{font-size:12px;line-height:1.6;margin-top:7px;}
+.mapPanel[role="dialog"] .algorithmRail .mapLegend{padding:16px 18px 15px;gap:9px 15px;font-size:11px;}
+.mapPanel[role="dialog"] .railSelected{margin:12px 16px 20px;border-radius:12px;box-shadow:0 1px 4px #265e8212;}
+.mapPanel[role="dialog"] .railSelectedTitle{padding:15px 14px 14px;gap:7px;}
+.mapPanel[role="dialog"] .railSelectedTitle strong{font-size:15px;line-height:1.45;display:flex;gap:8px;align-items:center;}
+.mapPanel[role="dialog"] .railSelectedTitle strong::before{
+ content:"";height:11px;width:11px;background:#d83d4b;border-radius:50%;
+ border:5px solid #ffdddd;box-sizing:content-box;flex-shrink:0;
+}
+.mapPanel[role="dialog"] .railSelectedTitle>span{font-size:10px;padding:6px 8px;}
+.mapPanel[role="dialog"] .railStats{padding:19px 7px 18px;}
+.mapPanel[role="dialog"] .railStats span{font-size:10px;}
+.mapPanel[role="dialog"] .railStats b{font-size:19px;}
+.mapPanel[role="dialog"] .railTabs{grid-template-columns:repeat(3,minmax(0,1fr));padding:0 17px 12px;gap:6px;}
+.mapPanel[role="dialog"] .railTabs button{font-size:12px;padding:13px 6px;border-radius:9px;}
+.mapPanel[role="dialog"] .railContent{flex:1 1 0;overflow-y:auto;display:block;scrollbar-width:thin;border-top:none;}
+.referenceIntro{border:1px solid #d6e4ec;border-radius:11px;background:#fff;margin:0 16px;padding:18px 16px;min-height:210px;}
+.referenceIntro h3{font-size:17px;margin:0 0 10px;color:#254d65;font-weight:850;}
+.referenceIntro>p{font-size:12px;line-height:1.7;color:#547187;margin:0 0 14px;}
+.referenceIntro ul{list-style:none;padding:0;margin:0;display:flex;flex-direction:column;gap:12px;}
+.referenceIntro li{position:relative;font-size:12px;line-height:1.7;color:#3d6074;padding-left:18px;}
+.referenceIntro li::before{content:"";position:absolute;top:8px;left:0;width:8px;height:8px;border-radius:50%;background:#168e82;}
+.referenceIntro li b{color:#24506b;}
+.referenceIntro .referenceCaution{color:#6a7e90;font-size:10px;margin:15px 0 0;padding-top:12px;border-top:1px solid #e7eef2;}
+.mapPanel[role="dialog"] .railActions{
+ flex:0 0 auto;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;
+ padding:14px 18px 18px;border-top:1px solid #ecf1f4;background:#fff;
+}
+.railActions button{display:flex;justify-content:center;align-items:center;gap:8px;min-width:0;
+ font-size:12px;font-weight:850;padding:12px 5px;background:#f5f9fd;color:#2d6382;
+ border:1px solid #b5d1e1;border-radius:9px;cursor:pointer;}
+.railActions button:hover{background:#e3f4f7;border-color:#65bbc7;}
+.railActions button:focus-visible{outline:3px solid #29ada4;outline-offset:2px;}
+.mapPanel[role="dialog"] .mapSurface{margin:6px;border-radius:10px;}
+@media(max-width:700px){
+ .fullscreenWorkspace[data-expanded="true"] .algorithmRail{flex:0 0 57%;height:57%;width:100%;}
+ .mapPanel[role="dialog"] .railFixed{max-height:69%;}
+ .mapPanel[role="dialog"] .railTitle{padding:11px 13px 4px;}
+ .mapPanel[role="dialog"] .railTitle h2{font-size:17px;}
+ .mapPanel[role="dialog"] .railTitle h2 svg{width:19px;height:19px;}
+ .mapPanel[role="dialog"] .railTitle p{font-size:10px;margin-top:3px;}
+ .mapPanel[role="dialog"] .algorithmRail .mapLegend{padding:5px 12px 6px;gap:5px 10px;font-size:9px;}
+ .mapPanel[role="dialog"] .railSelected{margin:4px 10px 7px;}
+ .mapPanel[role="dialog"] .railSelectedTitle{padding:7px 8px;}
+ .mapPanel[role="dialog"] .railSelectedTitle strong{font-size:12px;}
+ .mapPanel[role="dialog"] .railSelectedTitle strong::before{width:7px;height:7px;border-width:3px;}
+ .mapPanel[role="dialog"] .railStats{padding:7px 5px;}
+ .mapPanel[role="dialog"] .railStats span{font-size:8px;}
+ .mapPanel[role="dialog"] .railStats b{font-size:12px;}
+ .mapPanel[role="dialog"] .railTabs{padding:3px 10px 7px;gap:4px;}
+ .mapPanel[role="dialog"] .railTabs button{font-size:10px;padding:7px 2px;}
+ .referenceIntro{margin:0 10px;padding:10px;}
+ .referenceIntro h3{font-size:13px;}
+ .referenceIntro>p,.referenceIntro li{font-size:10px;}
+ .referenceIntro li{padding-left:14px;}
+ .referenceIntro ul{gap:8px;}
+ .mapPanel[role="dialog"] .railActions{padding:7px 10px;gap:6px;}
+ .railActions button{font-size:10px;padding:8px 3px;gap:5px;}
+}
+
+
+/* Keep fullscreen close over map; position follows the toolbar's actual height. */
+.mapPanel[role="dialog"] .mapHeading{
+ position:relative;top:9px;right:9px;align-self:flex-end;
+ flex:0 0 0!important;height:0;min-height:0;max-height:0!important;
+ padding:0;overflow:visible!important;z-index:930;
+}
+
+
+/* Inline simulator tab removed: only explanation and selection criteria remain.
+   Simulator runs in a separate accessible popup. */
+.mapPanel[role="dialog"] .railTabs{grid-template-columns:repeat(2,minmax(0,1fr));}
+
+
+/* Map-title inline controls: full-width desktop row; only narrow layouts wrap. */
+.mapHeading{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:6px 9px;}
+.mapTitleBlock{flex:1 1 185px;min-width:0;}
+.mapHeading :global([aria-label="개선 2안 분석 설정"]){margin-left:auto;}
+.railTitleRow{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:7px 6px;min-width:0;}
+.railTitleRow h2{min-width:0;white-space:nowrap;}
+.railTitleRow :global([aria-label="전체화면 분석 설정"]){margin-left:auto;}
+.fullscreenWorkspace[data-expanded="true"] .algorithmRail{flex-basis:clamp(475px,35vw,535px);}
+.mapPanel[role="dialog"] .railTitle{padding:16px 14px 9px;}
+.mapPanel[role="dialog"] .railTitle h2{font-size:18px;letter-spacing:-.35px;}
+.mapPanel[role="dialog"] .railTitle h2 svg{width:21px;height:21px;}
+.mapPanel[role="dialog"] .railTitle p{font-size:10px;margin-top:5px;}
+@media(max-width:1080px) and (min-width:701px){
+ .fullscreenWorkspace[data-expanded="true"] .algorithmRail{flex-basis:clamp(355px,40vw,445px);}
+}
+@media(max-width:700px){
+ .fullscreenWorkspace[data-expanded="true"] .algorithmRail{flex:0 0 57%;width:100%;height:57%;}
+ .mapPanel[role="dialog"] .railTitle{padding:8px 10px 4px;}
+ .mapPanel[role="dialog"] .railTitle h2{font-size:15px;}
+ .mapPanel[role="dialog"] .railTitle p{font-size:9px;}
+ .railTitleRow{gap:4px;}
+}
+
+
+/* On small screens the fullscreen close button belongs to the MAP area, not
+   over the inline model/simulator controls in the top-left investigation rail. */
+@media(max-width:700px){
+ .mapPanel[role="dialog"] .mapHeading{position:absolute;top:calc(57% + 10px);right:9px;left:auto;align-self:auto;height:auto!important;min-height:0!important;max-height:none!important;flex:0 0 auto!important;padding:0!important;z-index:931;}
+}
+

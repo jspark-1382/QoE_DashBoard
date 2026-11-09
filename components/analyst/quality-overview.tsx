@@ -122,7 +122,7 @@ export function QualityOverview({
   }, [filters, onFiltersChange, unsupportedMetric]);
   const metric: ScoreMetric =
     mosOnly || (filters.scoreMetric === 'mos' && mosAvailable) ? 'mos' : 'qoe';
-  const metricName = metric === 'mos' ? 'MOS' : 'QoE';
+  const metricName = metric === 'mos' ? 'QoE' : 'QoE';
   const administrative = overview.spatialUnit === 'administrative-dong';
   const boundaryDate = overview.boundaryBaseDate?.replace(/^(\d{4})(\d{2})(\d{2})$/, '$1-$2-$3') ?? '미제공';
   const threshold = metric === 'mos' ? 3.0 : qoeThreshold;
@@ -335,7 +335,7 @@ export function QualityOverview({
           >
             {!mosOnly && <option value="qoe">QoE</option>}
             <option value="mos" disabled={!mosAvailable && !mosOnly}>
-              MOS{!mosAvailable && !mosOnly ? ' (미제공)' : ''}
+              QoE{!mosAvailable && !mosOnly ? ' (미제공)' : ''}
             </option>
           </select>
         </label>
@@ -436,7 +436,7 @@ export function QualityOverview({
                 ? Math.min(totalHeight, Math.max(2, (bin.poor / maximum) * 82))
                 : 0;
               const otherHeight = Math.max(0, totalHeight - poorHeight);
-              const details = `${String(bin.hour).padStart(2, '0')}시 · 전체 품질 통화 ${count(bin.evaluated)}건 (그 외 ${count(other)}건 + 저품질 통화 ${count(bin.poor)}건) · MOS 미평가 ${count(bin.total - bin.evaluated)}건`;
+              const details = `${String(bin.hour).padStart(2, '0')}시 · 전체 품질 통화 ${count(bin.evaluated)}건 (그 외 ${count(other)}건 + 저품질 통화 ${count(bin.poor)}건) · QoE 미평가 ${count(bin.total - bin.evaluated)}건`;
               return (
                 <button
                   key={bin.hour}
@@ -470,8 +470,8 @@ export function QualityOverview({
             })}
           </div>
           <p className={styles.footnote}>
-            누적 막대 전체는 유효 MOS 통화입니다. 파랑은 MOS 3.0 이상(그 외 통화),
-            빨강은 MOS 3.0 미만(저품질 통화)이며 미평가 통화는 제외합니다.
+            누적 막대 전체는 유효 QoE 통화입니다. 파랑은 QoE 3.0 이상(그 외 통화),
+            빨강은 QoE 3.0 미만(저품질 통화)이며 미평가 통화는 제외합니다.
             빨강이 너무 적어 보이지 않도록 최소 2px를 확보하되 전체 막대 높이는 유지합니다.
             시간대를 선택하면 조사 조건에 적용됩니다.
           </p>
@@ -521,13 +521,13 @@ export function QualityOverview({
           </div>
           <div className={styles.legend}>
             {administrative && (
-              <span><i style={{ background: '#c2343d', width: 12, height: 12, borderRadius: '50%' }} />GNSS 관측
-                <i style={{ background: '#bb761d', width: 12, height: 12, borderRadius: '50%' }} />무선 추정
+              <span><i style={{ background: '#c2343d', width: 12, height: 12, borderRadius: '50%' }} />GPS 관측
+                <i style={{ background: '#bb761d', width: 12, height: 12, borderRadius: '50%' }} />삼각 측량
               </span>
             )}
             <span>
               {administrative
-                ? '행정동 경계 위에 실제 통화 발생 지점 표시 · GNSS(빨강) / 무선 추정(주황)'
+                ? '행정동 경계 위에 실제 통화 발생 지점 표시 · GPS(빨강) / 삼각 측량(주황)'
                 : <>원 크기: 저품질 통화 수 · 작음 ● → <b>●</b> 많음</>}
             </span>
             <span>{administrative ? '색상: 저품질 통화 발생 건수' : '색상: 저품질 비율'}</span>
@@ -593,7 +593,7 @@ export function QualityOverview({
                     </td>
                     <td>
                       {administrative
-                        ? <>GNSS {count(cell.gnssCalls ?? 0)} / 추정 {count(cell.estimatedCalls ?? 0)}</>
+                        ? <>GPS {count(cell.gnssCalls ?? 0)} / 추정 {count(cell.estimatedCalls ?? 0)}</>
                         : rate(cell.poorRate)}
                     </td>
                     <td>{count(cell.affectedCustomers)}</td>
@@ -611,10 +611,10 @@ export function QualityOverview({
             {administrative ? (
               <>
                 행정동 경계 기준일 {boundaryDate} ·
-                원본 GNSS 위치 {count(overview.administrativeMappingAudit?.locatedGnssCalls ?? 0)}통화 ·
-                무선 추정 위치 {count(overview.administrativeMappingAudit?.locatedEstimatedCalls ?? 0)}통화(정확도 미검증).
+                원본 GPS 위치 {count(overview.administrativeMappingAudit?.locatedGnssCalls ?? 0)}통화 ·
+                삼각 측량 위치 {count(overview.administrativeMappingAudit?.locatedEstimatedCalls ?? 0)}통화(정확도 미검증).
                 <br />
-                MDT의 위치 자료는 MOS 3.0 미만 통화 중심의 부분표본이므로,
+                MDT의 위치 자료는 QoE 3.0 미만 통화 중심의 부분표본이므로,
                 행정동별 전체 저품질 비율을 산출하지 않습니다.
                 여러 행정동에 걸친 통화는 행정동별 중복 집계됩니다.
               </>

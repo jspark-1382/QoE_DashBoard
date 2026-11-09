@@ -85,12 +85,12 @@ export function ContractWorkspace({
   const mapReference=sample?.gnssReference??endReference;
   const activeReferenceLabel=sample?.gnssReference?'선택 MDT 관측 시각':'통화 종료 시각';
   const selectedPosition=selectedReview&&!selectedReview.accepted&&sample?.lat==null
-    ? (roughLocation?'선택 관측 GNSS 없음 · 통화 단위 3사이트 조사 권역 표시':'개별 관측 좌표 보류')
+    ? (roughLocation?'선택 관측 GPS 없음 · 통화 단위 삼각 측량 조사 권역 표시':'개별 관측 좌표 보류')
     : sample&&hasCustomerPoint(sample)
     ? ['gnss','measured'].includes(sample.locationSource)
-      ? 'GNSS 관측 · 실제 제공 좌표'
+      ? 'GPS 관측 · 실제 제공 좌표'
       : sample.locationSource==='radio'
-        ? '고객 위치 추정 · 무선 측량 (검증 전)'
+        ? '고객 위치 추정 · 삼각 측량 (검증 전)'
         : '고객 위치 추정 · 보간 (검증 전)'
     : '위치 없음 · 무선 관측값만 제공';
   const evaluated = day.calls.filter(
@@ -174,7 +174,7 @@ export function ContractWorkspace({
           <span>
             평가 가능 <b>{evaluated.length}</b>건
           </span>
-          <span title={`저품질 ${day.source === 'MDT' ? 'MOS' : 'QoE'} < ${threshold}`}>
+          <span title={`저품질 ${day.source === 'MDT' ? 'QoE' : 'QoE'} < ${threshold}`}>
             저품질{' '}
             <b className={styles.poor}>
               {poor.length} / {evaluated.length}
@@ -184,11 +184,11 @@ export function ContractWorkspace({
           <span
             title={
               gnssCoverageKnown
-                ? `통화 중 유효 관측 ${valid.length}건 중 GNSS ${gnssCount}건`
-                : 'GNSS 출처 정보 미제공'
+                ? `통화 중 유효 관측 ${valid.length}건 중 GPS ${gnssCount}건`
+                : 'GPS 출처 정보 미제공'
             }
           >
-            GNSS 확보율{' '}
+            GPS 확보율{' '}
             <b>
               {gnssCoverageKnown
                 ? `${((gnssCount / valid.length) * 100).toFixed(1)}%`
@@ -214,7 +214,7 @@ export function ContractWorkspace({
         <div className={styles.settings}>
           <strong>분석 설정</strong>
           <p>
-            GNSS 원본 EPSG:5179 · 기지국 좌표는 고객 위치가 아닙니다. RSRP −105
+            GPS 원본 EPSG:5179 · 기지국 좌표는 고객 위치가 아닙니다. RSRP −105
             dBm / SINR 0 dB 관측을 탐색하며 시간축은 30초 초과 공백에서 선을
             끊습니다.
           </p>
@@ -270,7 +270,7 @@ export function ContractWorkspace({
                 <tr>
                   <th>시작 시각</th>
                   <th title="원본 시간을 초 단위로 반올림">통화 시간</th>
-                  <th>{day.source === 'MDT' ? 'MOS' : 'QoE'}</th>
+                  <th>{day.source === 'MDT' ? 'QoE' : 'QoE'}</th>
                   {day.source === 'MDT' && <th title="원본 SIP CDR 11.REASON 종료 사유 (SIP 응답코드 아님)">상태</th>}
                   <th>자료</th>
                 </tr>
@@ -348,7 +348,7 @@ export function ContractWorkspace({
             </p>
           )}
           <div className={styles.callFoot}>
-            <i className={styles.poorDot} /> 저품질: {day.source === 'MDT' ? 'MOS' : 'QoE'} &lt; {threshold}
+            <i className={styles.poorDot} /> 저품질: {day.source === 'MDT' ? 'QoE' : 'QoE'} &lt; {threshold}
           </div>
         </aside>
         <main className={styles.center}>
@@ -361,7 +361,7 @@ export function ContractWorkspace({
                     : '통화를 선택하세요'}
                 </h3>
                 <span>
-                  {day.source === 'MDT' ? 'MOS' : 'QoE'}{' '}
+                  {day.source === 'MDT' ? 'QoE' : 'QoE'}{' '}
                   <b
                     className={
                       call && isPoorCall(call.qoe, threshold) ? styles.poor : ''
@@ -390,7 +390,7 @@ export function ContractWorkspace({
                       checked={gnss}
                       onChange={(e) => setGnss(e.target.checked)}
                     />
-                    {day.source === 'MDT' ? 'GNSS 실측' : '실측 좌표'}
+                    {day.source === 'MDT' ? 'GPS 실측' : '실측 좌표'}
                   </label>
                   <label>
                     <input
@@ -424,7 +424,7 @@ export function ContractWorkspace({
                         <option value="rsrp">RSRP (dBm)</option>
                         <option value="rsrq">RSRQ (dB)</option>
                         <option value="sinr">SINR (dB)</option>
-                        <option value="qoe">통화 {day.source === 'MDT' ? 'MOS' : 'QoE'}</option>
+                        <option value="qoe">통화 {day.source === 'MDT' ? 'QoE' : 'QoE'}</option>
                       </select>
                     </label>
                     <div
@@ -449,8 +449,8 @@ export function ContractWorkspace({
                       >
                         <strong>자동 위치 추정</strong>
                         <p>
-                          GNSS {positionSummary.gnss}건 · 3개 이상 기지국
-                          삼변·다변측량 {positionSummary.multi}건 · 2개 기지국
+                          GPS {positionSummary.gnss}건 · 3개 이상 기지국
+                          삼각 측량 {positionSummary.multi}건 · 2개 기지국
                           가중중심 {positionSummary.two}건 · 위치 보류{' '}
                           {positionSummary.unavailable}건 · 검토 보류{' '}
                           {positionSummary.withheld}건
@@ -477,7 +477,7 @@ export function ContractWorkspace({
                             if (next !== undefined) onSelectSample(next);
                           }}
                         >
-                          무선 추정 시점으로 이동 (
+                          삼각 측량 시점으로 이동 (
                           {positionSummary.radioIndices.length}건)
                         </button>
                         {positionSummary.withheldIndices.length>0&&<button type="button"
@@ -491,7 +491,7 @@ export function ContractWorkspace({
                         </button>}
                         {sample && <p>{estimationReason(sample)}</p>}
                         <p>
-                          GNSS 우선 · 고객 추정 좌표는 검토를 통과한 3개 이상 독립 기지국만 표시합니다.
+                          GPS 우선 · 고객 추정 좌표는 검토를 통과한 3개 이상 독립 기지국만 표시합니다.
                           2개 이하 기지국, 거리 포화, 높은 모델 불확실성 등은 보류합니다.
                         </p>
                       </div>
@@ -503,38 +503,38 @@ export function ContractWorkspace({
             {call&&<div className={styles.positionSummary} aria-label="고객 위치 출처 요약">
               <div className={styles.positionSummaryTitle}>
                 <b>이동 위치 근거</b>
-                <span>GNSS 실측 / 추정 위치 구분</span>
+                <span>GPS 실측 / 추정 위치 구분</span>
               </div>
               <div className={styles.positionBadges}>
-                <span className={styles.positionObserved}><i className={styles.gnssSymbol}/> GNSS 관측 <b>{observedPoints.length}건</b></span>
-                <span className={styles.positionModel}><i className={styles.modelSymbol}/> 무선 추정 <b>{radioPoints.length}건</b></span>
+                <span className={styles.positionObserved}><i className={styles.gnssSymbol}/> GPS 관측 <b>{observedPoints.length}건</b></span>
+                <span className={styles.positionModel}><i className={styles.modelSymbol}/> 삼각 측량 <b>{radioPoints.length}건</b></span>
                 <span className={styles.positionInterpolation}><i className={styles.interpolatedSymbol}/> 보간 추정 <b>{interpolatedPoints.length}건</b></span>
                 <span className={styles.positionStation}><i className={styles.stationSymbol}/> 기지국 <b>{stationMarkers.length}곳</b></span>
-                {roughLocation&&<span className={styles.positionModel}><i className={styles.modelSymbol}/> 3사이트 근사 <b>1건</b></span>}
+                {roughLocation&&<span className={styles.positionModel}><i className={styles.modelSymbol}/> 삼각 측량 근사 <b>1건</b></span>}
                 {withheldCount>0&&<span className={styles.positionWithheld}> <i className={styles.withheldSymbol}/> 추정 보류 <b>{withheldCount}건</b></span>}
               </div>
               {sample&&<p className={styles.selectedPositionStatus}><b>선택 관측 #{sample.index}</b> · {selectedPosition}</p>}
-              {roughLocation&&<p className={styles.roughSummary} aria-label="선택 통화 3사이트 대략 위치">
-                <b>3사이트 대략 위치</b> · {roughLocation.lat.toFixed(3)}, {roughLocation.lon.toFixed(3)}
+              {roughLocation&&<p className={styles.roughSummary} aria-label="선택 통화 삼각 측량 대략 위치">
+                <b>삼각 측량 대략 위치</b> · {roughLocation.lat.toFixed(3)}, {roughLocation.lon.toFixed(3)}
                 {' '}· 조사 반경 약 {Math.round(roughLocation.roughSearchRadiusM??0).toLocaleString()}m
                 <span>통화 단위 후보 · 실제 단말 위치 아님</span>
               </p>}
-              {roughLocation&&<details className={styles.technicalDetails} aria-label="통화 3사이트 대략 위치 근거">
-                <summary>3사이트 추정 근거 보기</summary>
+              {roughLocation&&<details className={styles.technicalDetails} aria-label="통화 삼각 측량 대략 위치 근거">
+                <summary>삼각 측량 근거 보기</summary>
                 <div className={styles.roughEvidence}>
                   <p>MDT 기준 {roughLocation.observedAt??'시각 미확인'} · 사용 사이트 {roughLocation.usedSiteCount??0}곳.
-                    RSRP 가중중심으로 계산한 조사 중심이며 단말 위치·실제 MOS 저하 지점이 아닙니다.
+                    RSRP 가중중심으로 계산한 조사 중심이며 단말 위치·실제 QoE 저하 지점이 아닙니다.
                     조사 반경은 검증된 위치 정확도/신뢰구간이 아닙니다.</p>
                   <ul>{(roughLocation.usedStations??[]).map(site=>
                     <li key={site.ruId+':'+site.cellId}>{site.ruId} / Cell {site.cellId} · RSRP {site.rsrpDbm.toFixed(1)} dBm</li>)}</ul>
                 </div>
               </details>}
-              {mapReference&&<details className={styles.technicalDetails} aria-label="GNSS 기준점 세부 근거"><summary>최근 GNSS 기준점 자세히</summary><div className={styles.gnssReference}>
-                <strong>마지막 GNSS 실측 기준점 + {activeReferenceLabel} 참고</strong>
-                <span>GNSS 관측 {new Date(mapReference.observedAt).toLocaleTimeString('ko-KR',{timeZone:'Asia/Seoul',hour12:false})}
+              {mapReference&&<details className={styles.technicalDetails} aria-label="GPS 기준점 세부 근거"><summary>최근 GPS 기준점 자세히</summary><div className={styles.gnssReference}>
+                <strong>마지막 GPS 실측 기준점 + {activeReferenceLabel} 참고</strong>
+                <span>GPS 관측 {new Date(mapReference.observedAt).toLocaleTimeString('ko-KR',{timeZone:'Asia/Seoul',hour12:false})}
                   {' '}· 경과 {mapReference.ageSeconds.toFixed(1)}초
                   {' '}· 이동 가능 범위 반경 약 {mapReference.movementRadiusM.toLocaleString()}m</span>
-                <small>GNSS 위치는 실제 관측한 좌표이나 이후 MDT/BYE 시점의 실측 위치는 아닙니다.
+                <small>GPS 위치는 실제 관측한 좌표이나 이후 MDT/BYE 시점의 실측 위치는 아닙니다.
                   속도 120km/h와 기본 위치 오차 250m를 가정한 참고 범위이며,
                   실제 위치 정확도·고객 이동경로·기지국 서비스 반경을 보증하지 않습니다.
                   {activeByeStation
@@ -543,7 +543,7 @@ export function ContractWorkspace({
                 </small>
               </div></details>}
               {endReference&&sample?.gnssReference&&endReference.observedAt!==sample.gnssReference.observedAt&&
-                <p className={styles.selectedPositionStatus}>통화 종료 시점의 가장 최근 GNSS는 별도 관측이며,
+                <p className={styles.selectedPositionStatus}>통화 종료 시점의 가장 최근 GPS는 별도 관측이며,
                   종료 기준 경과 {endReference.ageSeconds.toFixed(1)}초 · 범위 반경 약 {endReference.movementRadiusM.toLocaleString()}m입니다.</p>}
               {withheldCount>0&&<details className={styles.technicalDetails} aria-label="좌표 심사 근거"><summary>좌표 심사 근거 보기 · {withheldCount}건 보류</summary><div className={styles.noGnssWarning}>
                 무선 계산 후보 {withheldCount}건은 거리 포화·모델 불확실성·관측 시간차 등의 검토를 통과하지 못해 고객 좌표를 표시하지 않습니다.
@@ -552,7 +552,7 @@ export function ContractWorkspace({
                   : ' BYE Cell 기지국 참고 위치를 확인하지 못했습니다.'}
               </div></details>}
               {modeledCount>0&&observedPoints.length===0&&
-                <p className={styles.noGnssWarning}>이 통화에는 GNSS 관측 위치가 없습니다. 지도에 표시된 고객 위치는 무선 측량 또는 보간으로 추정한 좌표입니다.</p>}
+                <p className={styles.noGnssWarning}>이 통화에는 GPS 관측 위치가 없습니다. 지도에 표시된 고객 위치는 삼각 측량 또는 보간으로 추정한 좌표입니다.</p>}
             </div>}
             {cdrOnly ? (
               <div className={styles.cdrOnly} aria-label="CDR 통화 위치 정보">
@@ -636,10 +636,10 @@ export function ContractWorkspace({
               </div>
             )}
             <div className={styles.legend} aria-label="지도 위치 출처 범례">
-              <span><i className={styles.gnssSymbol}/> GNSS 실측</span>
-              {mapReference&&<span><i className={styles.gnssReferenceSymbol}/> 최근 GNSS 기반 이동 가능 범위 (실제 경로 아님)</span>}
-              <span><i className={styles.modelSymbol}/> 무선 측량 추정</span>
-              {roughLocation&&<span><i className={styles.modelSymbol}/> 3사이트 조사 권역 (실측 아님)</span>}
+              <span><i className={styles.gnssSymbol}/> GPS 실측</span>
+              {mapReference&&<span><i className={styles.gnssReferenceSymbol}/> 최근 GPS 기반 이동 가능 범위 (실제 경로 아님)</span>}
+              <span><i className={styles.modelSymbol}/> 삼각 측량</span>
+              {roughLocation&&<span><i className={styles.modelSymbol}/> 삼각 측량 조사 권역 (실측 아님)</span>}
               <span><i className={styles.interpolatedSymbol}/> 보간 추정</span>
               <span><i className={styles.stationSymbol}/> 기지국 (단말 아님)</span>
               {activeByeStation&&<span><i className={styles.byeStationSymbol}/> BYE 종료 기지국 (단말 아님)</span>}
@@ -672,7 +672,7 @@ export function ContractWorkspace({
       </div>
       <p className={styles.footer}>
         {day.source === 'MDT'
-          ? '통화 품질은 SIP CDR 원본 RTCP MOS(v5) 기준 · MDT는 무선 관측 근거'
+          ? '통화 품질은 SIP CDR 원본 RTCP QoE(v5) 기준 · MDT는 무선 관측 근거'
           : '실측 자료 기준'}{' '}
         · 현재 고객 / 선택 일자 기준
       </p>

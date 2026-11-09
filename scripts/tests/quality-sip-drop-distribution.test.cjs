@@ -68,8 +68,8 @@ test('date/time range used identically in drop distribution and drilldown',()=>{
 test('chart dropdown MOS -> SIP Drop, all three grades, table and map share the filtered source',()=>{
  const ui=read('components/analyst/quality-proposal-four.tsx');
  const css=read('components/analyst/quality-proposal-four.module.css');
- assert(ui.includes('aria-label="MOS 점수 분포 기준"'));
- assert(ui.includes('<option value="mos">MOS</option>'));
+ assert(ui.includes('aria-label="QoE 점수 분포 기준"'));
+ assert(ui.includes('<option value="mos">QoE</option>'));
  assert(ui.includes('<option value="drop">절단 (SIP 상태코드)</option>'));
  assert(ui.includes("const scopeOverview=distributionMode==='drop'?dropOverview:displayOverview"));
  assert(ui.includes('const dropGrades=useMemo('));

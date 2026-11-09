@@ -57,7 +57,7 @@ export function compareMosCandidate(payload: unknown, overview: AnalystOverview)
     throw Error('algorithmVersion은 영문·숫자·하이픈 등으로 구성된 2~80자 버전명이어야 합니다.');
   if (typeof sourceRevision !== 'string' || !overview.sourceRevision ||
       sourceRevision !== overview.sourceRevision)
-    throw Error('sourceRevision이 현재 10월 30일 MOS 원본 데이터의 버전과 일치하지 않습니다.');
+    throw Error('sourceRevision이 현재 10월 30일 QoE 원본 데이터의 버전과 일치하지 않습니다.');
   if (date !== overview.date)
     throw Error('date가 현재 분석 일자와 다릅니다.');
   if (!Array.isArray(records) || records.length > 150000 || records.length === 0)

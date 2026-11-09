@@ -15,11 +15,11 @@ import {
 import type { DatasetMetric, QoeDataset, RatFilter } from '@/lib/dataset';
 import type { IndoorDataset } from '@/lib/indoor-dataset';
 
-const metricLabels: Record<DatasetMetric, string> = { qoe: 'QoE', mos: 'MOS', rsrp: 'RSRP', rsrq: 'RSRQ', sinr: 'SINR' };
+const metricLabels: Record<DatasetMetric, string> = { qoe: 'QoE', mos: 'QoE', rsrp: 'RSRP', rsrq: 'RSRQ', sinr: 'SINR' };
 const causeInfo: Record<string, { label: string; rule: string; icon: React.ReactNode; color: string }> = {
   coverage: { label: 'Coverage 문제', rule: 'RSRP 낮음', icon: <Signal />, color: '#ffb332' },
   interference: { label: 'Interference 의심', rule: 'RSRP 정상 + SINR 낮음', icon: <RadioTower />, color: '#ff365f' },
-  core: { label: 'Core · App 의심', rule: 'Radio 정상 + MOS 낮음', icon: <Server />, color: '#b86cf0' },
+  core: { label: 'Core · App 의심', rule: 'Radio 정상 + QoE 낮음', icon: <Server />, color: '#b86cf0' },
   transport: { label: '전송 구간 점검', rule: '무선 정상 + 품질 급락', icon: <RotateCcw />, color: '#438eea' },
   healthy: { label: '정상 · 지속 관찰', rule: '주요 무선 지표 정상', icon: <Database />, color: '#44cf7b' },
 };
@@ -160,30 +160,30 @@ export default function EngineeringDashboard() {
         </div> : indoorData ? <IndoorBuilding data={indoorData} metric={metric} buildingName={buildingName} floorCode={floorCode} onBuildingChange={name => { setBuildingName(name); const building = indoorData.buildings.find(item => item.name === name); setFloorCode(building?.floors[0]?.code ?? ''); }} onFloorChange={setFloorCode} /> : <div className="indoor-empty">인빌딩 데이터를 준비하는 중입니다.</div>}
       </Panel>
 
-      <Panel className="service-panel" title="2. Voice 고객체감품질 (MOS 실측)" actions={<DataBadge label="실측" />}>
+      <Panel className="service-panel" title="2. Voice 고객체감품질 (QoE 실측)" actions={<DataBadge label="실측" />}>
         <div className="voice-qoe-card">
           <div className="voice-kicker"><span><Phone /> Voice</span><em>실측 데이터</em></div>
           <div className="voice-score-row">
             <div className="voice-score-ring" style={{ '--voice-angle': `${voiceScore / 5 * 360}deg` } as React.CSSProperties}>
               <span><strong>{voiceScore.toFixed(2)}</strong><small>/ 5.0</small></span>
             </div>
-            <div className="voice-summary"><span>평균 MOS</span><strong>{voiceGrade}</strong><small>{voiceScope}</small></div>
+            <div className="voice-summary"><span>평균 QoE</span><strong>{voiceGrade}</strong><small>{voiceScope}</small></div>
           </div>
-          <div className="voice-metrics"><div><span>MOS 실측 표본</span><b>{voiceSamples.toLocaleString()}건</b></div><div><span>데이터 반영률</span><b>{voiceCoverage}%</b></div></div>
-          <div className="voice-evidence"><Database /><span><b>MOS 기반 Voice 품질</b><small>Video · Web · Gaming 추정값 제외</small></span></div>
+          <div className="voice-metrics"><div><span>QoE 실측 표본</span><b>{voiceSamples.toLocaleString()}건</b></div><div><span>데이터 반영률</span><b>{voiceCoverage}%</b></div></div>
+          <div className="voice-evidence"><Database /><span><b>QoE 기반 Voice 품질</b><small>Video · Web · Gaming 추정값 제외</small></span></div>
         </div>
       </Panel>
 
       <Panel className="time-panel" title={mapMode === 'indoor' ? '3. 건물 층별 품질 비교' : '3. 시간대별 실측 품질 변화'} actions={mapMode === 'indoor' ? <DataBadge label="실측 집계" /> : undefined}>
         {mapMode === 'indoor' && selectedIndoorBuilding && selectedIndoorFloor
           ? <IndoorFloorComparison building={selectedIndoorBuilding} selectedCode={selectedIndoorFloor.code} onSelect={setFloorCode} />
-          : <><div className="line-legend"><span><i className="red" />QoE</span><span><i className="blue" />MOS</span><span><i className="orange" />SINR</span></div><TrendChart data={data} selectedHour={analysisHour} /></>}
+          : <><div className="line-legend"><span><i className="red" />QoE</span><span><i className="blue" />QoE</span><span><i className="orange" />SINR</span></div><TrendChart data={data} selectedHour={analysisHour} /></>}
       </Panel>
 
       <Panel className="cause-panel" title={mapMode === 'indoor' ? '4. 선택 층 저하 원인 진단' : '4. QoE 저하 원인 자동 분류 (Why?)'} actions={mapMode === 'indoor' ? <DataBadge label="규칙 기반" tone="calculated" /> : undefined}>
         {mapMode === 'indoor' && selectedIndoorFloor
           ? <IndoorCauseAnalysis floor={selectedIndoorFloor} />
-          : <div className="cause-flow"><div className="poor-node">QoE Poor</div><div className="cause-list">{Object.entries(causeInfo).map(([key, item]) => <button key={key} className={key === diagnosis ? 'active' : ''}><span>{item.icon}</span><b>{item.rule}</b><i>→</i><em>{item.label}</em><small>{(data.kpis.causeCounts[key] ?? 0).toLocaleString()}건</small></button>)}</div><div className="diagnosis"><h3>진단 결과 ({selected.rat} PCI {selected.pci})</h3><strong style={{ color: cause.color }}>{cause.icon} {cause.label}</strong><ul><li>RSRP: {selected.rsrp?.toFixed(1) ?? '-'} dBm</li><li>SINR: {selected.sinr?.toFixed(1) ?? '-'} dB</li><li>MOS: {selected.mos?.toFixed(2) ?? '미측정'}</li><li>저품질률: <b>{selected.poorRate}%</b></li></ul><p>→ {cause.rule} 조건을 기준으로<br />우선 점검 대상을 분류했습니다.</p><small>규칙 기반 진단 · 실측 {selected.samples.toLocaleString()}건</small></div></div>}
+          : <div className="cause-flow"><div className="poor-node">QoE Poor</div><div className="cause-list">{Object.entries(causeInfo).map(([key, item]) => <button key={key} className={key === diagnosis ? 'active' : ''}><span>{item.icon}</span><b>{item.rule}</b><i>→</i><em>{item.label}</em><small>{(data.kpis.causeCounts[key] ?? 0).toLocaleString()}건</small></button>)}</div><div className="diagnosis"><h3>진단 결과 ({selected.rat} PCI {selected.pci})</h3><strong style={{ color: cause.color }}>{cause.icon} {cause.label}</strong><ul><li>RSRP: {selected.rsrp?.toFixed(1) ?? '-'} dBm</li><li>SINR: {selected.sinr?.toFixed(1) ?? '-'} dB</li><li>QoE: {selected.mos?.toFixed(2) ?? '미측정'}</li><li>저품질률: <b>{selected.poorRate}%</b></li></ul><p>→ {cause.rule} 조건을 기준으로<br />우선 점검 대상을 분류했습니다.</p><small>규칙 기반 진단 · 실측 {selected.samples.toLocaleString()}건</small></div></div>}
       </Panel>
 
       <Panel className="journey-panel" title={mapMode === 'indoor' ? '5. 선택 층 주요 PCI · 망 구성' : '5. 실측 사용자 이동 경로 (Customer Journey)'} actions={mapMode === 'indoor' ? <DataBadge label="실측 집계" /> : <button className="panel-action" onClick={() => setPlaying(!playing)}><Play /> {playing ? '일시정지' : '재생'}</button>}>
@@ -193,7 +193,7 @@ export default function EngineeringDashboard() {
       <Panel className="voc-panel" title={mapMode === 'indoor' ? '6. 취약구간 영향도 (측정점)' : '6. 예상 고객 VOC (추정)'} actions={mapMode === 'indoor' ? <DataBadge label="실측 집계" /> : undefined}>
         {mapMode === 'indoor' && selectedIndoorBuilding && selectedIndoorFloor
           ? <IndoorImpactAnalysis building={selectedIndoorBuilding} floor={selectedIndoorFloor} />
-          : <><div className="voc-list"><Voc critical quote="“영상이 자주 멈추고 끊겨요.”" meta={`${selected.location} · ${selected.rat} PCI ${selected.pci}`} /><Voc quote="“게임 반응이 늦고 버벅여요.”" meta={`SINR ${selected.sinr?.toFixed(1) ?? '-'} dB 기반`} /><Voc quote="“통화 음성이 간헐적으로 끊겨요.”" meta={`MOS ${selected.mos?.toFixed(2) ?? '미측정'} 기반`} /></div><div className="impact"><b>선택 PCI 저품질 측정점</b><div><span className="people">●●●</span> 약 <strong>{poorCount.toLocaleString()}</strong> 건 <small>({selected.samples.toLocaleString()}건 중)</small></div></div></>}
+          : <><div className="voc-list"><Voc critical quote="“영상이 자주 멈추고 끊겨요.”" meta={`${selected.location} · ${selected.rat} PCI ${selected.pci}`} /><Voc quote="“게임 반응이 늦고 버벅여요.”" meta={`SINR ${selected.sinr?.toFixed(1) ?? '-'} dB 기반`} /><Voc quote="“통화 음성이 간헐적으로 끊겨요.”" meta={`QoE ${selected.mos?.toFixed(2) ?? '미측정'} 기반`} /></div><div className="impact"><b>선택 PCI 저품질 측정점</b><div><span className="people">●●●</span> 약 <strong>{poorCount.toLocaleString()}</strong> 건 <small>({selected.samples.toLocaleString()}건 중)</small></div></div></>}
       </Panel>
 
       <Panel className="action-panel" title={mapMode === 'indoor' ? '7. 인빌딩 조치 추천' : '7. 조치 추천 (Action)'} actions={mapMode === 'indoor' ? <DataBadge label="권고안" tone="recommended" /> : <button className="panel-action" onClick={() => flash('선택 조치의 기대효과를 계산했습니다.')}>효과 계산</button>}>
@@ -243,5 +243,5 @@ function TrendChart({ data, selectedHour }: { data: QoeDataset; selectedHour: st
 function Journey({ data, step, setStep }: { data: QoeDataset; step: number; setStep: (step: number) => void }) {
   const point = data.journey[step];
   const visible = data.journey.slice(0, 7);
-  return <><div className="journey-map"><div className="journey-user"><Smartphone /> {point.location} 드라이브테스트 · {point.time}</div><div className="route-line"><i className="progress" style={{ width: `${Math.max(0, Math.min(100, step / Math.max(1, data.journey.length - 1) * 100))}%` }} />{visible.map((item, index) => <button onClick={() => setStep(index)} style={{ left: `${8 + index * 14}%` }} className={`${index <= step ? 'passed' : ''} ${index === step ? 'current' : ''}`} key={`${item.time}-${index}`}><span />PCI {item.pci}</button>)}</div></div><div className="journey-table"><table><thead><tr><th>시간</th><th>위치</th><th>RAT</th><th>PCI</th><th>RSRP</th><th>SINR</th><th>MOS</th><th>QoE</th><th>진단</th></tr></thead><tbody>{visible.map((item, index) => <tr className={index === step ? 'active' : ''} onClick={() => setStep(index)} key={`${item.time}-${index}`}><td>{item.time}</td><td>{item.location}</td><td>{item.rat}</td><td>{item.pci}</td><td>{item.rsrp?.toFixed(1) ?? '-'}</td><td>{item.sinr?.toFixed(1) ?? '-'}</td><td>{item.mos?.toFixed(1) ?? '-'}</td><td><span className={`score s-${Math.floor(item.qoe)}`}>{item.qoe.toFixed(1)}</span></td><td className={item.cause === 'healthy' ? '' : 'event'}>{causeInfo[item.cause]?.label ?? item.cause}</td></tr>)}</tbody></table></div></>;
+  return <><div className="journey-map"><div className="journey-user"><Smartphone /> {point.location} 드라이브테스트 · {point.time}</div><div className="route-line"><i className="progress" style={{ width: `${Math.max(0, Math.min(100, step / Math.max(1, data.journey.length - 1) * 100))}%` }} />{visible.map((item, index) => <button onClick={() => setStep(index)} style={{ left: `${8 + index * 14}%` }} className={`${index <= step ? 'passed' : ''} ${index === step ? 'current' : ''}`} key={`${item.time}-${index}`}><span />PCI {item.pci}</button>)}</div></div><div className="journey-table"><table><thead><tr><th>시간</th><th>위치</th><th>RAT</th><th>PCI</th><th>RSRP</th><th>SINR</th><th>QoE</th><th>QoE</th><th>진단</th></tr></thead><tbody>{visible.map((item, index) => <tr className={index === step ? 'active' : ''} onClick={() => setStep(index)} key={`${item.time}-${index}`}><td>{item.time}</td><td>{item.location}</td><td>{item.rat}</td><td>{item.pci}</td><td>{item.rsrp?.toFixed(1) ?? '-'}</td><td>{item.sinr?.toFixed(1) ?? '-'}</td><td>{item.mos?.toFixed(1) ?? '-'}</td><td><span className={`score s-${Math.floor(item.qoe)}`}>{item.qoe.toFixed(1)}</span></td><td className={item.cause === 'healthy' ? '' : 'event'}>{causeInfo[item.cause]?.label ?? item.cause}</td></tr>)}</tbody></table></div></>;
 }

@@ -1,4 +1,9 @@
 .workspace{display:flex;flex-direction:column;gap:11px;min-width:0}
+/* Candidate map receives more screen area only for improvement 2. */
+.proposalTwoWorkspace .mapPanel{height:610px}
+.proposalTwoWorkspace .mapHost{min-height:485px}
+@media(max-width:650px){.proposalTwoWorkspace .mapPanel{height:475px}.proposalTwoWorkspace .mapHost{min-height:305px}}
+
 .kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
 .kpis>div{background:#fff;border:1px solid #dbe7f2;border-radius:12px;padding:12px 17px;
   display:flex;align-items:center;gap:12px;min-width:0}
@@ -37,6 +42,7 @@
 .numberSpatial,.numberCell{display:grid;place-items:center;border-radius:50%;width:25px;height:25px;flex:none;
   background:#f9e8e8;color:#bd4a51;font-size:12px;font-weight:800}
 .numberCell{border-radius:6px;background:#e4f0ff;color:#35679f}
+.numberReview{flex:none;padding:4px 6px;border-radius:5px;background:#fff4df;color:#80551c;font-size:10px;font-weight:700}
 .detail{flex:1;min-height:0;padding:10px 13px 13px;font-size:11px;color:#486277;overflow-y:auto;overflow-x:hidden}
 .detailTitle{display:flex;justify-content:space-between;gap:8px;align-items:center}
 .detailTitle strong{font-size:14px;color:#193e5c}
@@ -130,4 +136,9 @@
   .detail{max-height:none;overflow:visible}
   .list{max-height:none}
 }
+
+/* 2안에만 표시되는 본부장 보고 요구 영역 표시. 지도 클릭을 가리지 않는다. */
+.proposalTwoWorkspace .grid{outline:3px solid #e12636;outline-offset:2px;position:relative;border-radius:12px}
+.proposalTwoWorkspace .grid::before{content:attr(data-request-label);position:absolute;right:12px;top:-11px;z-index:10;padding:3px 9px;border-radius:5px;background:#d82435;color:#fff;font-size:10px;font-weight:800;line-height:1.4;white-space:nowrap;pointer-events:none}
+@media(max-width:650px){.proposalTwoWorkspace .grid::before{right:7px;font-size:9px}}
 

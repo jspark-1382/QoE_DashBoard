@@ -111,7 +111,7 @@ export function ExecutiveQoeMap({ fixedLocation = false, overviewRevision, metri
         // One score, path and tooltip per CI call; GPS points only define its geometry.
         groupMapCalls(samples).forEach(call => {
           const first = call[0], last = call[call.length - 1];
-          const tooltip = `CI ${escapeHtml(first.ci)} · ${first.time} ~ ${last.time} · ${valueLabel(first)} (콜 단위)<br/>측정 점 시간순 연결 · GNSS 외 구간은 기지국 좌표 근사 · 120초 또는 3km 초과 시 끊음`;
+          const tooltip = `CI ${escapeHtml(first.ci)} · ${first.time} ~ ${last.time} · ${valueLabel(first)} (콜 단위)<br/>측정 점 시간순 연결 · GPS 외 구간은 기지국 좌표 근사 · 120초 또는 3km 초과 시 끊음`;
           const segments: [number, number][][] = [];
           call.forEach((sample, index) => {
             let cut = !index;
@@ -206,7 +206,7 @@ export function ExecutiveQoeMap({ fixedLocation = false, overviewRevision, metri
       {samples.length > 0 && <button type="button" className="adaptive-info-toggle" aria-pressed={pathAsDots} onClick={() => setPathAsDots(value => !value)}>{pathAsDots ? '경로: 점' : '경로: 선'}</button>}
     </div>}
     <div className="exec-map-legend" style={{ width: 235 }}>
-      <b>{metricInfo.label} · {metric === 'qoe' ? fixedLocation ? '콜별 무선 추정' : '콜 단위' : fixedLocation ? 'MDT 이벤트' : '초 단위 실측'}{selectedCallId ? ' · 선택 콜 강조' : ''}</b>
+      <b>{metricInfo.label} · {metric === 'qoe' ? fixedLocation ? '콜별 삼각 측량' : '콜 단위' : fixedLocation ? 'MDT 이벤트' : '초 단위 실측'}{selectedCallId ? ' · 선택 콜 강조' : ''}</b>
       <div style={{ display: 'grid', gap: 6, marginTop: 8 }}>
         {['#ff365f', '#f2d447', '#35c779', ...(metric === 'qoe' ? [] : ['#8896a3'])].map((color, index) =>
           <div key={color} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}><span style={{ width: 18, height: 8, borderRadius: 2, background: color }} />{metricInfo.legends[index] ?? '미측정'}</div>)}

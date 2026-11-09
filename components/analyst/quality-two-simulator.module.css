@@ -1,0 +1,226 @@
+.simulator{border:1px solid #b7d6e3;border-radius:12px;background:#fff;overflow:hidden;box-shadow:0 2px 11px #194e6d12;min-width:0}
+.top{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:13px 13px 9px}
+.eyebrow{display:flex;align-items:center;gap:5px;font-size:10px;color:#158d89;font-weight:850}
+.top h4{margin:3px 0 0;font-size:15px;line-height:1.35;color:#1b4760;font-weight:850}
+.reset{background:#f1f6fa;border:1px solid #d4e5ee;border-radius:7px;padding:6px 8px;display:inline-flex;gap:4px;align-items:center;font-size:10px;font-weight:750;color:#54718a;cursor:pointer;flex-shrink:0}
+.reset:hover{background:#e7f3f8}
+.simWarning{margin:0 13px 10px;display:flex;align-items:flex-start;gap:6px;font-size:10px;line-height:1.6;color:#765e37;background:#fff7e8;border:1px solid #eedbbb;border-radius:7px;padding:8px}
+.simWarning svg{flex-shrink:0;margin-top:1px}
+.presetRow{padding:0 13px 12px;display:flex;gap:5px;flex-wrap:wrap}
+.presetRow button{border:1px solid #c8dce7;background:#f6fbfe;border-radius:18px;color:#4b6f84;font-size:10px;line-height:1.3;padding:6px 9px;cursor:pointer;font-weight:720}
+.presetRow button:hover{background:#e7f5f7;border-color:#66b1ad}
+.presetRow button:focus-visible,.phaseNav button:focus-visible,.stepActions button:focus-visible,.reset:focus-visible{outline:3px solid #45b9cc;outline-offset:2px}
+.phaseNav{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;padding:10px 12px;background:#eef5fa;border-top:1px solid #e1edf4;border-bottom:1px solid #e1edf4}
+.phaseNav button{display:flex;align-items:center;justify-content:center;gap:4px;flex-wrap:wrap;border:1px solid #d9e5ed;border-radius:7px;padding:7px 3px;background:#fff;font-size:10px;color:#637f91;line-height:1.4;font-weight:750;cursor:pointer}
+.phaseNav button span{height:16px;min-width:16px;border-radius:50%;background:#e4edf2;color:#668198;font-size:9px;display:grid;place-items:center}
+.phaseNav button[aria-current="step"]{color:#0e746f;border-color:#3eb0a6;background:#e2f7ee;box-shadow:0 0 0 1px #3eb0a624}
+.phaseNav button[aria-current="step"] span{background:#21a69a;color:#fff}
+.phaseHeading{display:flex;align-items:center;justify-content:space-between;gap:9px;margin:11px 13px 0}
+.phaseHeading>div{display:flex;flex-direction:column;gap:1px}
+.phaseHeading>div span{font-size:9px;color:#7898ab;font-weight:850;letter-spacing:.04em}
+.phaseHeading h5{font-size:14px;color:#234961;margin:0;font-weight:850}
+.phaseHeading strong{font-size:10px;font-weight:800;color:#157e6c;background:#e2f8ed;padding:5px 8px;line-height:1.5;border-radius:6px;max-width:56%;text-align:right}
+.phaseHeading strong[data-result="warn"]{color:#9a6331;background:#fff0de}
+.drawing{padding:9px 12px 0}
+.drawing>svg{display:block;width:100%;height:auto;border:1px solid #e1ebf0;border-radius:8px}
+.controls{margin:11px 13px 4px;display:flex;flex-direction:column;gap:8px}
+.controls small{font-size:10px;color:#688398;line-height:1.6}
+.rangeControl{display:flex;flex-direction:column;gap:5px}
+.rangeControl label{display:flex;justify-content:space-between;gap:9px;font-size:11px;color:#54728a;font-weight:740}
+.rangeControl label strong{font-size:12px;color:#136f7d;font-variant-numeric:tabular-nums}
+.rangeControl input[type="range"]{width:100%;accent-color:#23a79a;cursor:pointer;height:17px;min-height:17px}
+.radioField{border:1px solid #d9e8f0;background:#f7fbfd;border-radius:8px;display:flex;flex-wrap:wrap;gap:5px 11px;padding:8px 10px}
+.radioField legend{font-size:11px;color:#456981;font-weight:850;padding:0 4px}
+.radioField label{display:flex;align-items:center;gap:4px;color:#4e6e83;font-weight:680;font-size:10px;cursor:pointer;line-height:1.5}
+.radioField input,.checkbox input{accent-color:#1ea69a}
+.checkbox{font-size:11px;display:flex;align-items:center;gap:6px;color:#496d83;font-weight:750}
+.sliders{display:flex;flex-direction:column;gap:11px;border:1px solid #e0eaf1;background:#f9fcfe;padding:10px;border-radius:8px}
+.conditionBox{background:#f6fbfd;border:1px solid #d6e7ee;padding:10px;border-radius:8px;display:flex;flex-direction:column;gap:6px}
+.conditionBox div{display:flex;justify-content:space-between;gap:10px;line-height:1.5}
+.conditionBox div span{font-size:10px;color:#7590a0}.conditionBox div b{font-size:10px;color:#28576f;text-align:right}
+.conditionBox small{padding-top:5px}
+.resultGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.resultGrid>div{background:#f2f8fc;border:1px solid #dceaf2;border-radius:7px;padding:9px;display:flex;flex-direction:column;gap:4px}
+.resultGrid span{font-size:10px;color:#6c8a9e}
+.resultGrid b{font-size:15px;color:#24536a;font-variant-numeric:tabular-nums}
+.verdict{background:#eef8f4;border-left:3px solid #20a38e;border-radius:7px;display:flex;flex-direction:column;gap:3px;margin:12px 13px 9px;padding:10px 11px}
+.verdict span{font-size:10px;color:#298c81;font-weight:800}
+.verdict b{font-size:12px;color:#2a6256;line-height:1.6}
+.progressBar{height:5px;border-radius:5px;background:#e3edf2;margin:0 13px;overflow:hidden}
+.progressBar span{display:block;height:100%;background:#27aa9c;transition:width .15s}
+.stepActions{display:flex;justify-content:space-between;gap:8px;padding:10px 13px}
+.stepActions button{border:1px solid #b7d8df;background:#f0faf8;color:#1b7b77;font-size:11px;line-height:1.4;font-weight:850;border-radius:7px;padding:8px 11px;display:flex;align-items:center;gap:5px;cursor:pointer}
+.stepActions button:last-child{background:#147d83;color:#fff;border-color:#147d83}
+.stepActions button:disabled{opacity:.45;cursor:default}
+.realScene{padding:10px;background:#fff;border:1px solid #cde2e9;border-radius:9px;margin:9px 0}
+.realScene svg{width:100%;height:auto;display:block}
+.circleLegend{display:flex;flex-direction:column;gap:6px;margin-top:9px;border:1px solid #d7e5ed;border-radius:8px;background:#f7fbfe;padding:9px 10px}
+.circleLegend span,.realLegend span{display:flex;align-items:center;gap:7px;font-size:10px;line-height:1.6;color:#4c6b80}
+.circleLegend i,.realLegend i{display:inline-block;flex-shrink:0;width:12px;height:12px;border-radius:50%}
+.neighborCircle{border:2px dashed #2aa58f;background:rgba(53,180,163,.08)}
+.finalCircle{border:2px solid #d97706;background:rgba(245,176,65,.14)}
+.repPoint{background:#075e58;border:1px solid #fff;box-shadow:0 0 0 1px #075e58}
+.obsPoint{background:#218db5;border:1px solid #fff;box-shadow:0 0 0 1px #218db5}
+.circleMath{background:#fff9ee;border:1px solid #e8cd97;border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:5px;color:#76562d;font-size:11px;line-height:1.6;overflow-wrap:anywhere}
+.circleMath strong,.circleMath b{color:#986016;font-size:12px}
+.circleMath span{color:#745b38}
+.circleMath small{color:#85745e}
+.realLegend{display:flex;flex-wrap:wrap;gap:5px 12px;margin-top:8px}
+.realLegend span{font-size:10px;color:#52788e;display:flex;align-items:center;gap:4px}
+.realLegend i{width:9px;height:9px;display:inline-block;border-radius:50%}
+.realScene p{font-size:10px!important;color:#648399!important;line-height:1.6!important;margin:8px 0 0!important}
+.accuracy{margin:0;padding:8px 13px 12px;background:#fafcfe;border-top:1px solid #e9f0f4;color:#7b92a0;font-size:10px;line-height:1.7}
+@media(max-width:900px){.phaseNav{padding:7px;gap:3px}.phaseNav button{font-size:9px;padding:5px 2px}.phaseNav button span{min-width:15px;height:15px}}
+
+/* Compact learning-mode layout inside the standalone simulator dialog.  */
+.simulator{overflow:visible;}
+.top{padding:7px 10px 5px;}
+.top h4{font-size:13px;margin-top:1px;}
+.simWarning{margin:0 10px 5px;padding:5px 7px;line-height:1.35;}
+.presetRow{padding:0 10px 6px;gap:4px;}
+.presetRow button{padding:4px 7px;}
+.phaseNav{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px;padding:6px 8px;}
+.phaseNav button{font-size:9px;gap:3px;flex-wrap:nowrap;white-space:normal;padding:5px 2px;line-height:1.25;}
+.phaseNav button span{min-width:15px;height:15px;flex-shrink:0;}
+.phaseHeading{margin:7px 10px 0;}
+.phaseHeading h5{font-size:12px;}
+.learningBody{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(225px,.8fr);align-items:start;gap:10px;padding:7px 10px 0;}
+.drawing{padding:0;min-width:0;}
+.drawing>svg{display:block;width:min(100%,510px);height:auto;max-height:224px;object-fit:contain;margin-inline:auto;border:1px solid #e1ebf0;border-radius:8px;background:#f7fafc;}
+/* The 326-unit DBSCAN circle diagram requires a narrower graphic so it stays legible. */
+.drawing>svg[viewBox="0 0 390 326"]{width:min(100%,266px);max-height:224px;}
+.controls{margin:0;gap:6px;}
+.conditionBox{padding:8px;gap:4px;}
+.controls small{font-size:9px;line-height:1.4;}
+.sliders{padding:8px;gap:6px;}
+.rangeControl{gap:3px;}
+.rangeControl label{font-size:10px;}
+.rangeControl input[type="range"]{height:15px;min-height:15px;}
+.circleMath{padding:7px 8px;gap:3px;line-height:1.4;}
+.resultGrid{gap:4px;}
+.resultGrid>div{padding:6px;}
+.resultGrid b{font-size:12px;}
+.circleLegend{padding:6px 7px;gap:3px;margin-top:5px;}
+.circleLegend span{font-size:9px;line-height:1.4;}
+.verdict{margin:7px 10px 5px;padding:7px 9px;gap:2px;}
+.verdict b{font-size:11px;line-height:1.4;}
+.progressBar{margin:0 10px;}
+.stepActions{position:sticky;bottom:0;z-index:12;box-shadow:0 -4px 11px #1b4e6817;background:#fff;display:flex;align-items:center;padding:7px 10px;border-top:1px solid #e3edf2;}
+.stepActions button{padding:7px 10px;}
+.accuracy{font-size:9px;line-height:1.35;padding:5px 10px 7px;}
+@media(max-width:700px){
+ .learningBody{grid-template-columns:minmax(0,1fr);gap:7px;padding:6px 8px 0;}
+ .drawing>svg{max-height:205px;}
+ .drawing>svg[viewBox="0 0 390 326"]{max-height:195px;width:min(100%,240px);}
+ .phaseNav{grid-template-columns:repeat(4,minmax(0,1fr));}
+ .phaseNav button{flex-wrap:wrap;}
+ .controls{margin:0 3px;}
+}
+@media(max-height:780px) and (min-width:701px){
+ .simWarning{padding:4px 6px;}
+ .presetRow{padding-bottom:4px;}
+ .phaseNav{padding:4px 7px;}
+ .drawing>svg{max-height:196px;width:min(100%,450px);}
+ .drawing>svg[viewBox="0 0 390 326"]{width:min(100%,225px);max-height:190px;}
+ .verdict{margin-top:5px;padding:6px;}
+}
+
+
+/* Immersive, large-type DBSCAN teaching mode. */
+.simulator{display:flex;flex-direction:column;min-height:100%;border-radius:12px;}
+.top{padding:14px 22px 8px;}
+.eyebrow{font-size:13px;}
+.top h4{font-size:21px;margin-top:4px;}
+.reset{font-size:13px;padding:9px 12px;}
+.simWarning{margin:0 20px 10px;padding:10px 13px;font-size:13px;line-height:1.5;}
+.presetRow{padding:0 20px 12px;gap:8px;}
+.presetRow button{font-size:13px;padding:8px 14px;}
+.phaseNav{padding:10px 16px;gap:7px;}
+.phaseNav button{font-size:13px;line-height:1.35;padding:10px 5px;gap:6px;}
+.phaseNav button span{min-width:22px;height:22px;font-size:12px;}
+.phaseHeading{margin:13px 21px 6px;}
+.phaseHeading>div span{font-size:12px;}
+.phaseHeading h5{font-size:19px;}
+.phaseHeading strong{font-size:13px;padding:6px 12px;}
+.learningBody{flex:1 0 auto;grid-template-columns:minmax(0,1.13fr) minmax(340px,.87fr);gap:25px;padding:6px 21px 10px;}
+.drawing{display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;}
+.drawing>svg{width:min(100%,700px);max-height:min(415px,47dvh);height:auto;margin-inline:auto;}
+.drawing>svg[viewBox="0 0 390 326"]{width:min(100%,480px);max-height:min(402px,45dvh);}
+.circleLegend{padding:12px 15px;gap:7px;margin-top:12px;}
+.circleLegend span,.realLegend span{font-size:13px;line-height:1.55;}
+.circleLegend i{width:16px;height:16px;}
+.controls{margin:0;gap:12px;}
+.controls small{font-size:13px;line-height:1.55;}
+.conditionBox,.sliders,.circleMath{padding:16px;gap:12px;}
+.conditionBox div span,.conditionBox div b{font-size:14px;}
+.rangeControl{gap:10px;}
+.rangeControl label{font-size:15px;}
+.rangeControl label strong{font-size:17px;}
+.rangeControl input[type="range"]{height:25px;min-height:25px;}
+.radioField{padding:13px;gap:10px 18px;}
+.radioField legend,.checkbox{font-size:15px;}
+.radioField label{font-size:14px;}
+.resultGrid{gap:9px;}
+.resultGrid>div{padding:13px;}
+.resultGrid span{font-size:12px;}
+.resultGrid b{font-size:17px;}
+.circleMath,.circleMath strong,.circleMath b{font-size:14px;line-height:1.55;}
+.verdict{margin:8px 20px 8px;padding:13px 16px;gap:5px;}
+.verdict span{font-size:13px;}
+.verdict b{font-size:15px;line-height:1.5;}
+.progressBar{height:7px;margin:0 20px;}
+.stepActions{padding:12px 20px;min-height:63px;}
+.stepActions button{font-size:15px;padding:10px 16px;}
+.accuracy{font-size:12px;line-height:1.5;padding:10px 20px 12px;}
+@media(max-width:1100px) and (min-width:701px){
+ .learningBody{gap:13px;grid-template-columns:minmax(0,1fr) minmax(270px,.9fr);}
+ .top h4{font-size:18px;}
+ .phaseNav button{font-size:11px;padding:7px 3px;}
+ .drawing>svg[viewBox="0 0 390 326"]{width:min(100%,405px);max-height:min(350px,42dvh);}
+ .drawing>svg{max-height:min(350px,42dvh);}
+ .rangeControl label{font-size:13px;}
+ .verdict b{font-size:13px;}
+}
+@media(max-height:820px) and (min-width:701px){
+ .top{padding:8px 15px 5px;}
+ .simWarning{margin:0 15px 5px;padding:6px 10px;font-size:12px;}
+ .presetRow{padding:0 15px 6px;}
+ .presetRow button{padding:5px 9px;font-size:12px;}
+ .phaseNav{padding:6px 11px;}
+ .phaseNav button{font-size:12px;padding:6px 3px;}
+ .phaseHeading{margin:7px 15px 3px;}
+ .learningBody{padding:4px 15px 6px;gap:15px;}
+ .drawing>svg[viewBox="0 0 390 326"]{width:min(100%,375px);max-height:min(320px,41dvh);}
+ .drawing>svg{max-height:min(315px,40dvh);}
+ .verdict{margin:5px 15px;padding:8px 12px;}
+ .stepActions{padding:8px 15px;min-height:52px;}
+ .accuracy{padding:6px 15px;}
+}
+@media(max-width:700px){
+ .simulator{min-height:0;}
+ .top{padding:10px 10px 6px;}
+ .top h4{font-size:17px;}
+ .eyebrow{font-size:12px;}
+ .simWarning{margin:0 8px 7px;padding:8px;font-size:12px;}
+ .presetRow{padding:0 8px 8px;gap:5px;}
+ .presetRow button{padding:7px 8px;font-size:11px;}
+ .phaseNav{grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;padding:7px;}
+ .phaseNav button{font-size:11px;flex-wrap:wrap;padding:6px 3px;}
+ .phaseHeading{margin:8px 10px 4px;}
+ .phaseHeading h5{font-size:16px;}
+ .phaseHeading strong{font-size:11px;padding:4px 7px;}
+ .learningBody{display:grid;grid-template-columns:1fr;gap:9px;padding:7px 9px;}
+ .drawing>svg{max-height:270px;width:100%;}
+ .drawing>svg[viewBox="0 0 390 326"]{max-height:265px;width:min(100%,320px);}
+ .controls{gap:8px;}
+ .rangeControl label{font-size:13px;}
+ .rangeControl label strong{font-size:14px;}
+ .rangeControl input[type="range"]{height:24px;min-height:24px;}
+ .circleLegend span{font-size:12px;}
+ .verdict{margin:6px 9px;padding:9px;}
+ .verdict b{font-size:13px;}
+ .stepActions{padding:9px;min-height:54px;}
+ .stepActions button{font-size:13px;padding:8px 12px;}
+ .accuracy{font-size:11px;padding:7px 9px;}
+}
+

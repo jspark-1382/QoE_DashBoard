@@ -8,7 +8,7 @@ export type IndoorCauseKey = 'coverage' | 'interference' | 'voice' | 'overlap' |
 const causes: Record<IndoorCauseKey, { label: string; rule: string; detail: string }> = {
   coverage: { label: '인빌딩 커버리지 부족', rule: 'RSRP -100 dBm 미만', detail: '음영 구간과 안테나 도달 범위를 우선 확인합니다.' },
   interference: { label: '간섭 · 품질 열화 의심', rule: 'SINR 5 dB 미만 또는 RSRQ -15 dB 미만', detail: '인접 셀 중첩과 외부 매크로셀 유입을 점검합니다.' },
-  voice: { label: 'Voice 품질 점검', rule: 'MOS 3.2 미만', detail: '무선 지표가 정상이라면 음성·코어 구간을 확인합니다.' },
+  voice: { label: 'Voice 품질 점검', rule: 'QoE 3.2 미만', detail: '무선 지표가 정상이라면 음성·코어 구간을 확인합니다.' },
   overlap: { label: '다중 PCI 중첩 관찰', rule: '동일 층 주요 PCI 4개 이상', detail: '셀 경계와 층 내부 망 선택 안정성을 확인합니다.' },
   healthy: { label: '주요 지표 정상', rule: '품질 임계치 충족', detail: '현재 상태를 기준선으로 저장하고 지속 관찰합니다.' },
 };
@@ -27,7 +27,7 @@ function format(value: number | null, digits = 1) {
 
 export function IndoorFloorComparison({ building, selectedCode, onSelect }: { building: IndoorBuilding; selectedCode: string; onSelect: (code: string) => void }) {
   return <div className="indoor-floor-comparison">
-    <div className="floor-compare-head"><span>층</span><span>QoE</span><span>MOS</span><span>RSRP</span><span>SINR</span></div>
+    <div className="floor-compare-head"><span>층</span><span>QoE</span><span>QoE</span><span>RSRP</span><span>SINR</span></div>
     <div className="floor-compare-list">{building.floors.map(floor => {
       const qoe = floor.qoe ?? 0;
       return <button className={floor.code === selectedCode ? 'active' : ''} onClick={() => onSelect(floor.code)} key={floor.code}>
@@ -36,7 +36,7 @@ export function IndoorFloorComparison({ building, selectedCode, onSelect }: { bu
         <span>{format(floor.mos, 2)}</span><span>{format(floor.rsrp)}<small>dBm</small></span><span>{format(floor.sinr)}<small>dB</small></span>
       </button>;
     })}</div>
-    <div className="panel-evidence"><Database /> 원본 측정값을 층 단위로 집계 · QoE는 무선지표와 MOS 기반 계산</div>
+    <div className="panel-evidence"><Database /> 원본 측정값을 층 단위로 집계 · QoE는 무선지표와 QoE 기반 계산</div>
   </div>;
 }
 
@@ -52,7 +52,7 @@ export function IndoorCauseAnalysis({ floor }: { floor: IndoorFloor }) {
       <small>{floor.code} {floor.name} · 규칙 기반 진단</small>
       <strong>{active === 'healthy' ? <Check /> : <AlertTriangle />}{selected.label}</strong>
       <p>{selected.detail}</p>
-      <dl><div><dt>RSRP</dt><dd>{format(floor.rsrp)} dBm</dd></div><div><dt>RSRQ</dt><dd>{format(floor.rsrq)} dB</dd></div><div><dt>SINR</dt><dd>{format(floor.sinr)} dB</dd></div><div><dt>MOS</dt><dd>{format(floor.mos, 2)}</dd></div></dl>
+      <dl><div><dt>RSRP</dt><dd>{format(floor.rsrp)} dBm</dd></div><div><dt>RSRQ</dt><dd>{format(floor.rsrq)} dB</dd></div><div><dt>SINR</dt><dd>{format(floor.sinr)} dB</dd></div><div><dt>QoE</dt><dd>{format(floor.mos, 2)}</dd></div></dl>
       <span>진단은 장애 확정이 아닌 우선 점검 분류입니다.</span>
     </aside>
   </div>;
@@ -100,7 +100,7 @@ export function IndoorActionAnalysis({ floor, checks, onToggle }: { floor: Indoo
   const cause = inferIndoorCause(floor);
   return <div className="indoor-action-analysis">
     <div className="indoor-action-list">{recommendations(cause, floor).map((item, index) => <label key={item}><input type="checkbox" checked={checks[index]} onChange={() => onToggle(index)} /><span><Check /></span><b>{item}</b></label>)}</div>
-    <div className="verification-card"><Building2 /><span><b>개선 확인 방법</b><small>동일 층 · 동일 동선 재측정</small><small>RSRP · SINR · MOS 전후 비교</small></span></div>
+    <div className="verification-card"><Building2 /><span><b>개선 확인 방법</b><small>동일 층 · 동일 동선 재측정</small><small>RSRP · SINR · QoE 전후 비교</small></span></div>
     <p>수치형 기대효과는 검증 데이터 확보 후 제공합니다.</p>
   </div>;
 }

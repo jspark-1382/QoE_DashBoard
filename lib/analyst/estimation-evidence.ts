@@ -3,8 +3,8 @@ export function estimationMethodLabel(
   method: AnalystEstimationEvidence['method'],
 ): string {
   return {
-    MEASURED: 'GNSS·측정 좌표 우선',
-    MULTILATERATION: '3개 이상 기지국 거리 기반 삼변·다변측량',
+    MEASURED: 'GPS·측정 좌표 우선',
+    MULTILATERATION: '3개 이상 기지국 기반 삼각 측량',
     WEIGHTED_2_SITE: '2개 기지국 가중중심',
     CELL_SITE: '기지국 1개 · 고객 위치 보류',
     INVALID: '위치 근거 부족 · 고객 위치 보류',
@@ -12,7 +12,7 @@ export function estimationMethodLabel(
 }
 export function estimationReason(sample: AnalystSample): string {
   if (sample.locationSource === 'gnss')
-    return 'GNSS 관측 좌표를 우선 사용합니다.';
+    return 'GPS 관측 좌표를 우선 사용합니다.';
   if (sample.estimation?.review && !sample.estimation.review.accepted)
     return '고객 위치 추정 보류 · ' + sample.estimation.review.reasons.join(' · ') +
       ' · BYE Cell 기지국 위치는 단말 좌표가 아닙니다.';

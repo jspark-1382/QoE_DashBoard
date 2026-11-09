@@ -59,12 +59,12 @@ export function evaluateCallEvidence(call: AnalystCall, samples: AnalystSample[]
   evidence.push({
     key: 'rsrp', label: '최저 RSRP', value: minRsrp == null ? '미제공' : shown(minRsrp) + ' dBm',
     description: minRsrp == null ? '검증된 연결 구간의 RSRP 관측 없음' :
-      minRsrp <= -105 ? '탐색 기준 −105 dBm 이하 관측 · 저MOS 직접 원인 확정 불가' : '탐색 기준 −105 dBm 초과',
+      minRsrp <= -105 ? '탐색 기준 −105 dBm 이하 관측 · 저QoE 직접 원인 확정 불가' : '탐색 기준 −105 dBm 초과',
     tone: minRsrp == null ? 'unknown' : minRsrp <= -105 ? 'attention' : 'observed',
   }, {
     key: 'sinr', label: '최저 SINR', value: minSinr == null ? '미제공' : shown(minSinr) + ' dB',
     description: minSinr == null ? '검증된 연결 구간의 SINR 관측 없음' :
-      minSinr <= 0 ? '탐색 기준 0 dB 이하 관측 · 저MOS 직접 원인 확정 불가' : '탐색 기준 0 dB 초과',
+      minSinr <= 0 ? '탐색 기준 0 dB 이하 관측 · 저QoE 직접 원인 확정 불가' : '탐색 기준 0 dB 초과',
     tone: minSinr == null ? 'unknown' : minSinr <= 0 ? 'attention' : 'observed',
   });
   const countAttention = evidence.filter((item) => item.tone === 'attention').length;
@@ -78,9 +78,9 @@ export function evaluateCallEvidence(call: AnalystCall, samples: AnalystSample[]
     hasRadio: enoughRadio,
     // It is intentionally called 'observations', never a confirmed root cause.
     conclusion: grade === 'UNAVAILABLE'
-      ? '원본 MOS가 없어 통화 품질 등급을 판정할 수 없습니다.'
+      ? '원본 QoE가 없어 통화 품질 등급을 판정할 수 없습니다.'
       : countAttention > 0
-        ? '추가 검토할 관측 근거가 있습니다. MOS 저하의 원인을 확정할 수는 없습니다.'
+        ? '추가 검토할 관측 근거가 있습니다. QoE 저하의 원인을 확정할 수는 없습니다.'
         : '현재 확보된 지표에서 주목할 관측이 확인되지 않았습니다. 원인 없음으로 해석하지 마세요.',
   };
 }

@@ -4,13 +4,15 @@ type DocumentLinkProps = AnchorHTMLAttributes<HTMLAnchorElement> & {
   href: string;
 };
 
-export default function DocumentLink({ href, ...props }: DocumentLinkProps) {
-  const documentHref =
-    href.startsWith('/') &&
+/** Apply the same /qoe base path to React links and Leaflet popup anchors. */
+export function withQoeBasePath(href: string): string {
+  return href.startsWith('/') &&
     !href.startsWith('//') &&
     !/^\/qoe(?:[/?#]|$)/.test(href)
       ? '/qoe' + href
       : href;
+}
 
-  return <a {...props} href={documentHref} />;
+export default function DocumentLink({ href, ...props }: DocumentLinkProps) {
+  return <a {...props} href={withQoeBasePath(href)} />;
 }

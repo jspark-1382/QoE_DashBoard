@@ -14,9 +14,9 @@ import type { BaseStation } from '../../lib/location-estimation/types';
 import { getPciEvidence, pciEvidenceReason } from '../../lib/analyst/pci-evidence';
 import styles from './observation-details.module.css';
 const labels = {
-  gnss: 'GNSS 관측',
+  gnss: 'GPS 관측',
   interpolated: '보간 추정',
-  radio: '무선 추정',
+  radio: '삼각 측량',
   station: '위치 근거 없음 (기지국 좌표만 제공)',
   measured: '제공 좌표 (실측)',
   unavailable: '위치 근거 없음',
@@ -76,30 +76,30 @@ export function ObservationDetails({
           </p>
           <div className={styles.sourceIdentity} data-location-source={sample.locationSource}>
             <b>{['gnss','measured'].includes(sample.locationSource)
-              ? 'GNSS / 실측 관측 위치'
+              ? 'GPS / 실측 관측 위치'
               : ['radio','interpolated'].includes(sample.locationSource)
                 ? sample.lat!=null&&sample.lon!=null
                   ? sample.locationSource==='radio'?'고객 추정 위치 · 무선 측량':'고객 추정 위치 · 보간'
                   : '고객 위치 계산 불가 · 무선 근거만'
                 : '고객 위치 미확인 · 기지국은 별개'}</b>
             <span>{['radio','interpolated'].includes(sample.locationSource)
-              ? 'GNSS 좌표가 아니며 계산 정확도가 검증되지 않았습니다.'
+              ? 'GPS 좌표가 아니며 계산 정확도가 검증되지 않았습니다.'
               : ['gnss','measured'].includes(sample.locationSource)
                 ? '제공된 관측 좌표입니다. 측정 오차는 미제공입니다.'
                 : '이 관측값만으로 고객의 실제 위치를 확정할 수 없습니다.'}</span>
           </div>
-          {roughLocation&&<div className={styles.roughLocation} aria-label="통화 단위 3사이트 대략 위치">
-            <b>통화 3사이트 근사 위치</b>
+          {roughLocation&&<div className={styles.roughLocation} aria-label="통화 단위 삼각 측량 대략 위치">
+            <b>통화 삼각 측량 근사 위치</b>
             <span>{roughLocation.lat.toFixed(3)}, {roughLocation.lon.toFixed(3)} · 조사 반경 약 {Math.round(roughLocation.roughSearchRadiusM??0).toLocaleString()}m</span>
-            <small>실제 GNSS/선택 관측 좌표 아님</small>
+            <small>실제 GPS/선택 관측 좌표 아님</small>
           </div>}
           {sample.gnssReference&&<div className={styles.gnssReferenceEvidence}
-              aria-label="선택 관측의 이전 GNSS 기준">
-              <strong>이전 GNSS 기준점 확인됨</strong>
-              <p>관측 시각보다 {sample.gnssReference.ageSeconds.toFixed(1)}초 전 GNSS가 존재합니다.
+              aria-label="선택 관측의 이전 GPS 기준">
+              <strong>이전 GPS 기준점 확인됨</strong>
+              <p>관측 시각보다 {sample.gnssReference.ageSeconds.toFixed(1)}초 전 GPS가 존재합니다.
                 이동 가능 범위 반경 약 {sample.gnssReference.movementRadiusM.toLocaleString()}m
-                (속도 120km/h·기본 GNSS 오차 250m 가정).</p>
-              <span>이는 이전 실측 위치를 참고하는 영역이며, 현재 관측 시점의 새 GNSS 좌표가 아닙니다.</span>
+                (속도 120km/h·기본 GPS 오차 250m 가정).</p>
+              <span>이는 이전 실측 위치를 참고하는 영역이며, 현재 관측 시점의 새 GPS 좌표가 아닙니다.</span>
             </div>}
           {sample.estimation?.review&&!sample.estimation.review.accepted&&sample.lat==null&&
             <details className={styles.positionReviewDetails} aria-label="추정 위치 품질검토 결과">
@@ -138,7 +138,7 @@ export function ObservationDetails({
             <dd>{sample.baseStationId || '미제공'}</dd>
             {source === '실측' && sample.mos !== null && (
               <>
-                <dt>MOS</dt>
+                <dt>QoE</dt>
                 <dd>{value(sample.mos)}</dd>
               </>
             )}
@@ -229,7 +229,7 @@ export function ObservationDetails({
                             warning.replace(
                               '보정 오프셋 약',
                               '엔진 반경 모델 가정',
-                            ) + ' (GNSS 측정 정확도 미확인)'
+                            ) + ' (GPS 측정 정확도 미확인)'
                           );
                         return warning;
                       })
@@ -292,7 +292,7 @@ export function ObservationDetails({
               </dd>
               {sample.locationSource === 'gnss' && (
                 <>
-                  <dt>GNSS 원본 좌표</dt>
+                  <dt>GPS 원본 좌표</dt>
                   <dd>
                     {sample.gnssCrs || '좌표계 미제공'}
                     <br />X {value(sample.gnssX)} / Y {value(sample.gnssY)}

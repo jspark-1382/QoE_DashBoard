@@ -1,0 +1,128 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const {chromium}=require(process.argv[2]||'playwright');
+const origin=(process.argv[3]||'http://127.0.0.1:3019/qoe').replace(/\/$/,'');
+const folder=process.argv[4]||'outputs/quality-improvement-two-deploy/simulator-qa';
+fs.mkdirSync(folder,{recursive:true});
+const url=origin+'/?variant=improvement2&dateStart=2026-10-26&dateEnd=2026-10-30&mapMode=improvement';
+(async()=>{
+ const b=await chromium.launch({channel:'msedge',headless:true});
+ const result={};
+ try{
+  const p=await b.newPage({viewport:{width:1440,height:950}});
+  const errors=[];p.on('pageerror',e=>errors.push(e.message));
+  await p.goto(url,{waitUntil:'domcontentloaded'});
+  await p.getByRole('region',{name:'조사 후보 지역 목록'}).getByRole('button',{name:/후보 지역 1/}).waitFor({timeout:90000});
+  const frame=p.getByLabel('개선 2안 조사 후보 지도');
+  await frame.locator('.leaflet-container').waitFor({timeout:30000});
+  await p.getByRole('button',{name:'지도 전체 화면'}).click();
+  const dialog=p.getByRole('dialog',{name:'개선 2안 조사 후보 지도'});
+  const guide=dialog.getByLabel('조사 후보 지도 알고리즘 설명');
+  await guide.waitFor({timeout:12000});
+  const simulator=guide.getByLabel('후보 산정 가상 시뮬레이터');
+  await simulator.waitFor();
+  assert((await simulator.innerText()).includes('가상 연습용'));
+  assert((await simulator.getByRole('button',{name:/조건 선택/}).getAttribute('aria-current'))==='step');
+  assert((await simulator.locator('svg').count())>=1);
+  const contentMetrics=await simulator.evaluate(el=>{
+   const diagram=el.querySelector('[data-testid="simulation-diagram"]')?.getBoundingClientRect();
+   const elBox=el.getBoundingClientRect();
+   return {height:elBox.height,diagramBottom:diagram?.bottom??0,containerBottom:elBox.bottom};
+  });
+  assert(contentMetrics.height>550&&contentMetrics.diagramBottom<contentMetrics.containerBottom,
+   'Simulator diagram or controls have been clipped by flex shrink: '+JSON.stringify(contentMetrics));
+  const status=simulator.locator('output').first();
+  // Slider changes do not mutate real report cards or the real map.
+  const realBefore=await p.getByRole('region',{name:'선택 후보 지역 요약'}).innerText().catch(()=>null);
+  await simulator.getByRole('button',{name:/저MOS 판정/}).click();
+  const mos=simulator.getByRole('slider',{name:'가상 MOS 점수'});
+  await mos.fill('3.5');
+  assert((await status.innerText()).includes('제외'));
+  assert((await simulator.innerText()).includes('MOS 3.0 이상'));
+  await mos.fill('2.7');
+  assert((await status.innerText()).includes('진행'));
+  await simulator.getByRole('button',{name:/위치 채택/}).click();
+  await simulator.getByRole('radio',{name:'BYE Cell 위치'}).check();
+  assert((await status.innerText()).includes('기지국'));
+  await simulator.getByRole('radio',{name:'GNSS 실측'}).check();
+  await simulator.getByRole('checkbox',{name:'MDT 고유 연결'}).uncheck();
+  assert((await status.innerText()).includes('고유하게'));
+  await simulator.getByRole('checkbox',{name:'MDT 고유 연결'}).check();
+  await simulator.getByRole('button',{name:/지역 묶기/}).click();
+  const customer=simulator.getByRole('slider',{name:'가상 고유 고객 수'});
+  await customer.fill('1');
+  assert((await status.innerText()).includes('부족'));
+  await customer.fill('5');
+  const spacing=simulator.getByRole('slider',{name:'가상 관측점 간격'});
+  await spacing.fill('120');
+  assert((await status.innerText()).includes('이웃'));
+  await spacing.fill('65');
+  assert((await status.innerText()).includes('지역 후보가 생성'));
+  await simulator.getByRole('button',{name:/범위 판단/}).click();
+  assert((await status.innerText()).includes('200m'));
+  await simulator.getByRole('button',{name:/^6\s*재관측$/}).click();
+  const newCustomers=simulator.getByRole('slider',{name:'검증일 신규 고객 수'});
+  const distance=simulator.getByRole('slider',{name:'검증일 거리'});
+  await distance.fill('145');
+  assert((await status.innerText()).includes('미충족'));
+  await distance.fill('60');
+  await newCustomers.fill('2');
+  assert((await status.innerText()).includes('통과'));
+  await simulator.getByRole('button',{name:/최종 결과/}).click();
+  assert((await simulator.innerText()).includes('260m'));
+  assert((await simulator.innerText()).includes('범위 검토 필요'));
+  await simulator.getByRole('button',{name:'가상 시뮬레이션 초기화'}).click();
+  assert((await simulator.innerText()).includes('STEP 1 / 7'));
+  // Real report displays original data after synthetic experimentation.
+  const actual=guide.getByRole('region',{name:'현재 선택 후보 알고리즘 적용 예시'});
+  await actual.waitFor();
+  const a=await actual.innerText();
+  assert(a.includes('후보 지역 1')&&a.includes('5명')&&a.includes('5건')&&a.includes('170m'));
+  const sketch=actual.getByLabel('선택 실제 후보 관측점과 조사 반경 그림');
+  assert(await sketch.count(), 'Actual candidate geometry must load and be visible');
+  assert((await sketch.locator('circle').count())>=6);
+  // Keep detailed original rationale available, but not as the default wall of text.
+  const details=guide.locator('details').filter({has:p.getByText('계산 규칙 · 단계별 상세 설명 펼치기')});
+  assert.equal(await details.count(),1);
+  assert(!(await details.getByText('먼저 무엇을 선택하나요?').isVisible()));
+  await details.locator('summary').click();
+  assert(await details.getByText('먼저 무엇을 선택하나요?').isVisible());
+  await details.locator('summary').click();
+  const map=dialog.getByLabel('개선 후보 지도');
+  assert((await map.locator('.leaflet-interactive').count())>=7);
+  const firstUnselected=map.locator('path.leaflet-interactive[fill="#8fa4b3"]').first();
+  await firstUnselected.click({timeout:6000});
+  await p.waitForFunction(()=>{const h=document.querySelector('[aria-label="현재 선택 후보 알고리즘 적용 예시"] h4');return h&&!h.textContent?.includes('후보 지역 1');},null,{timeout:12000});
+  assert(!(await actual.innerText()).includes('후보 지역 1'));
+  await p.screenshot({path:folder+'/simulator-1440.png'});
+  const sizes=[{width:1440,height:950},{width:1024,height:780},{width:800,height:830},{width:680,height:820},{width:390,height:780}];
+  const layouts=[];
+  for(const viewport of sizes){
+   await p.setViewportSize(viewport);await p.waitForTimeout(250);
+   const geometry=await p.evaluate(()=>{
+    const f=document.querySelector('[role=dialog]'),g=f?.querySelector('[aria-label="조사 후보 지도 알고리즘 설명"]'),m=f?.querySelector('[aria-label="개선 후보 지도"]'),s=f?.querySelector('[aria-label="후보 산정 가상 시뮬레이터"]');
+    if(!f||!g||!m||!s)return null;
+    const b=x=>{const r=x.getBoundingClientRect();return {x:r.x,y:r.y,right:r.right,bottom:r.bottom,width:r.width,height:r.height}};
+    return {rail:b(g),map:b(m),sim:b(s),clientWidth:document.documentElement.clientWidth,scrollWidth:document.documentElement.scrollWidth};
+   });
+   assert(geometry,'missing regions '+viewport.width);
+   assert(geometry.scrollWidth<=geometry.clientWidth+4,'page overflow '+viewport.width+' '+JSON.stringify(geometry));
+   const side=geometry.rail.right<=geometry.map.x+5,stacked=geometry.rail.bottom<=geometry.map.y+5;
+   assert(side||stacked,'overlap '+viewport.width+' '+JSON.stringify(geometry));
+   assert(geometry.sim.width>=270&&geometry.sim.width<=geometry.rail.width+2,'Simulator exceeds rail at '+viewport.width+': '+JSON.stringify(geometry));
+   assert(geometry.map.width>=250&&geometry.map.height>=190);
+   layouts.push({width:viewport.width,arrangement:side?'side-by-side':'stacked',rail:Math.round(geometry.rail.width),map:Math.round(geometry.map.width)});
+   if(viewport.width===1024||viewport.width===390)await p.screenshot({path:folder+'/simulator-'+viewport.width+'.png'});
+  }
+  await p.keyboard.press('Escape');
+  assert(!(await guide.isVisible()));
+  await p.getByRole('region',{name:'선택 후보 지역 요약'}).waitFor();
+  const realAfter=await p.getByRole('region',{name:'선택 후보 지역 요약'}).innerText();
+  assert(realAfter.includes('후보 지역 2'));
+  assert(realBefore?.includes('후보 지역 1'));
+  assert.deepEqual(errors,[]);
+  result.pass=true;result.scenarios=['MOS','MDT 연결','BYE 제외','고객 수','100m 이웃','200m 범위','재관측 거리','선택 후보 연동'];
+  result.layouts=layouts;result.errors=errors;
+  console.log(JSON.stringify(result));
+ }finally{await b.close();}
+})().catch(e=>{console.error(e.stack||e.message);process.exitCode=1});

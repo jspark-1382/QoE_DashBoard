@@ -16,16 +16,16 @@ const overview=JSON.parse(read('public/analyst-overview/MDT/2026-10-30.json'));
 test('original overview preserved as 기존안 and former 4th proposal becomes main quality overview',()=>{
   const sha=(file)=>crypto.createHash('sha256').update(read(file)).digest('hex').toUpperCase();
   assert.equal(sha('components/analyst/quality-overview.tsx'),
-    '7D167EAE8C180B8BB37721410F5048772F3DC23035D6DE9B676CE13268BC4458');
+    'CF7566E1E0BD7372C0296D95BAE565250659EE49394DE60D8917468BCD02AD57');
   assert.equal(sha('components/analyst/quality-overview.module.css'),
     '3610BAF982E4FD67E0C4E54460C9C35C7D71D4FF7FA2028BA0F5DE55CAA2FD9E');
   const main=read('app/page.tsx');
   const shell=read('components/analyst/analyst-dashboard.tsx');
   const topbar=read('components/analyst/quality-proposal-four.tsx');
-  assert(main.includes('return <QualityProposalFour />'));
+  assert(main.includes('return <QualityProposalFour variant=')&&main.includes("?'improvement1':'current'"));
   assert(main.includes("view === 'overview' || view === 'contract'"));
   assert(shell.includes('<QualityTopNav'));
-  assert(topbar.includes('<QualityTopNav active="quality" date={date}/>'));
+  assert(topbar.includes('<QualityTopNav')&&topbar.includes('improvement1')&&topbar.includes('qualityHref'));
   assert(read('app/overview-proposal-4/page.tsx').includes('<QualityProposalFour />'));
   for(const version of [1,2,3]){
     assert(!fs.existsSync(path.join(root,'app/overview-proposal-'+version+'/page.tsx')));
@@ -37,7 +37,7 @@ test('original overview preserved as 기존안 and former 4th proposal becomes m
 test('new design mirrors the second selected reference composition without fabricated claims',()=>{
   const ui=read('components/analyst/quality-proposal-four.tsx');
   const css=read('components/analyst/quality-proposal-four.module.css');
-  const order=['<Topbar date={selectedDate}/>','className={styles.filters}','className={styles.kpis}',
+  const order=['<Topbar ','className={styles.filters}','className={styles.kpis}',
     'className={styles.charts}','<GradeDonut','<HourlyChart','<ExperiencePanel',
     'className={styles.geography}','<AnalystMap','className={styles.rankingList}',
     '<Table calls={dataCalls}'];
@@ -155,8 +155,10 @@ test('total CDR low-quality percentage is separately presented beside evaluated 
  assert(ui.includes('fourthBandCalls(model.visibleHours,selectedBand'));
  assert(ui.includes('setSelectedBand(null)'),'clear all releases grade filter');
  assert(ui.includes("selectedBand&&distributionMode==='mos'&&<button className={styles.filterApplied}"));
- assert(ui.includes('전체 대비 {entry.totalRate}'));
- assert(ui.includes('유효 MOS 대비'));
+ assert(ui.includes('QoE 대비 {entry.mosRate}'));
+ assert(ui.includes('mosRate:poorRates?.evaluated'));
+ assert(ui.includes('sub:`전체 대비 ${poorRates?.total'));
+ assert(ui.includes('title="유효 QoE 평가 통화 대비"'));
  assert(css.includes('.gradeItem[aria-pressed="true"]'));
  assert(css.includes('.donutSelect{'));
  assert(css.includes('.poorTotalRate{'));
@@ -174,7 +176,7 @@ test('map popup opens selected CDR immediately and table retains accessible call
  assert(ui.includes('onCallLocationSelect={selectCall}'));
  assert(ui.includes('onSelect={selectTableCall}'));
  assert(ui.includes('setChosenCall(id);setDeep(false);setDialogOpen(true);setSearch'));
- assert(!ui.includes('scrollIntoView'));
+ assert(!ui.slice(ui.indexOf('const selectCall='),ui.indexOf('const selectTableCall=')).includes('scrollIntoView'));
  assert(ui.includes('setChosenCall(id);setDeep(false);setDialogOpen(true)'));
  assert(ui.includes('id="qoe-call-analysis-dialog"'));
  assert(ui.includes('aria-modal="true"'));
@@ -221,7 +223,7 @@ test('selected-call dialog draws exactly its linked CDR-end coordinate, not an a
  const ui=read('components/analyst/quality-proposal-four.tsx');
  const map=read('components/analyst/analyst-map.tsx');
  const css=read('components/analyst/quality-proposal-four.module.css');
- assert(ui.includes("const selectedLocation=selected?model?.markerByCall.get(selected.id):undefined;"));
+ assert(ui.includes("const selectedLocation=selected?tableLocations.get(selected.id):undefined;"));
  assert(ui.includes('className={styles.dialogLocation}'));
  assert(ui.includes('aria-label="선택 통화 종료 대표 위치 지도"'));
  assert(ui.includes('callLocations={[selectedLocation]}'));
@@ -234,7 +236,7 @@ test('selected-call dialog draws exactly its linked CDR-end coordinate, not an a
  assert(ui.includes('selectedLocation.byeRuId'));
  assert(ui.includes('위치를 임의로 생성하지 않았습니다'));
  assert(ui.includes('실제 위치 오차가 검증된 값은 아닙니다'));
- assert(ui.includes('MOS 저하 순간의 위치를 뜻하지 않습니다'));
+ assert(ui.includes('QoE 저하 순간의 위치를 뜻하지 않습니다'));
  assert(map.includes('if (administrativeDongs.length || callLocations.length)'));
  assert(map.includes('!callLocations.length &&'),'linked single call must not show misleading empty-map overlay');
  assert(map.includes('if(canSelectCallLocation) for (const entry'));

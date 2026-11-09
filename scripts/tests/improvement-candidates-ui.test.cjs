@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports -- Existing Node test harness. */
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
@@ -6,6 +7,13 @@ const {callEvidenceUrl,validateImprovementReport}=load('lib/analyst/improvement-
 const read=p=>JSON.parse(fs.readFileSync(p,'utf8'));
 const report=read('public/improvement-candidates/2026-10-26_2026-10-30.json');
 const manifest=read('public/voice-1030.json');
+
+test('Leaflet GNSS popup resolves its raw-call deep link under /qoe, not server root',()=>{
+ const source=fs.readFileSync('components/analyst/improvement-candidate-map.tsx','utf8');
+ assert(source.includes("import {withQoeBasePath} from './document-link'"));
+ assert(source.includes('link.href=withQoeBasePath(callEvidenceUrl('));
+ assert(!source.includes('link.href=callEvidenceUrl('));
+});
 
 test('historical 5-day improvement evidence has exact version and 3 GNSS + 2 cell candidates',()=>{
  assert.equal(validateImprovementReport(report,manifest.meta.revision),true);
@@ -66,6 +74,8 @@ test('current dashboard includes opt-in mode and keeps original 1-3 day view/tab
  assert(ui.includes("mapMode==='current'"));
  assert(ui.includes("{mapMode==='current'&&<section className={styles.kpis}"));
  assert(ui.includes("{mapMode==='current'&&<div className={styles.charts}"));
+ assert(ui.includes("{mapMode==='current'&&improvementMetrics&&<details"));
+ assert(ui.includes("{(mapMode==='current'||(improvement&&investigation))&&<Table"));
  assert(ui.includes('<ImprovementCandidateWorkspace sourceRevision={dataset?.meta.revision'));
  assert(ui.includes('<AnalystMap'));
  assert(ui.includes('<Table calls={dataCalls}'));

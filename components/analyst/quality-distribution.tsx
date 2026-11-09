@@ -20,7 +20,7 @@ export function QualityDistribution({
   selectedBand,
   onBandSelect,
 }: Props) {
-  const metricLabel = analytics.metric === 'mos' ? 'MOS' : 'QoE';
+  const metricLabel = analytics.metric === 'mos' ? 'QoE' : 'QoE';
   const maximum = Math.max(1, ...analytics.bins.map((bin) => bin.count));
   const orderedBands = (['poor', 'fair', 'good'] as ScoreBand[])
     .flatMap((id) => analytics.bands.filter((band) => band.id === id));

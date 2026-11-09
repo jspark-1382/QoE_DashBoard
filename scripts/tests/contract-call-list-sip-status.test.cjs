@@ -7,7 +7,7 @@ const {classifySipReason11,sipReasonLabel}=load('lib/analyst/sip-reason.ts');
 const source=fs.readFileSync('components/analyst/contract-workspace.tsx','utf8');
 const css=fs.readFileSync('components/analyst/contract-workspace.module.css','utf8');
 test('customer analysis list has SIP status immediately after MOS and before source',()=>{
-  const i=source.indexOf("<th>{day.source === 'MDT' ? 'MOS' : 'QoE'}</th>");
+  const i=source.indexOf("<th>{day.source === 'MDT' ? 'QoE' : 'QoE'}</th>");
   assert(i>0);
   const j=source.indexOf('11.REASON 종료 사유',i);
   const k=source.indexOf('<th>자료</th>',i);

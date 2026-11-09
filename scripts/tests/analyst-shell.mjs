@@ -40,6 +40,13 @@ try {
     await fs.readFile('components/analyst/analyst-dashboard.tsx', 'utf8'),
     { compilerOptions: options },
   ).outputText;
+  const improvementNavigationPath=new URL('./.improvement-navigation-test.mjs',import.meta.url);
+  files.push(improvementNavigationPath);
+  await fs.writeFile(improvementNavigationPath,ts.transpileModule(
+    await fs.readFile('lib/analyst/improvement-navigation.ts','utf8'),{compilerOptions:options},
+  ).outputText);
+  code=code.replace(/from ['"]\.\.\/\.\.\/lib\/analyst\/improvement-navigation['"]/,
+    'from "./.improvement-navigation-test.mjs"');
   code = code.replace(
     /import Link from ['"]\.\/document-link['"];?/,
     'import Link from "./.document-link-test.mjs";',

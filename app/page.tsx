@@ -9,10 +9,10 @@ import { QualityProposalFour } from '@/components/analyst/quality-proposal-four'
 export default async function Home({
   searchParams,
 }: {
-  searchParams: Promise<{view?: string | string[]}>;
+  searchParams: Promise<{view?: string | string[];variant?:string|string[]}>;
 }) {
   const params = await searchParams;
   const view = params?.view;
   if (view === 'overview' || view === 'contract') return <AnalystDashboard />;
-  return <QualityProposalFour />;
+  return <QualityProposalFour variant={params?.variant==='improvement2'?'improvement2':params?.variant==='improvement1'?'improvement1':'current'} />;
 }

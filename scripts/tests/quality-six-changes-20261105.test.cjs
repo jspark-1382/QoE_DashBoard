@@ -50,7 +50,9 @@ test('five candidates show 42 uniquely affected customers, not 5 candidate sites
 test('related GNSS sample counts are full per-call point sets, not a single medoid',()=>{
  assert.deepEqual(report.candidates.map(c=>c.relatedGnss.length),[21,32,43,10,2]);
  const labels=report.candidates.filter(c=>c.kind==='spatial').map(c=>c.label);
- assert(labels.every(x=>x.startsWith('MOS 저하고객 중복 위치 ')));
+ assert(labels.every(x=>x.startsWith('MOS 저하고객 중복 위치 ')), 'raw candidate JSON retains original labels');
+ const display=fs.readFileSync('components/analyst/improvement-candidates.tsx','utf8');
+ assert(display.includes('displayQualityLabel(candidate.label)'), 'UI must normalize the original label without changing evidence');
 });
 test('inline full map opens selected call analysis directly, retaining SIP and GNSS changes',()=>{
  const ui=fs.readFileSync('components/analyst/quality-proposal-four.tsx','utf8');
@@ -70,7 +72,7 @@ test('inline full map opens selected call analysis directly, retaining SIP and G
  assert(ui.includes('colSpan={11}'));
  assert(candidate.includes('저품질 체감 고객'));
  assert(candidate.includes('report.summary.distinctAffectedCustomers'));
- assert(candidate.includes('MOS 저하고객 중복 위치'));
+ assert(candidate.includes('QoE 저하고객 중복 위치'));
  assert(candidate.includes('관련 원본 GNSS 전체'));
  assert(candidate.includes('data-reason="drop"'));
  assert(candidate.indexOf('className={styles.evidenceRow}')<candidate.indexOf('className={styles.locationNote}'));

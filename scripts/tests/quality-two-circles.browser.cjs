@@ -1,0 +1,83 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const {chromium}=require(process.argv[2]||'playwright');
+const root=(process.argv[3]||'http://127.0.0.1:3019/qoe').replace(/\/$/,'');
+const dest=process.argv[4]||'outputs/quality-improvement-two-deploy/circles-qa';
+fs.mkdirSync(dest,{recursive:true});
+const url=root+'/?variant=improvement2&dateStart=2026-10-26&dateEnd=2026-10-30&mapMode=improvement';
+(async()=>{
+ const browser=await chromium.launch({channel:'msedge',headless:true});
+ try{
+  const page=await browser.newPage({viewport:{width:1440,height:950}});
+  const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  await page.goto(url,{waitUntil:'domcontentloaded'});
+  await page.getByRole('region',{name:'조사 후보 지역 목록'}).getByRole('button',{name:/후보 지역 1/}).waitFor({timeout:90000});
+  await page.getByRole('button',{name:'지도 전체 화면'}).click();
+  const dialog=page.getByRole('dialog',{name:'개선 2안 조사 후보 지도'});
+  const guide=dialog.getByLabel('조사 후보 지도 알고리즘 설명');
+  const simulator=guide.getByLabel('후보 산정 가상 시뮬레이터');
+  await simulator.waitFor({timeout:10000});
+  await simulator.getByRole('button',{name:/지역 묶기/}).click();
+  const diagram=simulator.locator('[data-testid="simulation-diagram"]');
+  const plot=diagram.locator('svg');
+  const neighbors=plot.locator('[data-circle-kind="neighbor"]');
+  const finals=plot.locator('[data-circle-kind="final"]');
+  assert.equal(await neighbors.count(),5,'STEP 4 must show 100m circle for each of 5 observations');
+  assert.equal(await finals.count(),0,'STEP 4 must NOT show final display circle');
+  assert((await diagram.innerText()).includes('각 저MOS 관측점마다 100m 이웃 검색 원'));
+  const info=await plot.evaluate(svg=>{
+   const circles=[...svg.querySelectorAll('[data-circle-kind="neighbor"]')];
+   const points=[...svg.querySelectorAll('[data-observation-point] circle')];
+   const x1=Number(points[0].getAttribute('cx')),x2=Number(points[1].getAttribute('cx'));
+   return {ratio:Number(circles[0].getAttribute('r'))/Math.abs(x2-x1),geometry:circles.map(c=>{
+    const cx=Number(c.getAttribute('cx')),cy=Number(c.getAttribute('cy')),r=Number(c.getAttribute('r'));
+    return {left:cx-r,top:cy-r,right:cx+r,bottom:cy+r};
+   }),viewBox:{width:svg.viewBox.baseVal.width,height:svg.viewBox.baseVal.height}};
+  });
+  assert(Math.abs(info.ratio-100/45)<1e-5,'100m circle must share the same scale as the 45m observation spacing');
+  for(const g of info.geometry)assert(g.left>=-1&&g.top>=-1&&g.right<=info.viewBox.width+1&&g.bottom<=info.viewBox.height+1,'STEP 4 neighbor circle clipped '+JSON.stringify(g));
+  await page.screenshot({path:dest+'/step4-neighbors.png'});
+  await simulator.getByRole('button',{name:/범위 판단/}).click();
+  assert.equal(await neighbors.count(),5);
+  assert.equal(await finals.count(),1,'STEP 5 must add only one final display circle');
+  let ratio=await plot.evaluate(svg=>Number(svg.querySelector('[data-circle-kind="final"]').getAttribute('r'))/Number(svg.querySelector('[data-circle-kind="neighbor"]').getAttribute('r')));
+  assert(Math.abs(ratio-1.1)<1e-5,'Default display radius 110m must be 1.1 times 100m');
+  assert((await simulator.getByLabel('대표점과 조사 반경 계산 과정').innerText()).includes('90.0m + 20m'));
+  await simulator.getByRole('slider',{name:'가상 관측점 간격'}).fill('65');
+  ratio=await plot.evaluate(svg=>Number(svg.querySelector('[data-circle-kind="final"]').getAttribute('r'))/Number(svg.querySelector('[data-circle-kind="neighbor"]').getAttribute('r')));
+  assert(Math.abs(ratio-1.5)<1e-5,'130m + 20m -> 150m display radius');
+  assert((await simulator.getByLabel('대표점과 조사 반경 계산 과정').innerText()).includes('130.0m + 20m'));
+  assert((await simulator.innerText()).includes('200m'));
+  await page.screenshot({path:dest+'/step5-two-circles.png'});
+  await simulator.getByRole('button',{name:/최종 결과/}).click();
+  const summary=await simulator.innerText();
+  for(const part of ['이웃 검색 반경','100m','군집 구성 관측점','5개','대표점→최원거리','130.0m','최종 표시 반경','150m','최대 점간 거리','260m','범위 검토'])assert(summary.includes(part),'missing summary: '+part);
+  const actual=guide.getByLabel('선택 실제 후보 관측점과 조사 반경 그림');
+  await actual.waitFor();
+  const realRings=actual.locator('svg [data-circle-kind="neighbor"]');
+  const realFinal=actual.locator('svg [data-circle-kind="final"]');
+  assert.equal(await realRings.count(),5,'First real candidate has 5 discovery observations');
+  assert.equal(await realFinal.count(),1);
+  const actualRadius=await actual.evaluate(el=>{
+   const svg=el.querySelector('svg'),rings=[...svg.querySelectorAll('[data-circle-kind="neighbor"]')],f=svg.querySelector('[data-circle-kind="final"]');
+   const r1=Number(rings[0].getAttribute('r')),r2=Number(f.getAttribute('r'));
+   const clipped=[...rings,f].some(c=>{
+    const x=Number(c.getAttribute('cx')),y=Number(c.getAttribute('cy')),r=Number(c.getAttribute('r'));
+    return x-r < -1||y-r < -1||x+r > svg.viewBox.baseVal.width+1||y+r > svg.viewBox.baseVal.height+1;
+   });
+   return {ratio:r2/r1,clipped};
+  });
+  assert(Math.abs(actualRadius.ratio-1.7)<1e-5,'Actual candidate #1 display radius is 170m');
+  assert(!actualRadius.clipped,'Real observation rings or final circle clipped');
+  assert((await actual.innerText()).includes('최종 170m'));
+  await page.screenshot({path:dest+'/actual-two-circles.png'});
+  const markers=dialog.getByLabel('개선 후보 지도').locator('path.leaflet-interactive[fill="#8fa4b3"]');
+  await markers.first().click({timeout:7000});
+  await page.waitForFunction(()=>document.querySelector('[aria-label="현재 선택 후보 알고리즘 적용 예시"] h4')?.textContent?.includes('후보 지역 2'),null,{timeout:12000});
+  assert(await actual.locator('[data-circle-kind="neighbor"]').count()>0,'Real circle layout must update on selection');
+  await page.keyboard.press('Escape');
+  assert(!(await guide.isVisible()));
+  assert.deepEqual(errors,[]);
+  console.log(JSON.stringify({pass:true,step4ObservationCircles:5,step5FinalCircle:1,step5RadiusAfterChangingSpacing:150,realCandidateDisplayRadius:170,realCandidateCircles:5,actualRadius,errors}));
+ }finally{await browser.close();}
+})().catch(e=>{console.error(e.stack||e.message);process.exitCode=1});

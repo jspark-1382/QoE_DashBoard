@@ -29,6 +29,7 @@ import { overlayThreeSiteRough, type ThreeSiteRoughDataset } from '../../lib/ana
 import { QualityOverview, type OverviewFilters } from './quality-overview';
 import styles from './analyst-shell.module.css';
 import { QualityTopNav } from './quality-top-nav';
+import { buildImprovementHref, withComparisonRevision } from '../../lib/analyst/improvement-navigation';
 const initialFilters: OverviewFilters = {
   from: '00:00',
   to: '23:59',
@@ -155,6 +156,8 @@ function useResource<T>(
   };
 }
 export function AnalystDashboard() {
+  const [compareRevision,setCompareRevision]=useState('');
+  const [compareMode,setCompareMode]=useState('');
   const [selection, setSelection] = useState(() => parseSelection('')),
     [filters, setFilters] = useState(initialFilters),
     [ready, setReady] = useState(false),
@@ -165,6 +168,8 @@ export function AnalystDashboard() {
     [settingsOpen, setSettingsOpen] = useState(false);
   useEffect(() => {
     const read = () => {
+      setCompareRevision(new URLSearchParams(window.location.search).get('compareRevision')??'');
+      setCompareMode(new URLSearchParams(window.location.search).get('mode')??'');
       setSelection(parseSelection(window.location.search));
       setFilters(readFilters(window.location.search));
       setReady(true);
@@ -215,11 +220,11 @@ export function AnalystDashboard() {
     ? 'three-site-rough-v1/'+revision+'/'+resolved.date : null;
   const roughLoader=useCallback(async (signal:AbortSignal):Promise<ThreeSiteRoughDataset>=>{
     const response=await fetch('/qoe/three-site-rough/'+resolved.date+'.json',{signal,cache:'no-cache'});
-    if(!response.ok)throw new Error('3사이트 조사 권역 데이터를 불러오지 못했습니다.');
+    if(!response.ok)throw new Error('삼각 측량 조사 권역 데이터를 불러오지 못했습니다.');
     const value=await response.json() as ThreeSiteRoughDataset;
     if(value.sourceRevision!==revision || value.date!==resolved.date ||
        value.schemaVersion!=='coarse-three-site-v1')
-      throw new Error('3사이트 조사 권역 데이터 버전이 일치하지 않습니다.');
+      throw new Error('삼각 측량 조사 권역 데이터 버전이 일치하지 않습니다.');
     return value;
   },[revision,resolved.date]);
   const rough=useResource(roughKey,roughLoader);
@@ -261,7 +266,7 @@ export function AnalystDashboard() {
         }
       : {}),
   };
-  const canonical = urlFor(current, filters);
+  const canonical = withComparisonRevision(urlFor(current, filters),compareRevision,compareMode);
   useEffect(() => {
     if (ready && dataset)
       window.history.replaceState(
@@ -276,7 +281,7 @@ export function AnalystDashboard() {
     window.history.pushState(
       null,
       '',
-      `${window.location.pathname}${urlFor(next, nextFilters)}`,
+      `${window.location.pathname}${withComparisonRevision(urlFor(next, nextFilters),compareRevision,compareMode)}`,
     );
   };
   const deferred = useDeferredValue(query.trim().toLowerCase());
@@ -515,12 +520,16 @@ export function AnalystDashboard() {
         active={resolved.view === 'overview' ? 'legacy' : 'contract'}
         date={resolved.date}
         sourceLabel={resolved.source+' · Voice'}
+        improvementHref={buildImprovementHref(resolved,{
+          ...filters,scoreMetric:dataset?.meta.qoeBasis==='rtcp-mos-v5'?'mos':filters.scoreMetric,
+        },compareRevision||revision,compareMode)}
         onLegacy={() => navigate({ ...current, view: 'overview' })}
         onContract={() => navigate({ ...current, view: 'contract' })}
         actions={<button className={styles.settingsButton} aria-expanded={settingsOpen}
           onClick={() => setSettingsOpen(v => !v)}>분석 설정</button>}
       />
       <div className={styles.content}>
+        {compareRevision&&dataset&&compareRevision!==revision&&<p role="alert">비교할 원본 버전이 다릅니다. 같은 조건의 비교로 볼 수 없습니다.</p>}
         {resolved.view === 'overview' && (
           <div className={styles.pageHeading}>
             <h1>기존안 · 품질 현황</h1>

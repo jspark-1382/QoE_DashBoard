@@ -172,7 +172,7 @@ export function ExecutiveDashboard() {
         </MapCallContext>}
       </ExecutivePanel>
 
-      <ExecutivePanel number={2} title="시간대별 품질 변화" className="exec-chart-panel" badge={<span className="exec-data-badge derived">{source === 'MDT' ? 'QoE 무선 추정 · MOS 없음' : 'QoE 계산 · MOS 실측'}</span>}>
+      <ExecutivePanel number={2} title="시간대별 품질 변화" className="exec-chart-panel" badge={<span className="exec-data-badge derived">{source === 'MDT' ? 'QoE 삼각 측량 · QoE 없음' : 'QoE 계산 · QoE 실측'}</span>}>
         {isAll ? <LowQoeHourChart samples={lowUnion} /> : <ExecutiveTimeChart samples={samples} episodes={episodes} selectedCallId={selectedCallId} selectedEpisodeId={selectedCallId ? null : selectedEpisode?.id ?? null} selectedSampleIndex={activeSampleIndex} onEpisodeSelect={chooseEpisode} onSampleSelect={index => { setShowAllCalls(false); setSelectedSampleIndex(index); }} />}
       </ExecutivePanel>
 
