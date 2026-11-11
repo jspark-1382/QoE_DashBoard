@@ -10,6 +10,7 @@ import {aggregateScreening,number,percent,validScreeningSource,
   type CustomerGroup,type ScreeningResult,type ScreeningRow,type ScreeningSource} from '../../lib/analyst/customer-screening';
 import {buildScreeningGeography,metricLabel,type ScreeningMapMetric,type ScreeningMapView} from '../../lib/analyst/customer-screening-map';
 import {buildCustomerRoute} from '../../lib/analyst/customer-screening-route';
+import {buildTopCustomerMap,buildTopCustomerRoutes} from '../../lib/analyst/customer-screening-top-ten';
 import styles from './customer-screening.module.css';
 
 type RankMode='poor'|'drop'|'repeat';
@@ -174,6 +175,9 @@ export function CustomerScreeningDashboard(){
       b.repeatedDays-a.repeatedDays||b.poor-a.poor||b.sameAreaDays-a.sameAreaDays);
   },[report,query,filter,sortMode]);
   const affectedCallTotal=useMemo(()=>report?.rows.reduce((sum,row)=>sum+(row.poor>0?row.total:0),0)??0,[report]);
+  const topCustomers=useMemo(()=>buildTopCustomerMap(ranking),[ranking]);
+  const topCustomerRoutes=useMemo(()=>source&&mapView==='top10'?
+    buildTopCustomerRoutes(source,ranking,start,end,from,to):[],[source,ranking,start,end,from,to,mapView]);
   const geography=useMemo(()=>source&&report?buildScreeningGeography(source,start,end,from,to):null,[source,report,start,end,from,to]);
   const scopedReport=useMemo(()=>source&&(selectedAreaId||selectedCellId)?
     aggregateScreening(source,start,end,from,to,selectedAreaId?{areaId:selectedAreaId}:{cellId:selectedCellId}):null,
@@ -282,8 +286,9 @@ export function CustomerScreeningDashboard(){
         <div className={styles.investigationGrid}>
           <section className={styles.panel}>
             <Heading icon={MapPinned} actions={<div className={styles.mapControls}>
-              {([['dong','행정동별 고객'],['cell','기지국·셀별'],['gnss','GPS 실측']] as const).map(([view,label])=>
+              {([['top10','저품질 고객 TOP 10'],['dong','행정동별 고객'],['cell','기지국·셀별'],['gnss','GPS 실측']] as const).map(([view,label])=>
                 <button key={view} type="button" className={styles.tabButton+' '+(mapView===view?styles.active:'')}
+                  aria-pressed={mapView===view}
                   onClick={()=>{setMapView(view);clearMapSelection();}}>{label}</button>)}
               {selectedId&&<button type="button" aria-label="선택 고객 위치흐름" className={styles.tabButton+' '+(mapView==='route'?styles.active:'')}
                 onClick={()=>setMapView('route')}>고객 경로</button>}
@@ -291,19 +296,22 @@ export function CustomerScreeningDashboard(){
                 value={routeDay} onChange={e=>setRouteDay(e.target.value)}>
                 <option value="all">전체 날짜</option>
                 {source?.dates.filter(d=>d>=start&&d<=end).map(d=><option key={d} value={d}>{d.slice(5)}</option>)}
-              </select>:<select aria-label="고객 지도 집계 지표" className={styles.mapMetricSelect} value={mapMetric}
+              </select>:mapView!=='top10'&&<select aria-label="고객 지도 집계 지표" className={styles.mapMetricSelect} value={mapMetric}
                 onChange={event=>setMapMetric(event.target.value as ScreeningMapMetric)}>
                 {([['customers','저품질 고객 수'],['repeat','반복 불량 고객'],['poorCalls','저품질 통화 수'],['drops','Drop 수']] as const)
                   .map(([key,label])=><option key={key} value={key}>{label}</option>)}
               </select>}
             </div>}>문제 고객 분석 지도</Heading>
             {geography&&source&&<CustomerScreeningMap geography={geography} mode={mapView} metric={mapMetric}
+              topCustomers={topCustomers}
+              topCustomerRoutes={topCustomerRoutes}
               sourceRevision={source.sourceRevision} selectedAreaId={selectedAreaId} selectedCellId={selectedCellId} customerRoute={route}
               onSelectArea={area=>{setSelectedAreaId(area);setSelectedCellId('');setSelectedId('');}}
               onSelectCell={cell=>{setSelectedCellId(cell);setSelectedAreaId('');setSelectedId('');}}
               onSelectCustomer={pickCustomer}/>}
             <div className={styles.scatterNote}>
-              {mapView==='route'?route?
+              {mapView==='top10'?`상단 TOP 10과 동일한 고객 · 위치 표시 ${topCustomers.points.length}명 / ${topCustomers.total}명 · 최대 확대 시 전체 고객 통화 위치 흐름 자동 표시 · 위치 미확보 ${topCustomers.unlocated}명`:
+               mapView==='route'?route?
                 '선택 '+route.name+' · GPS '+route.gnssCount+'건 / BYE Cell 참고 '+route.cellReferenceCount+
                 '건 · 시간순 점선은 관측점 연결(실제 이동경로 아님)':
                 '고객을 선택하면 GPS와 서빙 기지국 기준 통화 위치 흐름이 표시됩니다.':

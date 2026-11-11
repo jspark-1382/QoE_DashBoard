@@ -1,6 +1,6 @@
 import type {ScreeningSource,ScreeningRow} from './customer-screening';
 
-export type ScreeningMapView='dong'|'cell'|'gnss'|'route';
+export type ScreeningMapView='top10'|'dong'|'cell'|'gnss'|'route';
 export type ScreeningMapMetric='customers'|'repeat'|'poorCalls'|'drops';
 export interface ScreeningMapArea {
   id:string;label:string;customers:number;repeat:number;poorCalls:number;drops:number;
