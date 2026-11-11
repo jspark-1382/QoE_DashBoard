@@ -21,6 +21,7 @@ import {
 import { locationLabels } from '../../lib/analyst/data';
 import { estimationMethodLabel } from '../../lib/analyst/estimation-evidence';
 import { byeSelectionDescription } from '../../lib/analyst/bye-selection';
+import {stationTowerSvg} from '../../lib/analyst/station-map-presentation';
 import type { GnssReference } from '../../lib/location-estimation/gnss-reference';
 import 'leaflet/dist/leaflet.css';
 import styles from './analyst-map.module.css';
@@ -35,6 +36,8 @@ interface Props {
   clusterOccurrences?: boolean;
   /** Improvement mode keeps distinct location evidence in separate clusters. */
   separateEvidence?: boolean;
+  /** Shared, zoom-scaled bubbles for the quality overview's all-location mode. */
+  unifiedOccurrenceBubbles?: boolean;
   onCallLocationSelect?: (callId: string) => void;
   selectedIndex?: number | null;
   selectedCellId?: string | null;
@@ -52,6 +55,8 @@ interface Props {
   showGnss?: boolean;
   showEstimates?: boolean;
   showStations?: boolean;
+  /** Hide BYE tower helper pins in the improvement-2 map only. */
+  hideByeSiteMarkers?:boolean;
   showEstimationEvidence?: boolean;
   /** Fixed source colors only for customer-call map, not other maps. */
   emphasizeLocationSource?:boolean;
@@ -81,6 +86,7 @@ export function AnalystMap({
   callLocations = EMPTY_CALL_LOCATIONS,
   clusterOccurrences = false,
   separateEvidence = false,
+  unifiedOccurrenceBubbles = false,
   scoreBand = 'poor',
   onCallLocationSelect,
   stations = EMPTY_STATIONS,
@@ -97,6 +103,7 @@ export function AnalystMap({
   showGnss = true,
   showEstimates = true,
   showStations = false,
+  hideByeSiteMarkers = false,
   showEstimationEvidence = false,
   emphasizeLocationSource = false,
   focusKey = 'map',
@@ -278,8 +285,13 @@ export function AnalystMap({
           const count = callsAtPoint.length;
           const uniqueCalls = new Set(callsAtPoint.map(item=>item.callId)).size;
           const isCluster = clusterOccurrences && clusterZoom < 17 && count > 1;
-          const iconSize = isCluster && !separateEvidence ? 34 : 26;
-          const markerClass = isCluster && !separateEvidence ? styles.occurrenceGrouped :
+          const bubble = unifiedOccurrenceBubbles && !isByeSite;
+          const iconSize = bubble
+            ? Math.round(Math.max(20,Math.min(68,
+              (22+Math.min(18,Math.sqrt(uniqueCalls-1)*5))*2**((clusterZoom-13)*0.12))))
+            : isCluster && !separateEvidence ? 34 : 26;
+          const markerClass = bubble ? styles.occurrenceBubble :
+            isCluster && !separateEvidence ? styles.occurrenceGrouped :
             lastKnown ? styles.occurrenceGnssReference :
             observed ? styles.occurrenceGnss :
             isByeSite ? styles.occurrenceByeCell :
@@ -287,7 +299,7 @@ export function AnalystMap({
               ? styles.occurrenceTrilat : styles.occurrenceEstimate;
           const icon = L.divIcon({
             className: styles.occurrenceIcon,
-            html: `<span class="${markerClass}">${isCluster?uniqueCalls:count}</span>`,
+            html: `<span class="${markerClass}">${bubble||isCluster?uniqueCalls:count}</span>`,
             iconSize: [iconSize,iconSize],
             iconAnchor: [iconSize/2,iconSize/2],
           });
@@ -299,7 +311,9 @@ export function AnalystMap({
             : `${regionName} · ${isByeSite?'BYE Cell 기지국 기반 '+gradeLabel+' 통화':gradeLabel+' 통화 대표 위치'} ${count}건`;
           popup.appendChild(heading);
           const provenance = document.createElement('p');
-          provenance.textContent = isCluster
+          provenance.textContent = bubble && isCluster
+            ? `GPS ${new Set(callsAtPoint.filter(item=>item.evidence==='gnss').map(item=>item.callId)).size}건 · 삼각 측량 ${new Set(callsAtPoint.filter(item=>item.evidence==='estimated').map(item=>item.callId)).size}건 · 확대 후 개별 위치 근거 확인`
+            : isCluster
             ? separateEvidence
               ? label + ' 군집 · 확대 후 개별 위치 확인'
               : 'GPS/삼각 측량/BYE Cell 기지국 위치 군집 · 확대 후 개별 근거 확인'
@@ -327,7 +341,7 @@ export function AnalystMap({
                 weight:2,dashArray:'5 5',fillOpacity:0.055,
                 fillColor:'#079b86',
               }).bindTooltip('마지막 GPS 기준 이동 가능 영역 · 실제 단말 이동경로 아님').addTo(layer);
-              if(point.byeRuId&&point.byeStationLat!=null&&point.byeStationLon!=null){
+              if(!hideByeSiteMarkers&&point.byeRuId&&point.byeStationLat!=null&&point.byeStationLon!=null){
                 const site:[number,number]=[point.byeStationLat,point.byeStationLon];
                 // The mini-map must include BOTH actual GNSS and the separate BYE site.
                 focusBounds.push(site);
@@ -590,6 +604,11 @@ export function AnalystMap({
           if (!Number.isFinite(station.latitude) || !Number.isFinite(station.longitude)) continue;
           bounds.push([station.latitude, station.longitude]);
           visibleStationBounds.push([station.latitude, station.longitude]);
+          const sameSite=stations.filter(item=>item.latitude===station.latitude&&item.longitude===station.longitude);
+          const relationLabels={'gps-observation':'GPS 관측 시 연결 기지국',
+            'gps-call-bye':'GPS 통화 종료(BYE) 참고 기지국','triangulation-input':'삼각 측량 입력 기지국'};
+          const relatedSources=[...new Set(sameSite.flatMap(item=>item.mapRelations??[]))]
+            .map(relation=>relationLabels[relation]).join(' · ');
           const isByeSite=!!byeSiteCellId&&station.cellId===byeSiteCellId&&
             (!byeSiteRuId||station.baseStationId===byeSiteRuId)&&
             (!byeSiteTechnology||(station.technology??'LTE')===byeSiteTechnology);
@@ -597,18 +616,20 @@ export function AnalystMap({
             zIndexOffset:isByeSite?900:0,
             icon:L.divIcon({
               className:styles.stationIcon+(isByeSite?' '+styles.byeStationIcon:''),
-              html:isByeSite?'▲':'△',
-              iconSize:isByeSite?[25,25]:[20,20],
-              iconAnchor:isByeSite?[12,12]:[10,10],
+              html:stationTowerSvg(isByeSite?'linked':'standard',isByeSite?28:23),
+              iconSize:isByeSite?[30,34]:[25,29],
+              iconAnchor:isByeSite?[15,17]:[12,14],
             }),
           })
-            .bindTooltip(isByeSite?'BYE 기지국 참고 · '+(byeSiteSelectionLabel?byeSiteSelectionLabel+' · ':'')+'단말 위치 아님':'기지국 참고 위치 · 단말 위치 아님')
+            .bindTooltip(isByeSite?'BYE 기지국 참고 · '+(byeSiteSelectionLabel?byeSiteSelectionLabel+' · ':'')+'단말 위치 아님':(relatedSources||'기지국 참고 위치')+' · 단말 위치 아님')
             .bindPopup(
               '<b>'+(isByeSite?'BYE 종료 기지국 · 단말 위치 아님':'기지국 참고 좌표 · 고객 위치 아님')+
               '</b><br/>RU '+esc(station.baseStationId)+' · Cell '+esc(station.cellId||'미제공')+
               (isByeSite&&byeSiteSelectionLabel?'<br/>'+esc(byeSiteSelectionLabel):'')+
               (station.technology?'<br/>통신 방식 '+(station.technology==='NR'?'5G (NR)':'LTE'):'')+
+              (relatedSources?'<br/>연결 근거 '+esc(relatedSources):'')+
               '<br/>등록 PCI '+(station.pci??'미제공')+
+              (sameSite.length>1?'<br/>동일 좌표 셀 '+sameSite.length+'개'+sameSite.slice(0,12).map(s=>'<br/>RU '+esc(s.baseStationId)+' · Cell '+esc(s.cellId)+' · PCI '+(s.pci??'미제공')).join(''):'')+
               (station.inventorySource?'<br/>인벤토리 '+esc(station.inventorySource):'')+
               '<br/>'+station.latitude.toFixed(6)+', '+station.longitude.toFixed(6)+
               '<br/>기지국 좌표이며 단말의 실측·추정 위치가 아닙니다.',
@@ -693,6 +714,7 @@ export function AnalystMap({
     callLocations,
     clusterOccurrences,
     separateEvidence,
+    unifiedOccurrenceBubbles,
     clusterZoom,
     scoreBand,
     gradeLabel,
@@ -708,6 +730,7 @@ export function AnalystMap({
     showGnss,
     showEstimates,
     showStations,
+    hideByeSiteMarkers,
     showEstimationEvidence,
     emphasizeLocationSource,
     selectedIndex,

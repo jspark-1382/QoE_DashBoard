@@ -154,7 +154,7 @@ export function CandidateWorkspaceView({report,selectedId,filter,onFilter,onSele
           </div>
         </div>
         <div className={styles.mapHost} data-map-surface>
-          <ImprovementCandidateMap candidates={report.candidates} selectedId={selected?.id??''} onSelect={onSelect} observationPoints={observationPoints}/>
+          <ImprovementCandidateMap candidates={report.candidates} selectedId={selected?.id??''} sourceRevision={report.sourceRevision} onSelect={onSelect} observationPoints={observationPoints}/>
         </div>
         <p className={styles.mapFoot}>후보 중심 {report.summary.mappedCandidates}곳 · 선택 후보의 원본 GPS {(selected?.relatedGnss.length??0)}점 별도 표시 · 기지국 참고 위치는 UE 위치 아님</p>
       </>}</MapPanelFrame>

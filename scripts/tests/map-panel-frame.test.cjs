@@ -121,12 +121,12 @@ test('expansion changes the same section to a labelled modal and retains its map
   assert.equal(host.tree.props['aria-label'], '종료 위치 지도');
   assert.equal(host.rendered.expanded, true);
   assert.equal(host.rendered.toggleButton.props['aria-label'], '전체 화면 닫기');
-  assert.equal(host.tree.props.children[1], host.map);
+  assert(host.tree.props.children.flat(Infinity).includes(host.map), 'the same map subtree remains mounted');
   assert.equal(host.document.body.style.overflow, 'hidden');
   assert.equal(host.heading.inert, true);
   assert.equal(host.utility.inert, true);
   host.click();
-  assert.equal(host.tree.props.children[1], host.map);
+  assert(host.tree.props.children.flat(Infinity).includes(host.map), 'the same map subtree remains mounted');
   assert.equal(host.tree.props.role, undefined);
   assert.equal(host.document.body.style.overflow, 'clip');
   host.unmount();

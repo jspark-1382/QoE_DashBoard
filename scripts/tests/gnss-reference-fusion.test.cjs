@@ -71,7 +71,7 @@ test('customer-only map shows GNSS movement envelope and BYE site separately; gl
  assert(map.includes('if(emphasizeLocationSource&&showGnss&&gnssReference)'));
  assert(contract.includes('const mapReference=sample?.gnssReference??endReference'));
  assert(contract.includes('gnssReference={mapReference}'));
- assert(contract.includes('마지막 GNSS 실측 기준점'));
+ assert(contract.includes('마지막 GPS 실측 기준점'));
  assert(contract.includes('120km/h'));
  assert(contract.includes('BYE Cell 기지국 참고 위치가 없으면'));
 });

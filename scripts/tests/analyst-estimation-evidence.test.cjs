@@ -41,7 +41,7 @@ function fixture(count) {
     date: '2026-01-01',
     customerId: 'a',
     baseStations: stations.slice(0, count),
-    calls: [{ id: 'call', start: '01:00:00', end: '01:00:10', qoe: 1.8 }],
+    calls: [{ id: 'call', start: '01:00:00', end: '01:00:10', mos: 1.8, qoe: 1.8 }],
     samples: rows,
   };
 }
@@ -128,7 +128,7 @@ const allGnss = normalizeDay(ds, single, 'MDT').samples[0];
 assert.equal(allGnss.estimation, undefined);
 assert.equal(allGnss.lat, 37.1);
 assert.equal(estimationMethodLabel('WEIGHTED_2_SITE'), '2개 기지국 가중중심');
-assert.match(estimationMethodLabel('MULTILATERATION'), /다변측량/);
+assert.match(estimationMethodLabel('MULTILATERATION'), /삼각 측량/);
 const indices = estimationSummary([
   {
     index: 77,

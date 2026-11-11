@@ -73,7 +73,7 @@ test('visual teaching is separated from real data and offers an actual evidence 
  assert(guide.includes('<QualityTwoSimulator summary={summary}/>'));
  assert(guide.includes('계산 규칙 · 단계별 상세 설명 펼치기'));
  assert(guide.includes('<QualityTwoRealGeometry detail={validDetail}/>'));
- for(const v of ['가상 연습용','실제 지도·원본 데이터','가상 MOS 점수','가상 고유 고객 수','가상 관측일 수','가상 관측점 간격','검증일 신규 고객 수','검증일 거리','시뮬레이션 상황 선택','단계 선택','가상 시뮬레이션 초기화']){
+ for(const v of ['가상 연습용','실제 개선 후보·원본 통화·위치 자료','가상 QoE 점수','가상 고유 고객 수','가상 관측일 수','가상 관측점 간격','검증일 신규 고객 수','검증일 거리','시뮬레이션 상황 선택','단계 선택','가상 시뮬레이션 초기화']){
   assert(sim.includes(v),v);
  }
  assert(actual.includes('candidate.nearbyPoints'));

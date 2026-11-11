@@ -66,7 +66,7 @@ test('source code only exposes risk models as experimental conditional observed-
  const ui=fs.readFileSync(path.join(base,'components/analyst/quality-model-alternative-workspace.tsx'),'utf8');
  const selector=fs.readFileSync(path.join(base,'components/analyst/quality-improvement-candidate-panel.tsx'),'utf8');
  const loader=fs.readFileSync(path.join(base,'lib/analyst/quality-model-alternatives.ts'),'utf8');
- assert(selector.includes('조사 후보 산정 모델 선택'));
+ assert(selector.includes('개선 후보 산정 모델 선택'));
  assert(selector.includes("selectedModel==='dbscan'"));
  assert(selector.includes('<QualityModelAlternativeWorkspace'));
  assert(ui.includes('탐색 전용')&&ui.includes('망 전체 불량률'));

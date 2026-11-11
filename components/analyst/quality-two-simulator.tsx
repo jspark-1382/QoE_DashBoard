@@ -8,10 +8,10 @@ import styles from './quality-two-simulator.module.css';
 const phases=['조건 선택','저QoE 판정','위치 채택','지역 묶기','범위 판단','재관측','최종 결과'] as const;
 const pointX=(p:SimPoint,scale:number,start:number)=>start+p.x*scale;
 const outcome=(s:ReturnType<typeof evaluateCandidateSimulation>)=>!s.accepted?'좌표 입력 제외'
- :!s.qualifies?'조사 후보 조건 미충족'
- :s.rangeReviewRequired?'조사 후보 · 범위 검토 필요'
- :s.validationPass?'조사 후보 · 새 고객 재관측'
- :'조사 후보 · 재관측 미충족';
+ :!s.qualifies?'개선 후보 조건 미충족'
+ :s.rangeReviewRequired?'개선 후보 · 범위 검토 필요'
+ :s.validationPass?'개선 후보 · 새 고객 재관측'
+ :'개선 후보 · 재관측 미충족';
 function ScoreDiagram({mos}:{mos:number}){
  const x=30+(mos-1)*80;
  return <svg viewBox="0 0 390 168" aria-label={'QoE '+mos.toFixed(1)+' 기준 판정 그림'}>
@@ -93,7 +93,7 @@ function ClusterDiagram({result,phase}:{result:ReturnType<typeof evaluateCandida
  }
  const pair=result.members.flatMap((p,i)=>result.members.slice(i+1).map(q=>({p,q,d:Math.hypot(p.x-q.x,p.y-q.y)})))
   .sort((a,b)=>b.d-a.d)[0]??null;
- return <svg viewBox="0 0 390 326" aria-label={'가상 통화 관측점별 100m 이웃 원과 대표점의 최종 조사 원 '+outcome(result)}>
+ return <svg viewBox="0 0 390 326" aria-label={'가상 통화 관측점별 100m 이웃 원과 대표점의 최종 표시 원 '+outcome(result)}>
    <rect width="390" height="326" rx="10" fill="#f8fafc"/>
    <text x="14" y="19" fontSize="11" fill="#34586e" fontWeight="750">점 = 저QoE 통화 1건 · A~E = 고객 (관측점별 검색)</text>
    {[0,100,200,300,400,500].filter(t=>t>=left&&t<=right).map(t=><g key={t}>
@@ -140,9 +140,9 @@ function ClusterDiagram({result,phase}:{result:ReturnType<typeof evaluateCandida
    {phase===4&&showFinal&&medoid&&<text x={px(medoid)} y={y+47} textAnchor="middle" fontSize="11" fontWeight="800" fill="#07675d">대표점</text>}
    <text x="14" y="305" fontSize="10" fill="#5d7a8b">
     {phase===3?'각 통화 관측점마다 100m 이웃 검색 (고객 1명당 원 1개가 아님)'
-     :phase===4?'청록 점선 = 이웃 100m · 주황 실선 = 최종 조사 원 1개'
+     :phase===4?'청록 점선 = 이웃 100m · 주황 실선 = 최종 표시 원 1개'
      :phase===5?'A~E = 발견기간 관측 · F~H = 검증일 새 고객'
-     :'100m 이웃 검색 원과 대표점 기준 최종 조사 원을 구분하세요'}
+     :'100m 이웃 검색 원과 대표점 기준 최종 표시 원을 구분하세요'}
    </text>
  </svg>;
 }
@@ -167,9 +167,9 @@ export function QualityTwoSimulator({summary}:{summary:QualityCandidateSummary})
   :phase===2?result.rejectReason:phase===3?result.points.length===0?'채택된 점이 없어 군집을 만들지 않습니다.'
    :result.clusters.length===0?'100m 이내 이웃 관측점이 없어 모두 노이즈입니다.'
    :result.qualifies?'고객 3명·관측 2일을 충족해 지역 후보가 생성됩니다.':'군집은 있지만 고유 고객 3명·2일 중 하나가 부족합니다.'
-  :phase===4?!result.qualifies?'각 관측점의 100m 이웃 원은 계산하지만, 군집 후보 기준을 충족하지 않아 최종 조사 원은 그리지 않습니다.':result.rangeReviewRequired?'관측점별 100m 점선 원은 이웃 검색용이고 주황 실선은 대표점 기준 최종 조사 범위입니다. 전체 최대 점간 거리가 200m를 초과해 조사 순위를 보류합니다.':'관측점별 100m 점선 원과 대표점 기준 최종 조사 원은 서로 다릅니다. 최대 점간 거리는 200m 이하입니다.'
+  :phase===4?!result.qualifies?'각 관측점의 100m 이웃 원은 계산하지만, 군집 후보 기준을 충족하지 않아 최종 표시 원은 그리지 않습니다.':result.rangeReviewRequired?'관측점별 100m 점선 원은 이웃 검색용이고 주황 실선은 대표점 기준 최종 표시 범위입니다. 전체 최대 점간 거리가 200m를 초과해 개선 순위를 보류합니다.':'관측점별 100m 점선 원과 대표점 기준 최종 표시 원은 서로 다릅니다. 최대 점간 거리는 200m 이하입니다.'
   :phase===5?!result.qualifies?'후보 지역이 없어 재관측을 검사할 수 없습니다.':result.validationPass?'새 고객 2명 이상이 100m 이내 재관측돼 기준을 통과했습니다.':'새 고객 2명 이상이 가까운 곳에 관측되지 않아 기준 미충족입니다.'
-  :result.qualifies?'각 관측점은 100m 이웃을 검사합니다. 대표점에서 최원거리 '+result.maxCenterDistanceM.toFixed(1)+'m + 여유 20m를 더해 최소 100m를 적용하고 10m 단위 올림 → 최종 조사 원 '+result.displayRadiusM+'m입니다. 전체 최대 점간 거리 '+result.maxPairDistanceM.toFixed(1)+'m와는 구분합니다.':outcome(result);
+  :result.qualifies?'각 관측점은 100m 이웃을 검사합니다. 대표점에서 최원거리 '+result.maxCenterDistanceM.toFixed(1)+'m + 여유 20m를 더해 최소 100m를 적용하고 10m 단위 올림 → 최종 표시 원 '+result.displayRadiusM+'m입니다. 전체 최대 점간 거리 '+result.maxPairDistanceM.toFixed(1)+'m와는 구분합니다.':outcome(result);
  const currentStatus=phase<3?result.accepted?'입력 가능':'입력 제외'
   :phase===3?result.qualifies?'후보 생성':'후보 미생성'
   :phase===4?result.rangeReviewRequired?'범위 검토':result.qualifies?'범위 통과':'후보 없음'
@@ -180,7 +180,7 @@ export function QualityTwoSimulator({summary}:{summary:QualityCandidateSummary})
    <div><span className={styles.eyebrow}><Play size={13}/> 직접 바꿔보는 체험</span><h4>내가 조건을 바꾸면 후보가 생길까?</h4></div>
    <button type="button" className={styles.reset} onClick={reset} aria-label="가상 시뮬레이션 초기화"><RotateCcw size={13}/> 초기화</button>
   </div>
-  <p className={styles.simWarning}><Info size={14}/> <b>가상 연습용입니다.</b> 수치를 바꿔도 실제 지도·원본 데이터·7개 후보는 변하지 않습니다.</p>
+  <p className={styles.simWarning}><Info size={14}/> <b>가상 연습용입니다.</b> 수치를 바꿔도 실제 개선 후보·원본 통화·위치 자료는 변하지 않습니다.</p>
   <div className={styles.presetRow} aria-label="시뮬레이션 상황 선택">
    {presets.map(p=><button key={p.name} type="button" onClick={()=>{setSettings(p.settings);setPhase(p.step);}}>{p.name}</button>)}
   </div>
@@ -193,9 +193,9 @@ export function QualityTwoSimulator({summary}:{summary:QualityCandidateSummary})
   <div className={styles.learningBody}>
   <div className={styles.drawing} data-testid="simulation-diagram">
    {phase===0?<DateDiagram summary={summary}/>:phase===1?<ScoreDiagram mos={settings.mos}/>:phase===2?<EvidenceDiagram s={settings}/>:<ClusterDiagram phase={phase} result={result}/>}
-   {phase>=3&&<div className={styles.circleLegend} aria-label="DBSCAN 이웃 원과 최종 조사 원 범례">
+   {phase>=3&&<div className={styles.circleLegend} aria-label="DBSCAN 이웃 원과 최종 표시 원 범례">
     <span><i className={styles.neighborCircle}/> 각 저QoE 관측점마다 100m 이웃 검색 원</span>
-    {phase>=4&&<span><i className={styles.finalCircle}/> 대표점 기준 최종 조사 범위 원 (후보당 1개)</span>}
+    {phase>=4&&<span><i className={styles.finalCircle}/> 대표점 기준 최종 표시 범위 원 (후보당 1개)</span>}
     {phase>=4&&<span><i className={styles.repPoint}/> 실제 구성 관측점에서 고른 대표점</span>}
     <span><i className={styles.obsPoint}/> 저QoE 통화 관측점 · 한 고객이 여러 점일 수 있음</span>
    </div>}
@@ -219,7 +219,7 @@ export function QualityTwoSimulator({summary}:{summary:QualityCandidateSummary})
     {phase===3&&<><div className={styles.rangeControl}><label htmlFor="sim-customers">서로 다른 고객 <strong>{settings.uniqueCustomers}명</strong></label><input id="sim-customers" aria-label="가상 고유 고객 수" type="range" min="1" max="5" step="1" value={settings.uniqueCustomers} onChange={e=>change('uniqueCustomers',Number(e.target.value))}/></div>
      <div className={styles.rangeControl}><label htmlFor="sim-days">관측된 날짜 <strong>{settings.observedDays}일</strong></label><input id="sim-days" aria-label="가상 관측일 수" type="range" min="1" max="3" step="1" value={settings.observedDays} onChange={e=>change('observedDays',Number(e.target.value))}/></div></>}
    </div>}
-   {phase===4&&<div className={styles.circleMath} aria-label="대표점과 조사 반경 계산 과정">
+   {phase===4&&<div className={styles.circleMath} aria-label="대표점과 표시 반경 계산 과정">
     <strong>두 원의 계산 목적이 다릅니다.</strong>
     <span>점선 원: 각 통화 관측점에서 {SIM_NEIGHBOR_EPS_M}m 이내 이웃 검사</span>
     <span>실선 원: 대표점에서 가장 먼 구성점 + {SIM_DISPLAY_MARGIN_M}m 여유</span>
@@ -235,7 +235,7 @@ export function QualityTwoSimulator({summary}:{summary:QualityCandidateSummary})
      <div><span>대표점→최원거리</span><b>{result.qualifies?result.maxCenterDistanceM.toFixed(1)+'m':'—'}</b></div><div><span>최종 표시 반경</span><b>{result.qualifies?result.displayRadiusM+'m':'—'}</b></div>
      <div><span>범위 검토</span><b>{result.qualifies?(result.rangeReviewRequired?'필요':'불필요'):'판정 불가'}</b></div><div><span>재관측 신규 고객</span><b>{result.nearbyNewCustomers}명</b></div>
     </div>}
-   {phase===6&&result.qualifies&&<div className={styles.circleMath} aria-label="최종 조사 원 반경 계산식">
+   {phase===6&&result.qualifies&&<div className={styles.circleMath} aria-label="최종 표시 원 반경 계산식">
     <span>각 관측점마다 100m 이웃 검색 → 군집 대표점에서 하나의 최종 원 계산</span>
     <b>max(100, {result.maxCenterDistanceM.toFixed(1)} + {SIM_DISPLAY_MARGIN_M}) = {Math.max(SIM_NEIGHBOR_EPS_M,result.maxCenterDistanceM+SIM_DISPLAY_MARGIN_M).toFixed(1)}m → 10m 올림 = {result.displayRadiusM}m</b>
    </div>}

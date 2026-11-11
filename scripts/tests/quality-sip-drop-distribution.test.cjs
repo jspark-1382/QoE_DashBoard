@@ -20,7 +20,7 @@ test('SIP CDR 11.REASON Drop only: real October 30 count, MOS 3 grades, missing 
  assert.equal(drop.calls.length,53);
  assert.equal(grades.evaluated,45);
  assert.equal(grades.unavailable,8);
- assert.deepEqual(grades.bands.map(b=>b.count),[8,3,34]);
+ assert.deepEqual(grades.bands.map(b=>b.count),[45,0,0]);
  assert.equal(grades.bands.reduce((sum,b)=>sum+b.percentage,0).toFixed(4),'100.0000');
  assert(drop.calls.every(call=>classifySipReason11(call.sipCause)==='drop'));
  assert(drop.calls.every(call=>input.calls.includes(call)));
@@ -30,7 +30,7 @@ test('SIP CDR 11.REASON Drop only: real October 30 count, MOS 3 grades, missing 
 });
 test('drop-only MOS grades drill down by real call ID without normal or other SIP leakage',()=>{
  const drop=onlyDropCalls(input);
- for(const [band,count] of [['poor',8],['fair',3],['good',34]]){
+ for(const [band,count] of [['poor',45],['fair',0],['good',0]]){
   const filtered=fourthBandCalls(drop.calls,band);
   assert.equal(filtered.length,count,band);
   assert(filtered.every(call=>classifySipReason11(call.sipCause)==='drop'));
@@ -68,7 +68,7 @@ test('date/time range used identically in drop distribution and drilldown',()=>{
 test('chart dropdown MOS -> SIP Drop, all three grades, table and map share the filtered source',()=>{
  const ui=read('components/analyst/quality-proposal-four.tsx');
  const css=read('components/analyst/quality-proposal-four.module.css');
- assert(ui.includes('aria-label="QoE 점수 분포 기준"'));
+ assert(ui.includes('aria-label="QoE 분포 기준"'));
  assert(ui.includes('<option value="mos">QoE</option>'));
  assert(ui.includes('<option value="drop">절단 (SIP 상태코드)</option>'));
  assert(ui.includes("const scopeOverview=distributionMode==='drop'?dropOverview:displayOverview"));

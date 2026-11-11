@@ -63,8 +63,8 @@ test('default mode and mode-isolated fetches exist in client',()=>{
  const src=fs.readFileSync(path.join(root,'lib/analyst/quality-model-alternatives.ts'),'utf8');
  assert(ui.includes("useState<'all'|'evaluation'>('all')"));
  assert(ui.includes("disabled={!eligibleEvaluation}"));
- assert(ui.includes("loadQualityCandidateSummary(scope,controller.signal,effectiveMode)"));
- assert(ui.includes("loadQualityCandidateDetail(summary,selectedId,controller.signal,effectiveMode)"));
+ assert(ui.includes("loadQualityCandidateSummary(scope,controller.signal,effectiveMode,proposalTwo?'mixed':'strict')"));
+ assert(ui.includes("loadQualityCandidateDetail(summary,activeId,controller.signal,effectiveMode)"));
  assert(ui.includes('analysisMode={effectiveMode}'));
  assert(src.includes("'/qoe/quality-models-full/'"));
 });

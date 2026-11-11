@@ -1,3 +1,4 @@
+const {effectiveCallQoe}=require('../analyst-ts-loader.cjs').load('lib/analyst/derived-qoe.ts');
 /* Source-backed range selection and cross-day GNSS/3-site integrity tests. */
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
@@ -65,7 +66,7 @@ test('all five source dates combine with original call IDs, MOS and positions in
  const grades=calculateProposalGrades(result,'00:00','23:59');
  assert.equal(grades.evaluated+grades.unavailable,184232);
  assert.equal(grades.bands[0].count,sourceDays.reduce((n,day)=>n+
-  day.calls.filter(call=>typeof call.mos==='number'&&call.mos>=1&&call.mos<3).length,0));
+  day.calls.filter(call=>effectiveCallQoe(call)!==null&&effectiveCallQoe(call)<3).length,0));
 });
 test('original 3 source dates combine exactly, with no duplicate CDR IDs or location reuse',()=>{
  const sourceDays=days.slice(2).map(getDate);
@@ -78,7 +79,7 @@ test('original 3 source dates combine exactly, with no duplicate CDR IDs or loca
  assert.equal(result.callLocations.length,sourceDays.reduce((n,d)=>n+d.callLocations.length,0));
  const scores=calculateProposalGrades(result,'00:00','23:59');
  assert.equal(scores.evaluated+scores.unavailable,result.calls.length);
- const manualPoor=sourceDays.reduce((n,d)=>n+d.calls.filter(c=>typeof c.mos==='number'&&c.mos>=1&&c.mos<3).length,0);
+ const manualPoor=sourceDays.reduce((n,d)=>n+d.calls.filter(c=>effectiveCallQoe(c)!==null&&effectiveCallQoe(c)<3).length,0);
  assert.equal(scores.bands[0].count,manualPoor);
  const key='mdt-524f3c774fc43ddfd7e85d18:call-b95550aca3de88ed98cfe568';
  const original=sourceDays[2].calls.find(c=>c.id===key);

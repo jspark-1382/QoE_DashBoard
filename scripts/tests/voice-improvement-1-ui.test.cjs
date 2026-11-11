@@ -17,7 +17,7 @@ function loadUi(file){
 }
 
 test('independent route restores URL scope and blocks stale results',()=>{
- assert(fs.readFileSync('app/overview-improvement-1/page.tsx','utf8').includes('VoiceImprovementOneWorkspace'));
+ assert(fs.readFileSync('app/overview-improvement-1/page.tsx','utf8').includes('redirect('));
  const ui=read('workspace.tsx');
  for(const key of ['popstate','AbortController','loadImprovementReport','compareRevision','active="improvement1"','legacyHref','metric','hour','customer'])assert(ui.includes(key),key);
  assert(ui.includes('sourceRevision'));

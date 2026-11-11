@@ -5,7 +5,7 @@ import {classifySipReason11} from './sip-reason';
 export type CandidateCustomerRow={
  customerId:string; alias:string; discoveryCalls:number; verificationCalls:number;
  poorDates:number; dropCalls:number; minMos:number|null; calls:Array<{
- callId:string;date:string;start:string;mos:number|null;isDiscovery:boolean;isVerification:boolean;drop:boolean;sip:'normal'|'drop'|'other';kind:'gnss'|'reviewed-radio'|null;
+ callId:string;date:string;start:string;mos:number|null;isDiscovery:boolean;isVerification:boolean;drop:boolean;sip:'normal'|'drop'|'other';kind:'gnss'|'reviewed-radio'|'rough'|null;
  }>;
 };
 
@@ -77,7 +77,7 @@ export function candidateEvidenceSummary(detail:QualityCandidateDetail){
  const members=new Set(detail.candidate.memberCallIds);
  const discovery=detail.candidate.nearbyPoints.filter(point=>point.role==='discovery-member'&&members.has(point.callId));
  const verified=detail.candidate.nearbyPoints.filter(point=>point.role==='validation-new'||point.role==='validation-existing');
- return {gnss:discovery.filter(point=>point.kind==='gnss').length,radio:discovery.filter(point=>point.kind==='reviewed-radio').length,
+ return {gnss:discovery.filter(point=>point.kind==='gnss').length,radio:discovery.filter(point=>point.kind==='reviewed-radio').length,rough:discovery.filter(point=>point.kind==='rough').length,
   verificationCalls:new Set(verified.map(point=>point.callId)).size,verificationNewCustomers:new Set(verified.filter(p=>p.role==='validation-new').map(p=>p.customerId)).size};
 }
 export function verifyCandidateSummaryConsistency(summary:QualityCandidateSummary,detail:QualityCandidateDetail):string[]{

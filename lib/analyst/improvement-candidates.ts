@@ -12,7 +12,7 @@ export interface CandidateLocation {
   lat:number;
   lon:number;
   radiusM:number|null;
-  source:'TRAINING_GNSS_CLUSTER_MEDOID'|'UNIQUE_INVENTORY_CELL_RU_SITE';
+  source:'TRAINING_GNSS_CLUSTER_MEDOID'|'TRAINING_MDT_ROUGH_CLUSTER_MEDOID'|'UNIQUE_INVENTORY_CELL_RU_SITE';
   ruId?:string;
   meaning:string;
 }
@@ -51,7 +51,7 @@ export interface ImprovementCandidate {
     source:'RAW_MDT_GNSS';validationDay:boolean;
   }>;
   relatedGnssCallCount:number;
-  evidence:'GNSS_CDR_ASSOCIATION'|'SIP_CDR_END_CELL_REPEAT';
+  evidence:'GNSS_CDR_ASSOCIATION'|'GNSS_MDT_ROUGH_ASSOCIATION'|'SIP_CDR_END_CELL_REPEAT';
   verification:'INDEPENDENT_NEXT_DAY_CUSTOMER_REPEAT';
   clientFdrQ?:number;
   hypotheses:string[];

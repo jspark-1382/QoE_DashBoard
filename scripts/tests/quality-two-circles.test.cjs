@@ -33,7 +33,7 @@ test('step 4 renders one neighbor circle per valid observation; step 5 and 7 add
  assert(src.includes('phase>=3&&result.points.length>0'));
  assert(src.includes('phase>=4&&result.qualifies'));
  assert(src.includes('const maxRadiusM=Math.max'));
- for(const phrase of ['100m 이웃 검색 원','대표점 기준 최종 조사 범위 원','최종 표시 반경','범위 검토','대표점→최원거리'])assert(src.includes(phrase),phrase);
+ for(const phrase of ['100m 이웃 검색 원','대표점 기준 최종 표시 범위 원','최종 표시 반경','범위 검토','대표점→최원거리'])assert(src.includes(phrase),phrase);
 });
 test('actual candidate geometry also contains every neighbor circle plus the separate final display circle',()=>{
  const src=read('components/analyst/quality-two-real-geometry.tsx');

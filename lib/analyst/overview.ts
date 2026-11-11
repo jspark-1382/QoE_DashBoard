@@ -1,4 +1,5 @@
 import { normalizeDay, isPoorCall } from './data';
+import {effectiveCallQoe} from './derived-qoe';
 import type {
   AnalystDataset,
   AnalystOverview,
@@ -53,7 +54,7 @@ export function appendOverview(
       // mapper can select a BYE tower reference and preserve its selection basis.
       endCellId: call.endCellId,
       endRat: call.endRat ?? null,
-      qoe: call.qoe,
+      qoe: effectiveCallQoe(call),
       mos: call.mos,
       endType: call.endType,
       sipCause: call.sipCause,

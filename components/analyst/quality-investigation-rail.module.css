@@ -1,5 +1,7 @@
 .root{display:flex;flex:1 1 auto;min-height:0;min-width:0;flex-direction:column;overflow:hidden;background:#fff;border-top:1px solid #e5eff3;}
 .listCard{flex:0 1 48%;min-height:190px;display:flex;flex-direction:column;overflow:hidden;border-bottom:1px solid #d9e8ef;}
+.root[data-has-rsrp="true"] .listCard{flex:0 0 36%;min-height:195px}
+.root[data-has-rsrp="true"] .detailCard{min-height:0;display:flex;flex-direction:column;overflow-y:auto}
 .listHeading{padding:12px 13px 8px;display:grid;gap:8px;flex:0 0 auto;}
 .listHeading h3{font-size:14px;color:#204960;font-weight:850;margin:0 0 3px;}
 .listHeading h3 span{font-size:10px;background:#e9f2f8;color:#37748e;padding:3px 6px;border-radius:6px;}
@@ -25,7 +27,9 @@
 .warningBadge,.goodBadge{flex:0 0 auto;border-radius:6px;font-size:9px;font-weight:800;padding:5px 6px;line-height:1.3;}
 .warningBadge{background:#fff2df;color:#94621f;border:1px solid #e9d3a9;}
 .goodBadge{background:#e4f6f0;color:#127f6b;border:1px solid #a4dace;}
-.details{display:grid;gap:8px;margin-top:10px;}
+.details{display:grid;gap:7px;margin-top:9px;}
+.root[data-has-rsrp="true"] .details{display:flex;flex-direction:column;flex:1 1 auto;min-height:0}
+.root[data-has-rsrp="true"] .details>[data-compact="true"]{flex:1 1 auto;min-height:162px}
 .metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;}
 .metrics>div{min-width:0;display:grid;gap:5px;place-items:center;text-align:center;background:#f4f9fc;border:1px solid #e1edf1;border-radius:7px;padding:8px 2px;}
 .metrics span{font-size:9px;color:#688598;line-height:1.25;}
@@ -65,6 +69,14 @@
  .actions button{padding:6px;font-size:10px;}
  .actions small{display:none;}
  .guidance{display:none;}
+}
+
+@media(max-width:700px){.root[data-has-rsrp="true"] .listCard{flex:0 0 37%;min-height:115px}.root[data-has-rsrp="true"] .detailCard{min-height:0}}
+@media(max-height:830px) and (min-width:701px){
+ .root[data-has-rsrp="true"] .listCard{flex-basis:33%;min-height:180px}
+ .root[data-has-rsrp="true"] .details{gap:4px;margin-top:6px}
+ .root[data-has-rsrp="true"] .metrics>div{padding:5px 2px;gap:3px}
+ .root[data-has-rsrp="true"] .reason{line-height:1.3}
 }
 
 /* Reset native fieldset box chrome while retaining semantic grouping. */

@@ -1,4 +1,5 @@
 import type { AnalystOverview, OverviewCall } from './types';
+import {effectiveCallQoe} from './derived-qoe';
 import type { QualityComparisonState } from './quality-comparison-state';
 import { scopeOverviewToCustomers } from './customer-overview-scope';
 import { calculateProposalGrades } from './quality-proposal-metrics';
@@ -27,16 +28,30 @@ export function buildQualityImprovementMetrics(overview:AnalystOverview,state:Qu
   const records=new Map(compatible?.records.map(r=>[r.callId,r])??[]);
   const recordFor=(c:OverviewCall)=>records.get(c.id)??records.get(dateOfCall(c,overview.date)+':'+c.id);
   const calls:EvidenceCall[]=rows.map(c=>({date:dateOfCall(c,overview.date),callId:c.id,rawCallId:c.rawCallId??c.id,
-    customerId:c.customerId,startedAt:c.startTimestamp??null,mos:c.mos??null,sipReason:c.sipCause,
+    customerId:c.customerId,startedAt:c.startTimestamp??null,mos:effectiveCallQoe(c),sipReason:c.sipCause,
     mdtLinkStatus:recordFor(c)?.mdtLinkStatus??(compatible?.censusComplete?'none':'unknown'),sourceRevision:overview.sourceRevision??'',sourceFile:''}));
+  // Location coverage is an original-MOS evidence metric, independent of the
+  // SIP Drop QoE penalty. This preserves otherwise valid position evidence.
+  const coverageCalls=calls.map((c,i)=>({...c,mos:rows[i].mos??null}));
   const decisions:EvidenceDecision[]=calls.flatMap(c=>{
     const r=records.get(c.callId)??records.get(c.date+':'+c.callId);
     return r?.status?[{...r,callId:c.callId,status:r.status,reasons:r.reasons??[],lineage:{date:c.date,rawCallId:c.rawCallId,sourceRevision:c.sourceRevision,sourceFile:''}}]:[];
   });
+  // Sparkline counts only unique, accepted GPS / reviewed triangulation
+  // observations with valid original MOS, in the same scoped call population.
+  const approved=new Set(decisions.filter(d=>d.status==='accepted'&&
+    (d.kind==='gnss'||d.kind==='reviewed-radio')).map(d=>d.callId));
+  const locationHourly=Array.from({length:24},()=>0);
+  for(let i=0;i<coverageCalls.length;i++){
+    const call=coverageCalls[i],hour=Math.floor(rows[i].startSecond/3600);
+    if(call.mos!=null&&Number.isFinite(call.mos)&&call.mos>=1&&call.mos<=5&&
+      call.mdtLinkStatus==='unique'&&approved.has(call.callId)&&hour>=0&&hour<24)
+      locationHourly[hour]++;
+  }
   const availableDates:string[]=[];
   for(let day=Date.parse(state.dateStart+'T00:00:00Z'),end=Date.parse(state.dateEnd+'T00:00:00Z');day<=end;day+=86400000)availableDates.push(new Date(day).toISOString().slice(0,10));
   return {grades:calculateProposalGrades(scoped,state.from,state.to),hourly:buildFourthHourly(scoped,state.from,state.to),
-    coverage:buildCoverage(calls,decisions),customers:buildCustomerExperience(calls,availableDates),
+    coverage:buildCoverage(coverageCalls,decisions),locationHourly,customers:buildCustomerExperience(calls,availableDates),
     evidenceStatus:!evidence?'unavailable':!compatible?'revision-mismatch':compatible.censusComplete?'complete':'partial'};
 }
 export type QualityImprovementMetrics=ReturnType<typeof buildQualityImprovementMetrics>;

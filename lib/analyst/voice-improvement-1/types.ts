@@ -18,7 +18,7 @@ export interface EvidenceCall {
 }
 export interface EvidenceLineage {sourceRevision:string; sourceFile:string; rawCallId:string; date:string}
 export interface EvidenceDecision {
-  callId:string; status:'accepted'|'excluded'; kind?:'gnss'|'reviewed-radio';
+  callId:string; status:'accepted'|'excluded'|'provisional'; kind?:'gnss'|'reviewed-radio'|'rough';
   lat?:number; lon?:number; observedAt?:string|null; ageSec?:number|null;
   referenceBasis?:string; reasons:string[]; lineage:EvidenceLineage; review?:PositionReview;
 }
@@ -30,13 +30,13 @@ export interface CoverageSummary extends CoverageCounts {
 }
 export interface NearbyPoint {
   callId:string; customerId:string; date:string; lat:number; lon:number;
-  kind:'gnss'|'reviewed-radio'; role:'discovery-member'|'validation-new'|'validation-existing'|'discovery-nearby';
+  kind:'gnss'|'reviewed-radio'|'rough'; role:'discovery-member'|'validation-new'|'validation-existing'|'discovery-nearby';
   mos?:number; observedAt?:string|null;
 }
 export interface SpatialCandidate {
   id:string; kind?:'spatial'; memberCallIds:string[]; customerIds?:string[];
   poorCustomerCount:number; poorCallCount:number; poorDateCount:number; gnssCount:number;
-  medoid:{lat:number;lon:number;callId?:string}; maxCenterDistanceM:number; maxPairDistanceM:number;
+  medoid:{lat:number;lon:number;callId?:string;kind?:'gnss'|'reviewed-radio'|'rough'}; maxCenterDistanceM:number; maxPairDistanceM:number;
   displayRadiusM:number; rangeReviewRequired:boolean; rank:number|null;
   validationNewCustomerIds:string[]; validationExistingCustomerIds:string[];
   validationStatus:string; nearbyPoints:NearbyPoint[];

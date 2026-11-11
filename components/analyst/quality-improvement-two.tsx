@@ -19,11 +19,11 @@ export function QualityTwoHeader({candidate=false,reviewMode=false,onReviewModeC
  if(candidate)return <section className={styles.compactCandidateHeader} aria-label="개선 2안 분석 안내">
   <div className={styles.candidateHeaderTitle}>
    <span className={styles.eyebrow}>QoE · 개선 2안</span>
-   <strong>저품질 조사 후보</strong>
+   <strong>저품질 경험</strong>
    <small>원본 RTCP QoE(v5) · GPS/삼각 측량 근거 · 현장 원인 미확정</small>
   </div>
   <nav aria-label="개선 2안 섹션 이동">
-   <a href="#quality-two-primary">후보 지도</a>
+   <a href="#quality-two-primary">개선후보</a>
    <a href="#quality-two-evidence">선정 근거</a>
    <a href="#quality-two-field">현장 검증</a>
    <button type="button" className={styles.reviewToggle} aria-pressed={reviewMode} onClick={()=>onReviewModeChange?.(!reviewMode)}>{reviewMode?'보고 강조 끄기':'본부장 요구 강조'}</button>
@@ -31,12 +31,12 @@ export function QualityTwoHeader({candidate=false,reviewMode=false,onReviewModeC
  </section>;
  return <section className={styles.hero} aria-label="개선 2안 분석 안내">
   <div><span className={styles.eyebrow}>본부장 보고 피드백 기반 · 개선 2안</span>
-    <h1>{candidate?'저품질 개선 후보 · 근거 중심 조사':'음성 체감품질 · 데이터 활용 현황'}</h1>
+    <h1>{candidate?'저품질 경험 · 개선후보':'음성 체감품질 · 데이터 활용 현황'}</h1>
     <p>현재 원본 RTCP QoE(v5)와 검토된 위치 근거로 분석합니다. 원인 확정·QoE 열화 순간 위치·현장 검증을 추정 결과로 대체하지 않습니다.</p>
     <p className={styles.redBorderGuide}>지도에서 후보 지역을 선택하면 오른쪽에 선정 이유와 관련 고객의 실제 통화 근거가 나타납니다. 현장 검증되지 않은 항목은 ‘미검증’으로 구분합니다.</p>
   </div>
   <nav aria-label="개선 2안 섹션 이동">
-    <a href="#quality-two-primary">{candidate?'개선 후보 지도':'품질 지표'}</a>
+    <a href="#quality-two-primary">{candidate?'개선후보':'품질 지표'}</a>
     <a href="#quality-two-evidence">{candidate?'선정 기준·전후 비교':'수집·활용률'}</a>
     <a href="#quality-two-field">현장 검증·로드맵</a>
     <button type="button" className={styles.reviewToggle} aria-pressed={reviewMode} onClick={()=>onReviewModeChange?.(!reviewMode)}>{reviewMode?'보고 강조 끄기':'본부장 요구 강조'}</button>
@@ -94,19 +94,19 @@ export function QualityTwoCandidateAudit({scope,summary,onSelectCandidate}:{scop
     <div className={styles.compareCard}><span>기존 분석 (위치 + Cell) · 동일 5일</span>
       <strong>{!eligible?'비교 조건 불일치':historic.loading?'불러오는 중':legacy?n(legacy.summary.candidateCount)+'건':'비교 불가'}</strong>
       <small>{legacy?('위치 '+n(legacy.summary.spatialCandidateCount)+'곳 · Cell '+n(legacy.summary.cellCandidateCount)+'개'):'동일 기간·원본 버전인 경우에만 비교'}</small></div>
-    <div className={styles.compareCard}><span>개선 2안 · 엄격 위치 검토</span><strong>{n(summary.candidates.length)}곳</strong>
-      <small>GPS 및 승인된 삼각 측량만 · Cell/BYE 단독 좌표 제외</small></div>
+    <div className={styles.compareCard}><span>{summary.locationMode?'GPS + MDT 근사 탐색':'개선 2안 · 엄격 위치 검토'}</span><strong>{n(summary.candidates.length)}곳</strong>
+      <small>{summary.locationMode?'GPS와 MDT 근사 좌표 함께 산정 · MDT 정확도 검증 전 · BYE 단독 위치 제외':'GPS 및 승인된 삼각 측량만 · Cell/BYE 단독 좌표 제외'}</small></div>
     <div className={styles.compareCard}><span>다른 고객 재관측</span>
       <strong>{n(summary.candidates.filter(c=>c.validationStatus==='reobserved').length)}곳</strong>
       <small>별도 검증일이 있을 때만 독립 재관측으로 구분</small></div>
    </div>
-   {locations.length>0&&<div className={styles.nearestTable}><h3>기존·신규 위치 후보 대조 (가장 가까운 중심점 참고)</h3><table><thead><tr><th>기존 위치 후보</th><th>가장 가까운 신규 후보</th><th>중심 간 거리</th><th>신규 조사 순위</th></tr></thead><tbody>{locations.map((row,i)=><tr key={row.legacyId}><td>기존 위치 후보 {i+1}</td><td>{row.nearestId?<button type="button" onClick={()=>onSelectCandidate?.(row.nearestId!)}>{summary.candidates.findIndex(c=>c.id===row.nearestId)>=0?'후보 지역 '+(summary.candidates.findIndex(c=>c.id===row.nearestId)+1):'확인 불가'}</button>:'해당 없음'}</td><td>{row.nearestDistanceM===null?'—':Math.round(row.nearestDistanceM).toLocaleString('ko-KR')+'m'}</td><td>{row.newRank}</td></tr>)}</tbody></table><p>가장 가까운 좌표만 참고 매칭합니다. 동일 군집·동일 원인 또는 검증된 위치 정확도는 아닙니다. 기존 Cell 후보 2개는 기지국 참고점으로 분리되어 지역 후보와 위치 일치 판정에 사용하지 않습니다.</p></div>}
+   {locations.length>0&&<div className={styles.nearestTable}><h3>기존·신규 위치 후보 대조 (가장 가까운 중심점 참고)</h3><table><thead><tr><th>기존 위치 후보</th><th>가장 가까운 신규 후보</th><th>중심 간 거리</th><th>신규 개선 순위</th></tr></thead><tbody>{locations.map((row,i)=><tr key={row.legacyId}><td>기존 위치 후보 {i+1}</td><td>{row.nearestId?<button type="button" onClick={()=>onSelectCandidate?.(row.nearestId!)}>{summary.candidates.findIndex(c=>c.id===row.nearestId)>=0?'후보 지역 '+(summary.candidates.findIndex(c=>c.id===row.nearestId)+1):'확인 불가'}</button>:'해당 없음'}</td><td>{row.nearestDistanceM===null?'—':Math.round(row.nearestDistanceM).toLocaleString('ko-KR')+'m'}</td><td>{row.newRank}</td></tr>)}</tbody></table><p>가장 가까운 좌표만 참고 매칭합니다. 동일 군집·동일 원인 또는 검증된 위치 정확도는 아닙니다. 기존 Cell 후보 2개는 기지국 참고점으로 분리되어 지역 후보와 위치 일치 판정에 사용하지 않습니다.</p></div>}
    {historic.error&&eligible&&<p className={styles.warning}>{historic.error}</p>}
    <p className={styles.warning}>후보 수의 차이는 위치 입력·필터·군집 정책을 함께 바꾼 결과입니다. 같은 지역이 좋아지거나 나빠졌다는 효과로 해석할 수 없습니다. 후보 간 일대일 매칭·과대 군집 검증 결과는 별도 검증이 필요합니다.</p>
    <div className={styles.policyGrid}>
     <div><b>선정 기준</b><span>DBSCAN 이웃거리 100m · 고유 저QoE 고객 3명 이상 · 관측일 2일 이상 · 최소 2통화</span></div>
     <div><b>반경의 의미</b><span>100m는 DBSCAN 이웃거리이고, 약 1km 언급 값과 동일한 위치오차/클러스터 전체 반경이 아닙니다.</span></div>
-    <div><b>위치 검토</b><span>GPS 실측 + 근거 재현을 통과한 삼각 측량. 기지국 BYE/삼각 측량 근사 좌표는 현장 참고용입니다.</span></div>
+    <div><b>위치 정책</b><span>{summary.locationMode?'GPS 실측과 MDT RSRP 가중중심 근사 좌표를 함께 후보에 사용합니다. MDT 좌표 정확도는 검증되지 않았으므로 개선 후보 참고용입니다.':'GPS와 엄격 검토 좌표를 사용합니다.'} BYE Cell 단독 좌표는 제외합니다.</span></div>
     <div><b>별도 검증 필요</b><span>강원도 등 저밀도 외곽·산발 불량·연결 사슬·후보 병합/분리 및 SCAN 비교 미완료</span></div>
    </div>
  </section>;
@@ -131,7 +131,7 @@ export function QualityTwoCandidateCustomers({detail}:{detail:QualityCandidateDe
      </div>)}</div>
    </details>;
   })}</div>
-  {sorted.length>15&&<p>추가 고객 {sorted.length-15}명은 아래 관련 고객 전체 통화 조사에서 확인할 수 있습니다.</p>}
+  {sorted.length>15&&<p>추가 고객 {sorted.length-15}명은 아래 관련 고객 전체 통화 목록에서 확인할 수 있습니다.</p>}
   <p className={styles.minor}>개별 통화의 QoE는 전체 Call 단위 원본 값입니다. 연속 불량/열화 시점은 별도 시간 단위 관측 없이 확정하지 않습니다.</p>
  </section>;
 }

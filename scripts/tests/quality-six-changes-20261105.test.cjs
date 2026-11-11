@@ -64,7 +64,7 @@ test('inline full map opens selected call analysis directly, retaining SIP and G
  assert(!ui.includes('mapDialogOpen'));
  assert(!ui.includes('qoe-end-location-dialog'));
  assert(ui.includes('setChosenCall(id);setDeep(false);setDialogOpen(true);setSearch'));
- assert(!ui.includes("document.getElementById('qoe-proposal-four-calls')?.scrollIntoView"));
+ assert(!ui.slice(ui.indexOf('const selectCall='),ui.indexOf('const selectTableCall=')).includes('scrollIntoView'));
  assert(ui.includes('onCallLocationSelect={selectCall}'));
  assert(ui.includes('SIP 상태코드 (11.REASON)'));
  assert(ui.includes('SIP 종료 구분 필터'));
@@ -73,9 +73,9 @@ test('inline full map opens selected call analysis directly, retaining SIP and G
  assert(candidate.includes('저품질 체감 고객'));
  assert(candidate.includes('report.summary.distinctAffectedCustomers'));
  assert(candidate.includes('QoE 저하고객 중복 위치'));
- assert(candidate.includes('관련 원본 GNSS 전체'));
+ assert(candidate.includes('관련 원본 GPS 전체'));
  assert(candidate.includes('data-reason="drop"'));
  assert(candidate.indexOf('className={styles.evidenceRow}')<candidate.indexOf('className={styles.locationNote}'));
  assert(map.includes('selected?.relatedGnss'));
- assert(map.includes("point.validationDay?'#13a890':'#e7a13d'"));
+ assert(map.includes('gpsMarkerSvg(band,rf?.rsrpDbm)'));
 });

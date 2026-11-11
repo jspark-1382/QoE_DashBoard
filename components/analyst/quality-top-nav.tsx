@@ -2,10 +2,10 @@
 
 import type { MouseEvent, ReactNode } from 'react';
 import Link from './document-link';
-import { BarChart3, CalendarDays, RadioTower, Users, Waves } from 'lucide-react';
+import { BarChart3, CalendarDays, RadioTower, Users } from 'lucide-react';
 import styles from './quality-top-nav.module.css';
 
-export type QualityTab='quality'|'contract'|'mos'|'stations'|'legacy'|'improvement1'|'improvement2';
+export type QualityTab='quality'|'contract'|'mos'|'stations'|'legacy'|'improvement1'|'improvement2'|'customer-screening';
 interface Props {
   active:QualityTab;
   date?:string;
@@ -20,9 +20,8 @@ interface Props {
 }
 /** Shared navigation, visually identical on all QoE quality workspaces. */
 export function QualityTopNav({
-  active,date='2026-10-30',sourceLabel,onContract,onLegacy,legacyHref,improvementHref,improvementTwoHref,qualityHref,actions,
+  active,date='2026-10-30',sourceLabel,onContract,qualityHref,actions,
 }:Props) {
-  const legacy=legacyHref??'/?source=MDT&view=overview&date='+date;
   const contract='/?source=MDT&view=contract&date='+date;
   const handle=(callback?:()=>void)=>(event:MouseEvent<HTMLAnchorElement>)=>{
     if(!callback || event.button!==0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)return;
@@ -38,26 +37,16 @@ export function QualityTopNav({
         aria-current={active==='quality'?'page':undefined} href={qualityHref??'/'}>
         <BarChart3 size={15}/>품질 현황
       </Link>
+      <Link className={active==='customer-screening'?styles.current:undefined}
+        aria-current={active==='customer-screening'?'page':undefined}
+        href="/customer-screening"><Users size={15}/>고객 선별</Link>
       <Link className={active==='contract'?styles.current:undefined}
         aria-current={active==='contract'?'page':undefined} href={contract}
         onClick={handle(onContract)}><Users size={15}/>고객·통화 분석</Link>
-      <Link className={active==='mos'?styles.current:undefined}
-        aria-current={active==='mos'?'page':undefined} href="/mos-lab">
-        <Waves size={16}/>QoE 알고리즘 비교
-      </Link>
       <Link className={active==='stations'?styles.current:undefined}
         aria-current={active==='stations'?'page':undefined} href="/stations">
         <RadioTower size={15}/>기지국·PCI
       </Link>
-      <Link className={active==='legacy'?styles.current:undefined}
-        aria-current={active==='legacy'?'page':undefined} href={legacy}
-        onClick={handle(onLegacy)}>기존안</Link>
-      <Link className={active==='improvement1'?styles.current:undefined}
-        aria-current={active==='improvement1'?'page':undefined}
-        href={improvementHref??'/?variant=improvement1'}>개선 1안</Link>
-      <Link className={active==='improvement2'?styles.current:undefined}
-        aria-current={active==='improvement2'?'page':undefined}
-        href={improvementTwoHref??'/?variant=improvement2'}>개선 2안</Link>
     </nav>
     <span className={styles.source}>
       <CalendarDays size={15}/>{sourceLabel??date.replaceAll('-','.')+' · MDT (Voice)'}

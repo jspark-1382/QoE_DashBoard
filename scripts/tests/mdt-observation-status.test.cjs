@@ -111,7 +111,7 @@ test('UI shows real observation presence instead of opaque call association stat
  assert(source.includes('mdtObserved?.headline'));
  assert(source.includes('상태코드 결과 (11.REASON)'));
  assert(source.includes('sipReasonLabel(classifySipReason11(selectedActual.sipCause))'));
- const mosIndex=source.indexOf('<span>CDR QoE(v5)</span>');
+ const mosIndex=source.indexOf('<span>QoE (Drop 반영)</span>');
  const sipIndex=source.indexOf('상태코드 결과 (11.REASON)');
  const lossIndex=source.indexOf('<span>Audio Tx Loss (원본)</span>');
  assert(mosIndex>=0&&mosIndex<sipIndex&&sipIndex<lossIndex);

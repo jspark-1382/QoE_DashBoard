@@ -77,8 +77,8 @@ export function ContractWorkspace({
   const observedPoints=samples.filter(s=>hasCustomerPoint(s)&&
     ['gnss','measured'].includes(s.locationSource));
   const radioPoints=samples.filter(s=>hasCustomerPoint(s)&&s.locationSource==='radio');
-  const interpolatedPoints=samples.filter(s=>hasCustomerPoint(s)&&s.locationSource==='interpolated');
-  const modeledCount=radioPoints.length+interpolatedPoints.length;
+
+  const modeledCount=radioPoints.length;
   const withheldCount=positionSummary.withheld;
   const selectedReview=sample?.estimation?.review;
   const endReference=call?.endGnssReference;
@@ -371,7 +371,7 @@ export function ContractWorkspace({
                   </b>
                 </span>
                 {day.source === 'MDT' && call && <span className={styles.mapSource}>
-                  등급 {call.mos === null ? '미평가' : call.mos < 3 ? '불량' : call.mos < 3.5 ? '주의' : '양호'}
+                  등급 {call.qoe === null ? '미평가' : call.qoe < 3 ? '불량' : call.qoe < 3.5 ? '주의' : '양호'}
                   {' · '}MDT {call.matchStatus === 'MATCHED' ? '시간기준 단독후보' : call.matchStatus === 'AMBIGUOUS' ? '매칭 모호' : '미매칭'}
                 </span>}
                 <span className={styles.mapSource}>
@@ -508,7 +508,7 @@ export function ContractWorkspace({
               <div className={styles.positionBadges}>
                 <span className={styles.positionObserved}><i className={styles.gnssSymbol}/> GPS 관측 <b>{observedPoints.length}건</b></span>
                 <span className={styles.positionModel}><i className={styles.modelSymbol}/> 삼각 측량 <b>{radioPoints.length}건</b></span>
-                <span className={styles.positionInterpolation}><i className={styles.interpolatedSymbol}/> 보간 추정 <b>{interpolatedPoints.length}건</b></span>
+
                 <span className={styles.positionStation}><i className={styles.stationSymbol}/> 기지국 <b>{stationMarkers.length}곳</b></span>
                 {roughLocation&&<span className={styles.positionModel}><i className={styles.modelSymbol}/> 삼각 측량 근사 <b>1건</b></span>}
                 {withheldCount>0&&<span className={styles.positionWithheld}> <i className={styles.withheldSymbol}/> 추정 보류 <b>{withheldCount}건</b></span>}
@@ -552,7 +552,7 @@ export function ContractWorkspace({
                   : ' BYE Cell 기지국 참고 위치를 확인하지 못했습니다.'}
               </div></details>}
               {modeledCount>0&&observedPoints.length===0&&
-                <p className={styles.noGnssWarning}>이 통화에는 GPS 관측 위치가 없습니다. 지도에 표시된 고객 위치는 삼각 측량 또는 보간으로 추정한 좌표입니다.</p>}
+                <p className={styles.noGnssWarning}>이 통화에는 GPS 관측 위치가 없습니다. 지도에 표시된 고객 위치는 삼각 측량으로 추정한 좌표이며 실측 위치가 아닙니다.</p>}
             </div>}
             {cdrOnly ? (
               <div className={styles.cdrOnly} aria-label="CDR 통화 위치 정보">
@@ -640,7 +640,7 @@ export function ContractWorkspace({
               {mapReference&&<span><i className={styles.gnssReferenceSymbol}/> 최근 GPS 기반 이동 가능 범위 (실제 경로 아님)</span>}
               <span><i className={styles.modelSymbol}/> 삼각 측량</span>
               {roughLocation&&<span><i className={styles.modelSymbol}/> 삼각 측량 조사 권역 (실측 아님)</span>}
-              <span><i className={styles.interpolatedSymbol}/> 보간 추정</span>
+
               <span><i className={styles.stationSymbol}/> 기지국 (단말 아님)</span>
               {activeByeStation&&<span><i className={styles.byeStationSymbol}/> BYE 종료 기지국 (단말 아님)</span>}
               {withheldCount>0&&<span><i className={styles.withheldSymbol}/> 추정 보류 (지도 좌표 없음)</span>}

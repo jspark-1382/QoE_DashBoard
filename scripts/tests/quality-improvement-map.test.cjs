@@ -145,3 +145,43 @@ test('zoom 17 restores exact evidence coordinates and invalid coordinates create
   assert.deepEqual(Array.from(exact.at(-1).position),[37.481,127.05]);
   assert(exact.every(marker=>!marker.options.icon.html.includes('occurrenceGrouped')));
 });
+
+test('all-location bubbles share an icon while retaining GPS and estimated evidence in popups', async () => {
+  const host=mountMap();
+  const props={callLocations:points.filter(p=>p.evidence!=='bye-cell'),clusterOccurrences:true,
+    unifiedOccurrenceBubbles:true};
+  await host.render(props);
+  assert.equal(host.markers.length,1,'nearby GPS and estimated calls form one bubble');
+  assert.match(host.markers[0].options.icon.html,/occurrenceBubble/);
+  assert.match(host.markers[0].options.icon.html,/>4<\/span>/);
+  assert.match(host.markers[0].popup.children[1].textContent,/GPS 2건 · 삼각 측량 2건/);
+  const first=host.markers.length;
+  host.setZoom(17);
+  await host.render(props);
+  const exact=host.markers.slice(first);
+  assert.equal(exact.length,2);
+  assert(exact.every(marker=>marker.options.icon.html.includes('occurrenceBubble')));
+  assert.match(exact[0].popup.children[1].textContent,/GPS 관측/);
+  assert.match(exact[1].popup.children[1].textContent,/삼각 측량/);
+  assert(exact.every(marker=>marker.options.icon.iconAnchor[0]===marker.options.icon.iconSize[0]/2));
+});
+
+test('bubble diameter grows with zoom and call count, shrinks on zoom out and resets in separate modes', async () => {
+  const host=mountMap();
+  const props={callLocations:[point('one','gnss')],clusterOccurrences:true,unifiedOccurrenceBubbles:true};
+  await host.render(props);
+  const base=host.markers.at(-1).options.icon.iconSize[0];
+  host.setZoom(16);
+  await host.render(props);
+  const enlarged=host.markers.at(-1).options.icon.iconSize[0];
+  assert(enlarged>base,'zooming in enlarges the bubble for the same calls');
+  host.setZoom(11);
+  await host.render(props);
+  assert(host.markers.at(-1).options.icon.iconSize[0]<base,'zooming out shrinks the bubble');
+  host.setZoom(13);
+  await host.render({...props,callLocations:[point('one','gnss'),point('two','gnss'),point('three','gnss')]});
+  assert(host.markers.at(-1).options.icon.iconSize[0]>base,'more calls produce a larger bubble');
+  await host.render({...props,unifiedOccurrenceBubbles:false,separateEvidence:true});
+  assert.match(host.markers.at(-1).options.icon.html,/occurrenceGnss/);
+  assert.equal(host.markers.at(-1).options.icon.iconSize[0],26);
+});

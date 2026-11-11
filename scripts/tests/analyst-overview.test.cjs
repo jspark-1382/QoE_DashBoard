@@ -35,7 +35,7 @@ function load(file, imports) {
   });
   return module.exports;
 }
-const api = load('../../lib/analyst/overview.ts', { './data': data });
+const api = load('../../lib/analyst/overview.ts', { './data': data, './derived-qoe': require('../analyst-ts-loader.cjs').load('lib/analyst/derived-qoe.ts') });
 const map = load('../../lib/analyst/map.ts', {});
 const ui = load('../../lib/analyst/overview-ui.ts', {});
 const analytics = require('../analyst-ts-loader.cjs').load(
@@ -236,7 +236,7 @@ test('MOS projects all summaries and rows consistently without changing original
     const summary = text(
       r.all.find((n) => n.props?.['aria-label'] === '전체 분석 요약'),
     );
-    assert.match(summary, /평균 MOS3\.50/);
+    assert.match(summary, /평균 QoE3\.50/);
     assert.match(summary, /50\.0%/);
     const rows = r.all.filter((n) =>
       n.props?.['aria-label']?.endsWith('통화 분석'),
@@ -467,7 +467,7 @@ test('hourly stacked chart totals assessed calls without double counting poor ca
   const eight = r.all.find((n) =>
     n.props?.['aria-label']?.startsWith('08시 · 전체 품질 통화'),
   );
-  assert.match(eight.props.title, /전체 품질 통화 1건 \(그 외 0건 \+ 저품질 통화 1건\) · MOS 미평가 1건/);
+  assert.match(eight.props.title, /전체 품질 통화 1건 \(그 외 0건 \+ 저품질 통화 1건\) · QoE 미평가 1건/);
   assert.equal(eight.props['aria-pressed'], true);
   const chart = r.all.find((n) => n.props?.['aria-label'] === '시간대별 통화 내역');
   assert.equal(
@@ -533,7 +533,7 @@ test('administrative-dong SHP regions replace grid markers and keep district sel
   assert.match(text(view.tree), /행정동별 품질/);
   assert.match(text(view.tree), /행정동별 저품질 순위/);
   assert.match(text(view.tree), /개포4동/);
-  assert.match(text(view.tree), /GNSS 1 \/ 추정 1/);
+  assert.match(text(view.tree), /GPS 1 \/ 추정 1/);
   assert.match(text(view.tree), /저품질 통화 발생 건수/);
   assert.match(text(view.tree), /행정동별 전체 저품질 비율을 산출하지 않습니다/);
   assert.doesNotMatch(text(view.tree), /색상: 저품질 비율/);

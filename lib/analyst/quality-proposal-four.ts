@@ -1,4 +1,5 @@
 import type { AnalystOverview, OverviewCall, OverviewCallLocation } from './types';
+import {effectiveCallQoe} from './derived-qoe';
 import type { MosBand } from './quality-proposal-metrics';
 
 export type HourMosPoint = {
@@ -28,8 +29,8 @@ export function buildFourthHourly(overview: AnalystOverview, from: string, to: s
     const point=rows[Math.floor(call.startSecond/3600)];
     if(!point) continue;
     point.total++;
-    const mos=call.mos;
-    if(typeof mos!=='number'||!Number.isFinite(mos)||mos<1||mos>5) continue;
+    const mos=effectiveCallQoe(call);
+    if(mos===null) continue;
     point.evaluated++;
     if(mos<3) point.poor++;
     else point.other++;
@@ -44,7 +45,7 @@ export const fourthMaskedCustomer=(id:string)=>{
 };
 export const fourthTime=(date:string,time:string)=>date+' '+time;
 export const fourthBandForMos=(value:number|null|undefined):MosBand|null=>{
-  if(typeof value!=='number'||!Number.isFinite(value)||value<1||value>5)return null;
+  if(typeof value!=='number'||!Number.isFinite(value)||value< -1.5||value>5)return null;
   return value<3?'poor':value<3.5?'fair':'good';
 };
 
@@ -53,7 +54,7 @@ export function fourthBandCalls(
   scope:{districtId?:string|null;evidence?:'all'|'gnss'|'estimated'|'bye-cell';locations?:readonly OverviewCallLocation[] }={},
 ):OverviewCall[] {
   if(band===null)return [...calls];
-  const matching=calls.filter(call=>fourthBandForMos(call.mos)===band);
+  const matching=calls.filter(call=>fourthBandForMos(effectiveCallQoe(call))===band);
   if(!scope.districtId&&(!scope.evidence||scope.evidence==='all'))return matching;
   // Only original CDR<->MDT linked positions may constrain regional evidence.
   // Non-poor CDRs are intentionally not assigned locations from the low-MOS MDT subset.
@@ -71,6 +72,6 @@ export function fourthPoorRates(poor:number,total:number,evaluated:number){
   };
 }
 export const fourthMosBand=(call:OverviewCall)=>{
-  const band=fourthBandForMos(call.mos);
+  const band=fourthBandForMos(effectiveCallQoe(call));
   return band==='poor'?'불량':band==='fair'?'보통':band==='good'?'양호':'미평가';
 };

@@ -7,12 +7,13 @@ const {load}=require('../analyst-ts-loader.cjs');
 const root=path.resolve(__dirname,'../..');
 const read=p=>fs.readFileSync(path.join(root,p),'utf8');
 
-test('improvement 2 is a third, condition-preserving quality variant; current and improvement1 remain',()=>{
+test('improvement 2 is the default quality overview and historic variant links retain conditions',()=>{
  const router=read('app/page.tsx'),nav=read('components/analyst/quality-top-nav.tsx');
  const state=load('lib/analyst/quality-comparison-state.ts');
  assert.match(router,/variant===\x27improvement2\x27/);
- assert.match(router,/\x27improvement1\x27:\x27current\x27/);
- assert(nav.includes('개선 1안')&&nav.includes('개선 2안')&&nav.indexOf('개선 2안')>nav.indexOf('개선 1안'));
+ assert.match(router,/\x27current\x27:\x27improvement2\x27/);
+ assert(!nav.includes('>개선 1안</Link>')&&!nav.includes('>개선 2안</Link>'));
+ assert(nav.includes('품질 현황'));
  const query='?variant=improvement2&dateStart=2026-10-26&dateEnd=2026-10-30&customer=a&customer=b&selectedBand=poor&mapMode=improvement&from=09:00&to=19:00';
  const parsed=state.parseQualityComparisonState(query,['2026-10-26','2026-10-27','2026-10-28','2026-10-29','2026-10-30']);
  assert(parsed.ok);

@@ -10,14 +10,14 @@ export function buildQualityPresentationCandidates(summary:QualityCandidateSumma
   const rawId=(c:typeof calls[number])=>c.rawCallId??c.callId.replace(/^\d{4}-\d{2}-\d{2}:/,'').slice(c.customerId.length+1);
   const gnss=points.filter(p=>p.kind==='gnss').flatMap(p=>{const call=calls.find(c=>c.callId===p.callId);return call?[{date:p.date,customerId:p.customerId,callId:call.customerId+':'+rawId(call),lat:p.lat,lon:p.lon,observedAt:p.observedAt??null,phase:'채택 대표 GPS',source:'RAW_MDT_GNSS' as const,validationDay:p.role.startsWith('validation')}]:[];});
   return {id:card.id,kind:'spatial',label:card.label,
-   location:{...card.medoid,radiusM:card.displayRadiusM,source:'TRAINING_GNSS_CLUSTER_MEDOID',meaning:'발견기간 채택 대표점; QoE 열화 순간의 위치 아님'},
+   location:{...card.medoid,radiusM:card.displayRadiusM,source:card.medoid.kind==='rough'?'TRAINING_MDT_ROUGH_CLUSTER_MEDOID':'TRAINING_GNSS_CLUSTER_MEDOID',meaning:card.medoid.kind==='rough'?'MDT RSRP 가중중심 근사 대표점 · 위치 정확도 미검증 · QoE 열화 순간 위치 아님':'GPS 기반 대표점 · QoE 열화 순간 위치 아님'},
    discovery:{distinctPoorCustomers:card.poorCustomerCount,poorCalls:card.poorCallCount,days:card.poorDateCount,dropCalls:calls.filter(c=>members.has(c.callId)&&classifySipReason11(c.sipReason)==='drop').length},
    validation:{newPoorCustomers:card.validationNewCustomers,newPoorCalls:points.filter(p=>p.role==='validation-new').length,date:summary.validationDates.join(', '),definition:'후보별 발견기간과 다른 고객의 검증일 재관측'},
    normalReference:{nearbyCalls:null,distinctCustomers:null,caution:'정상 참고 표본을 별도 산정하지 않았습니다. 지역 전체 불량률 분모가 아닙니다.'},
    relatedEndCells:[...endCells].map(([id,poorCalls])=>({id,poorCalls})),
    representativeCalls:calls.filter(c=>typeof c.mos==='number'&&c.mos>=1&&c.mos<3).map(c=>({date:c.date,customerId:c.customerId,callId:c.customerId+':'+rawId(c),mos:c.mos!,endCellId:c.endCellId??'',start:c.start??c.startedAt?.slice(11,19)??''})),
    relatedGnss:gnss,relatedGnssCallCount:new Set(gnss.map(p=>p.callId)).size,
-   evidence:'GNSS_CDR_ASSOCIATION',verification:'INDEPENDENT_NEXT_DAY_CUSTOMER_REPEAT',
+   evidence:summary.locationMode?'GNSS_MDT_ROUGH_ASSOCIATION':'GNSS_CDR_ASSOCIATION',verification:'INDEPENDENT_NEXT_DAY_CUSTOMER_REPEAT',
    hypotheses:['약전계·간섭·HO 등 무선 원인 후보 (원인 미확정)','전송망·코어망·단말 및 QoE 산출 영향도 추가 검토 필요'],
    fieldChecks:['후보 조사 권역과 인접 정상 권역에서 VoLTE 현장 측정','음성 녹음·QoE·RF의 동일 측정시각 확인','관련 Cell의 HO·간섭·RTP/RTCP 근거 대조'],
    radioReference:{linkedCdrMdtRepresentativeCalls:0,rsrpMedianDbm:null,rsrqMedianDb:null,sinrMedianDb:null,warning:'선택 통화의 원본 MDT는 아래 통화 목록과 통화 상세에서 확인합니다. 이 후보 요약에는 RF 중앙값을 별도 산정하지 않았습니다.'}};

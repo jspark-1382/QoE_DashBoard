@@ -529,12 +529,12 @@
 .positionBadges b{margin-left:3px;white-space:nowrap;font-weight:750}
 .positionObserved{background:#eaf9f6;border-color:#b9e6dc!important;color:#087d72}
 .positionModel{background:#f1eeff;border-color:#d6cbf9!important;color:#5947a7}
-.positionInterpolation{background:#fff6e6;border-color:#f0dbaf!important;color:#9f6616}
+
 .positionStation{background:#eef3f7;border-color:#cfdbe5!important;color:#415e74}
-.gnssSymbol,.modelSymbol,.interpolatedSymbol,.stationSymbol{display:inline-block;flex:none;width:11px;height:11px}
+.gnssSymbol,.modelSymbol,.stationSymbol{display:inline-block;flex:none;width:11px;height:11px}
 .gnssSymbol{background:#098e83;border:2px solid #fff;border-radius:50%;box-shadow:0 0 0 1px #078579}
 .modelSymbol{background:#6754c7;border:1.5px solid #fff;box-shadow:0 0 0 1px #6754c7;transform:rotate(45deg);border-radius:2px}
-.interpolatedSymbol{background:#d38e28;border:1.5px solid #fff;box-shadow:0 0 0 1px #b87a22;transform:rotate(45deg);border-radius:2px}
+
 .stationSymbol{width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;border-bottom:13px solid #536575;background:transparent}
 .selectedPositionStatus{margin:9px 0 0;font-size:11px;color:#36516a;line-height:1.55}
 .noGnssWarning{margin:8px 0 0;padding:7px 9px;border-left:3px solid #c58c30;border-radius:3px;background:#fff8ed;color:#866021;font-size:11px;line-height:1.5}

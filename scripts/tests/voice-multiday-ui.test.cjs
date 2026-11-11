@@ -42,8 +42,8 @@ test('proposal 4 supports a bounded date range while the other independent scree
  assert(four.includes('combineDateOverviews(summaries)'));
  assert(four.includes('datesInRange(dataset.meta.dates,startDate,selectedDate)'));
  assert(four.includes('setSelectedBand(null)'));
- assert(four.includes("focusKey={'proposal-four-'+startDate+'-'+selectedDate}"));
- assert(four.includes('voice-mos-'+String.fromCharCode(36)));
+ assert(four.includes("focusKey={'proposal-four-'+startDate+'-'+selectedDate+'-'+customerFocusKey}"));
+ assert(four.includes("link.download=`voice-${distributionMode==='drop'?'sip-drop':'mos'}-"));
  assert(four.includes('-'+String.fromCharCode(36)+'{startDate}_'+String.fromCharCode(36)+'{selectedDate}.csv'));
  assert(four.includes('aria-label="품질 현황 분석 조건"'));
 });

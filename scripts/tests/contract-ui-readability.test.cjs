@@ -19,7 +19,7 @@ test('whole-second call duration rounds without exposing floating-point artifact
   [-1,'미제공'],
  ])assert.equal(formatCallDuration(seconds),expected,'source '+seconds);
 });
-test('customer-only map clearly differentiates GNSS, radio, interpolation and BTS; global map unchanged',()=>{
+test('customer-only map displays GPS, triangulation and tower evidence without unused interpolation badge',()=>{
  const contract=read('components/analyst/contract-workspace.tsx');
  const map=read('components/analyst/analyst-map.tsx');
  const right=read('components/analyst/observation-details.tsx');
@@ -28,9 +28,12 @@ test('customer-only map clearly differentiates GNSS, radio, interpolation and BT
  assert(contract.includes('return formatCallDuration(s)'));
  assert(contract.includes('title={Number.isFinite(c.durationSeconds)'));
  assert(contract.includes('emphasizeLocationSource'));
- for(const name of ['GNSS 관측','무선 추정','보간 추정','기지국','이동 위치 근거']){
+ for(const name of ['GPS 관측','삼각 측량','기지국','이동 위치 근거']){
   assert(contract.includes(name));
  }
+ assert(!contract.includes('보간 추정 <b>'));
+ assert(!contract.includes('<span><i className={styles.interpolatedSymbol}/> 보간 추정</span>'));
+ assert(!contract.includes('삼각 측량 또는 보간으로'));
  assert(contract.includes('observedPoints.length===0'));
  assert(contract.includes('고객 위치 출처 요약'));
  assert(contract.includes('selectedPosition'));
@@ -41,7 +44,7 @@ test('customer-only map clearly differentiates GNSS, radio, interpolation and BT
  assert(map.includes("s.locationSource==='interpolated'?'#d38e28':'#098e83'"));
  assert(map.includes("qualityPoor?'#d84747'"));
  assert(map.includes('sourceName'));
- assert(map.includes('GNSS/실측 관측'));
+ assert(map.includes('GPS·실측 관측 연결'));
  assert(mapCss.includes('.sourceDiamond span'));
  assert(css.includes('.positionBadges'));
  assert(right.includes('data-location-source={sample.locationSource}'));

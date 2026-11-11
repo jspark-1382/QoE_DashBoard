@@ -29,7 +29,7 @@ export function QualityDistribution({
   const select = (band: ScoreBand) =>
     onBandSelect(selectedBand === band ? null : band);
   const poorBoundary = analytics.threshold;
-  const goodBoundary = analytics.metric === 'mos' ? 3.5 : Math.max(4, poorBoundary);
+  const goodBoundary = analytics.metric === 'qoe'&&poorBoundary<3?Math.max(4,poorBoundary):Math.max(3.5,poorBoundary);
   const boundaryLabel = (value: number) =>
     Number.isInteger(value) ? value.toFixed(1) : String(value);
   const poorLabel = boundaryLabel(poorBoundary);

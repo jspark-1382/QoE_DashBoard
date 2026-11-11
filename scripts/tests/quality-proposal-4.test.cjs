@@ -22,7 +22,7 @@ test('original overview preserved as 기존안 and former 4th proposal becomes m
   const main=read('app/page.tsx');
   const shell=read('components/analyst/analyst-dashboard.tsx');
   const topbar=read('components/analyst/quality-proposal-four.tsx');
-  assert(main.includes('return <QualityProposalFour variant=')&&main.includes("?'improvement1':'current'"));
+  assert(main.includes('return <QualityProposalFour variant=')&&main.includes("?'current':'improvement2'"));
   assert(main.includes("view === 'overview' || view === 'contract'"));
   assert(shell.includes('<QualityTopNav'));
   assert(topbar.includes('<QualityTopNav')&&topbar.includes('improvement1')&&topbar.includes('qualityHref'));
@@ -61,14 +61,14 @@ test('MOS grade, hourly totals and weighted hourly mean are sourced from real 10
   const grades=calculateProposalGrades(overview,'00:00','23:59');
   const hourly=buildFourthHourly(overview,'00:00','23:59');
   assert.equal(hourly.length,24);
-  assert.deepEqual(grades.bands.map(b=>b.count),[288,442,25958]);
+  assert.deepEqual(grades.bands.map(b=>b.count),[325,439,25924]);
   assert.equal(grades.unavailable,11043);
   assert.equal(hourly.reduce((sum,h)=>sum+h.total,0),37731);
-  assert.equal(hourly.reduce((sum,h)=>sum+h.poor,0),288);
+  assert.equal(hourly.reduce((sum,h)=>sum+h.poor,0),325);
   assert.equal(hourly.reduce((sum,h)=>sum+h.evaluated,0),26688);
   for(const h of hourly){
     assert.equal(h.evaluated,h.poor+h.other);
-    assert(h.mean===null||(h.mean>=1&&h.mean<=5));
+    assert(h.mean===null||(h.mean>=-1.5&&h.mean<=5));
   }
   const overallMean=hourly.reduce((sum,h)=>sum+(h.mean??0)*h.evaluated,0)/26688;
   assert(Math.abs(overallMean-grades.mean)<1e-8);
@@ -84,7 +84,10 @@ test('time filter changes actual hourly counts, cohorts and map but not overall 
   assert.equal(one.reduce((sum,x)=>sum+x.poor,0),chosen.poor);
   assert.equal(buildFourthHourly(overview,'20:00','08:00').reduce((sum,x)=>sum+x.total,0),0);
   const all=buildImprovedView(overview,{from:'00:00',to:'23:59',hour:null,districtId:null,evidence:'all'});
-  assert.equal(all.locatedPoorCalls,overview.callLocations.filter(p=>p.mos!=null&&p.mos<3).length);
+  assert.equal(all.locatedPoorCalls,overview.callLocations.filter(p=>{
+    const call=overview.calls.find(c=>c.id===p.callId);
+    return call && fourthBandCalls([call],'poor').length===1;
+  }).length);
   const gd=buildImprovedView(overview,{from:'00:00',to:'23:59',hour:null,districtId:'adm:11230680',evidence:'gnss'});
   assert(gd.locations.every(p=>p.areaId==='adm:11230680'&&p.evidence==='gnss'));
   assert.equal(gd.globalSummary.total,all.globalSummary.total);
@@ -105,14 +108,14 @@ test('opaque customer labels never imply a real phone number',()=>{
 test('score distribution clicks investigate all source CDR calls, not only the location-linked low-MOS rows',()=>{
  const all=overview.calls;
  const poor=fourthBandCalls(all,'poor'),fair=fourthBandCalls(all,'fair'),good=fourthBandCalls(all,'good');
- assert.deepEqual([poor.length,fair.length,good.length],[288,442,25958]);
+ assert.deepEqual([poor.length,fair.length,good.length],[325,439,25924]);
  assert.equal(poor.length+fair.length+good.length,26688);
  assert(poor.some(call=>!overview.callLocations.some(p=>p.callId===call.id)),
   'selected low MOS must retain unlocated CDR calls');
  assert.equal(fourthBandCalls(all,null).length,37731);
- assert(poor.every(call=>fourthBandForMos(call.mos)==='poor'));
- assert(fair.every(call=>fourthBandForMos(call.mos)==='fair'));
- assert(good.every(call=>fourthBandForMos(call.mos)==='good'));
+ assert(poor.every(call=>fourthBandCalls([call],'poor').length===1));
+ assert(fair.every(call=>fourthBandCalls([call],'fair').length===1));
+ assert(good.every(call=>fourthBandCalls([call],'good').length===1));
  assert.equal(fourthBandForMos(null),null);
  assert.equal(fourthBandForMos(Number.NaN),null);
  assert.equal(fourthBandForMos(5.2),null);
@@ -141,9 +144,9 @@ test('grade selection respects hour/customer/region evidence, without mapping no
 });
 
 test('total CDR low-quality percentage is separately presented beside evaluated MOS percentage',()=>{
- const rate=fourthPoorRates(288,37731,26688);
- assert.equal(rate.total.toFixed(1),'0.8');
- assert.equal(rate.evaluated.toFixed(1),'1.1');
+ const rate=fourthPoorRates(325,37731,26688);
+ assert.equal(rate.total.toFixed(1),'0.9');
+ assert.equal(rate.evaluated.toFixed(1),'1.2');
  assert.deepEqual(fourthPoorRates(0,0,0),{total:null,evaluated:null});
  const ui=read('components/analyst/quality-proposal-four.tsx');
  const css=read('components/analyst/quality-proposal-four.module.css');

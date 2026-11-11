@@ -119,7 +119,7 @@ test('QoE fair boundaries preserve the configured poor threshold and histogram c
   assert.equal(result.bins[15].band,'fair');
   assert.equal(result.bins[16].band,'good');
   assert.equal(api.getScoreBand(3.49,'qoe',3.5),'poor');
-  assert.equal(api.getScoreBand(3.5,'qoe',3.5),'fair');
+  assert.equal(api.getScoreBand(3.5,'qoe',3.5),'good');
   assert.equal(api.getScoreBand(4,'qoe',4.5),'poor');
 });
 test('projection clones calls and cells, sanitizes selected MOS, and preserves source QoE', () => {

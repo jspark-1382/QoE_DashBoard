@@ -1,4 +1,5 @@
 import type { AnalystOverview } from './types';
+import {effectiveCallQoe} from './derived-qoe';
 
 export type MosBand = 'poor' | 'fair' | 'good';
 export interface ProposalBand {
@@ -49,8 +50,8 @@ export function calculateProposalGrades(
       const hour = hours[Math.floor(call.startSecond/3600)];
       if (!hour) continue;
       hour.total++;
-      const mos = call.mos;
-      if (typeof mos !== 'number' || !Number.isFinite(mos) || mos < 1 || mos > 5) {
+      const mos = effectiveCallQoe(call);
+      if (mos===null) {
         hour.unavailable++;
         unavailable++;
         continue;

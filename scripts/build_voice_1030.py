@@ -11,6 +11,7 @@ import hashlib
 import json
 import math
 import os
+import re
 import shutil
 import sys
 import uuid
@@ -31,6 +32,19 @@ FIELDS = ['second', 'time', 'lat', 'lon', 'site', 'areaType', 'floorCode',
           'delay', 'qoe', 'cause', 'morphology', 'callId', 'ci', 'mdt']
 BAD = {'', '_', 'NULL', 'NAN', 'NONE', 'N/A'}
 MATCH_TOLERANCE_SEC = 30
+SIP_DROP_QOE_PENALTY = 2.5
+
+
+def derive_call_qoe(original_mos, sip_reason):
+    """Use original RTCP MOS(v5), penalize SIP Drop, preserve raw MOS."""
+    if not isinstance(original_mos, (int, float)) or not math.isfinite(original_mos) or not 1 <= original_mos <= 5:
+        return None
+    reason = (sip_reason or '').strip()
+    is_drop = (re.search(r'(?:^|[\^\s/;,])H\s*(?::\s*Drop\b|(?=\^|$))', reason, re.I)
+               or re.search(r'(?:^|[\s:;/])Drop\b', reason, re.I))
+    return round(original_mos - SIP_DROP_QOE_PENALTY, 6) if is_drop else original_mos
+
+
 DEFAULT_DATES = ('2026-10-26','2026-10-27','2026-10-28','2026-10-29','2026-10-30')
 
 
@@ -358,7 +372,7 @@ def as_day(customer_id, contract, group, stations, station_indices):
             'startCellId': call['startCellId'],
             'endCellId': call['endCellId'],
             'endRat': call.get('endRat'),
-            'qoe': call['mos'],  # compatibility alias; this is NEVER RSRP-derived QoE
+            'qoe': derive_call_qoe(call['mos'], call['sipCause']),  # SIP Drop penalty; MOS(v5) remains original
             'mos': call['mos'],
             'mosV5Original': call['mos'],
             'mosStatus': call['mosStatus'],

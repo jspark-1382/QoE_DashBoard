@@ -9,6 +9,8 @@ export type BaseStation = Point & {
   inventorySource?: string;
   /** Radio access technology of an explicitly tagged inventory row. */
   technology?: 'LTE' | 'NR';
+  /** Display-only relationship to mapped call locations. */
+  mapRelations?: Array<'gps-observation' | 'gps-call-bye' | 'triangulation-input'>;
   inventoryPciStatus?: 'valid' | 'missing' | 'invalid' | 'conflict';
   inventoryPciCandidates?: number[];
 };

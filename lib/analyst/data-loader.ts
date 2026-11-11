@@ -1,4 +1,5 @@
 import { normalizeDay } from './data';
+import {deriveCallQoe} from './derived-qoe';
 import { buildOverview } from './overview';
 import { SharedRequestCache } from './request-cache';
 import type {
@@ -121,5 +122,7 @@ async function readOverview(
     throw new Error(
       '품질 현황 자료와 원본 버전이 일치하지 않습니다. node scripts/build-analyst-overview.cjs 명령으로 갱신해 주세요.',
     );
+  if(source==='MDT'&&dataset.meta.qoeBasis==='rtcp-mos-v5')
+    return {...overview,calls:overview.calls.map(c=>({...c,qoe:deriveCallQoe(c.mos,c.sipCause)}))};
   return overview;
 }

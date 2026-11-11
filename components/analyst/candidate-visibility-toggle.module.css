@@ -1,0 +1,5 @@
+.toggle{display:inline-flex;align-items:center;gap:5px;flex-wrap:wrap;min-width:0}
+.toggle button{border:1px solid #cbdde8;border-radius:7px;background:#f5f9fc;color:#52768a;font-weight:800;font-size:10px;padding:5px 9px;cursor:pointer;white-space:nowrap;line-height:1.3}
+.toggle button[aria-pressed="true"]{background:#ddf6ee;color:#147e6b;border-color:#55bca9}
+.toggle button:hover{border-color:#58aaab}
+.toggle button:focus-visible{outline:3px solid #2caf9e;outline-offset:1px}

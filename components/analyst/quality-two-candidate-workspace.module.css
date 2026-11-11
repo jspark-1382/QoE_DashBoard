@@ -37,8 +37,14 @@
 .selectedDot{background:#f5bd42;border:2px solid #ab650e}
 .otherDot{background:#98afbe;border:1px solid #fff}
 .gnssDot{background:#e7a13d}
+.legendHeading{font-weight:800!important;color:#365b71!important;margin-left:5px}
+.rsrpRed{background:#dc2626}
+.rsrpGreen{background:#16a34a}
+.rsrpUnknown{background:#94a3b8}
+.mapLegend span svg{flex-shrink:0;filter:drop-shadow(0 0 1px #53657a88)}
 .verifiedDot{background:#13a890}
 .radioDot{background:#8376c5}
+.mapLegend .roughDot{width:11px;height:11px;border:2px dashed #d97706;border-radius:50%;background:#fff8eb;transform:none}
 .mapSurface{flex:1;position:relative;min-height:0;margin:10px 12px;border-radius:8px;overflow:hidden}
 .mapBottom{margin:0;padding:11px 16px;color:#72859a;font-size:10px;line-height:1.5;flex-shrink:0}
 .mapHelp{border:1px solid #dee8ef;border-radius:9px;background:#fff;padding:10px 13px;color:#678094;font-size:11px}
@@ -49,6 +55,9 @@
 .regionList>header,.customerPanel>header{padding:14px 14px 9px}
 .regionList h2,.customerPanel h2{font-size:14px;font-weight:850;color:#24475e;margin:0 0 4px;display:flex;gap:6px;align-items:center}
 .regionList h2 span{background:#eaf3f8;border-radius:7px;padding:3px 7px;font-size:11px;color:#2b6986}
+.regionFilterLine{display:flex;align-items:center;justify-content:space-between;gap:7px;flex-wrap:wrap;min-width:0}
+.regionFilterLine h2{margin:0}
+.regionFilterLine button{padding:4px 7px}
 .regionList header p,.customerPanel header p{font-size:10px;line-height:1.5;color:#8495a5;margin:0}
 .regionRows{padding:0 9px 10px;display:flex;flex-direction:column;gap:5px}
 .regionRow{display:flex;align-items:center;gap:9px;border:1px solid #e4ecf2;border-radius:8px;min-width:0;width:100%;text-align:left;background:#fbfdff;color:#314d63;cursor:pointer;padding:8px 7px}

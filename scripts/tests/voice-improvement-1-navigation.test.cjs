@@ -3,9 +3,9 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const {load}=require('../analyst-ts-loader.cjs');
-test('new comparison tab immediately follows legacy without replacing original routes',()=>{
+test('comparison tabs are removed while original comparison routes remain compatible',()=>{
  const source=fs.readFileSync('components/analyst/quality-top-nav.tsx','utf8');
- assert(source.indexOf('>개선 1안</Link>')>source.indexOf('>기존안</Link>'));
+ assert(!source.includes('>개선 1안</Link>')&&!source.includes('>기존안</Link>'));
  assert.match(source,/improvementHref/);
 });
 test('navigation retains population and exploration while preserving revision',()=>{

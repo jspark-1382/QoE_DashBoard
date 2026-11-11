@@ -108,6 +108,8 @@ export interface OverviewCallLocation {
   byeInventoryPciCandidates?:number[];
   /** Supporting BYE tower coordinate separate from actual GNSS observation point. */
   byeStationLat?:number; byeStationLon?:number;
+  /** Registered station matched to this exact same-call GPS observation. */
+  gpsStation?:BaseStation;
   /** Distance/time envelope from the last observed GNSS; not an accuracy radius. */
   gnssReferenceAgeSec?:number; possibleRadiusM?:number;
   referenceBasis?:'last-known-gnss'|'direct-gnss'|'reviewed-radio'|'bye-station'|'coarse-site-barycenter';

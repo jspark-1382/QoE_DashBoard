@@ -42,14 +42,14 @@ require('node:fs').mkdirSync('outputs/quality-revision-qa',{recursive:true});
   await page.getByRole('button',{name:'관련 고객 전체 통화',exact:true}).waitFor();
   assert.equal(await page.locator('#qoe-proposal-four-calls').count(),1);
   phase='return-to-overview';
-  await page.getByRole('button',{name:'기존 현황',exact:true}).click();
+  await page.getByRole('button',{name:'품질현황',exact:true}).click();
   await page.getByLabel('주요 MOS 품질 지표').waitFor();assert(await page.getByText('MOS 점수 분포',{exact:true}).isVisible());
   for(let i=0;i<10;i++){
    phase='repeat-candidate-'+i;
-   await page.getByRole('button',{name:'개선 후보 분석',exact:true}).click();
+   await page.getByRole('button',{name:'개선후보',exact:true}).click();
    await page.getByLabel('선택 개선 후보 상세 근거').waitFor();await page.waitForTimeout(150);
    phase='repeat-overview-'+i;
-   await page.getByRole('button',{name:'기존 현황',exact:true}).click();
+   await page.getByRole('button',{name:'품질현황',exact:true}).click();
    await page.getByLabel('주요 MOS 품질 지표').waitFor();await page.waitForTimeout(150);
   }
   await page.waitForTimeout(500);

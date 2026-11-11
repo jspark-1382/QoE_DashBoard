@@ -82,7 +82,7 @@ test('UI separates new candidate panel from 1 and hides reporting outlines by de
  const css=fs.readFileSync(path.join(root,'components/analyst/quality-proposal-four.module.css'),'utf8');
  assert(panel.includes('if(proposalTwo)return'));
  assert(panel.includes('<CandidateWorkspaceView'),'1 must retain its own shared candidate view');
- for(const label of ['조사 후보 지역 목록','선택한 조사 대상','선정 이유','선택 지역의 고객별 통화','원본 근거·Cell·RF','후보 구성 위치 근거','후보 범위가 다른 후보와 겹칠 수 있어'])
+ for(const label of ['개선 후보 지역 목록','선택한 개선 대상','선정 이유','선택 지역의 고객별 통화','원본 근거·Cell·RF','후보 구성 위치 근거','후보 범위가 다른 후보와 겹칠 수 있어'])
   assert(two.includes(label),'missing explanation '+label);
  assert(!rootUi.includes('QualityTwoHeader'));
  assert(rootUi.includes('data-review-mode="off"'));

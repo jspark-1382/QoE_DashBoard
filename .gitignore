@@ -73,3 +73,11 @@ __pycache__/
 /public/quality-models/
 /public/quality-models-full/
 /public/quality-model-simulations/
+
+# Generated customer and location analysis data (rebuilt from private inputs)
+/public/customer-screening-data/
+/public/gps-map-stations/
+/public/quality-improvement-mixed-evaluation/
+/public/quality-improvement-mixed-full/
+/public/quality-models-mixed-evaluation/
+/public/quality-models-mixed-full/

@@ -1,4 +1,5 @@
 import { parseFullTimestamp } from './call-time';
+import {effectiveCallQoe} from './derived-qoe';
 import type { AnalystOverview, OverviewCall } from './types';
 
 export type ScoreMetric = 'qoe' | 'mos';
@@ -61,7 +62,7 @@ export function getScoreBand(
   threshold: number,
 ): ScoreBand {
   const poorLimit = threshold;
-  const goodLimit = metric === 'mos' ? 3.5 : Math.max(4, poorLimit);
+  const goodLimit = metric === 'mos' || poorLimit>=3 ? Math.max(3.5,poorLimit) : Math.max(4, poorLimit);
   return value < poorLimit ? 'poor' : value < goodLimit ? 'fair' : 'good';
 }
 

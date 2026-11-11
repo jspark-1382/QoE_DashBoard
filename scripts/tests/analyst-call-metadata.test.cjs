@@ -45,7 +45,7 @@ test('GNSS-free MDT remains MDT and never supplies the missing CDR cell IDs', ()
     21: { gnss: false, cellId: 'OBSERVED-CELL', baseStationId: 'OBSERVED-STATION' },
   });
   const call = normalizeDay(dataset, sourceDay([sourceCall({
-    id: 'mdt', qoe: 2.5, mdtCount: 1, radioCount: 1, hasMdt: true,
+    id: 'mdt', mos: 2.5, qoe: 2.5, mdtCount: 1, radioCount: 1, hasMdt: true,
   })], [raw]), 'MDT').calls[0];
   assert.equal(call.startCellId, '');
   assert.equal(call.endCellId, '');

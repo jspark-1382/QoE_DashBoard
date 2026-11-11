@@ -46,9 +46,9 @@ test('existing contract UI reads the same validated sidecar and collapses long w
  assert(dashboard.includes("overlayThreeSiteRough(overview.data,rough.data??null,true)"));
  assert(dashboard.includes("point.positionQuality==='three-site-rough'"));
  assert(workspace.includes('callLocations={estimates&&roughLocation?[roughLocation]:[]}'));
- assert(workspace.includes('3사이트 대략 위치'));
+ assert(workspace.includes('삼각 측량 대략 위치'));
  assert(workspace.includes('<summary>좌표 심사 근거 보기'));
- assert(workspace.includes('<summary>3사이트 추정 근거 보기</summary>'));
+ assert(workspace.includes('<summary>삼각 측량 근거 보기</summary>'));
  assert(observation.includes('<summary>개별 관측 좌표 심사 근거 보기</summary>'));
  assert(!observation.includes('<output className={styles.positionReviewWarning}'));
 });

@@ -1,6 +1,21 @@
 .container{height:100%;min-height:320px;width:100%;position:relative;background:#e6f0f5;isolation:isolate}
 .map{position:absolute;inset:0}
 .map :global(.leaflet-container){height:100%;width:100%;z-index:1}
+.map :global(.qoe-gps-rf-marker){background:transparent;border:none;filter:drop-shadow(0 1px 2px #1d354766)}
+.map :global(.qoe-gps-rf-marker svg){display:block;overflow:visible}
+.map :global(.qoe-rough-location-marker){background:transparent;border:none;filter:drop-shadow(0 1px 2px #7d562f77)}
+.map :global(.qoe-rough-location-marker svg){display:block;overflow:visible}
+.map :global(.qoe-station-tower-marker){background:transparent;border:none;filter:drop-shadow(0 1px 2px #243c4f66)}
+.map :global(.qoe-station-linked){filter:drop-shadow(0 0 3px #c07122aa)}
+.map :global(.qoe-station-tower-marker svg){display:block;overflow:visible}
+.map :global(.qoe-rough-selected){filter:drop-shadow(0 0 3px #a04c0c) drop-shadow(0 1px 2px #7d562f77)}
+.gridNote{position:absolute;z-index:500;top:9px;left:8px;max-width:calc(100% - 55px);border:1px solid #bfd5cc;border-radius:5px;padding:4px 7px;background:#f9fcf9e8;color:#4b6e66;font-size:10px;pointer-events:none;line-height:1.3}
+.gridLegend{position:absolute;z-index:490;right:9px;top:11px;width:166px;padding:9px 10px 8px;pointer-events:none;border-radius:7px;border:1px solid #d1d5d9;background:#fffffff0;box-shadow:0 2px 6px #00000013;color:#3a4b55;font-size:10px;line-height:1.1}
+.gridLegend>strong{display:block;color:#4a687d;font-size:11px;margin-bottom:7px}
+.gridLegendRow{display:flex;align-items:center;justify-content:space-between;gap:7px;margin:4px 0;white-space:nowrap}
+.gridLegendRow>span{font-size:10px}
+.gridLegendRow>i{display:block;flex:0 0 60px;width:60px;height:10px;border:0}
+@media(max-width:700px){.gridLegend{top:34px;right:6px;width:135px;padding:5px 7px;font-size:9px}.gridLegendRow{margin:2px 0}.gridLegendRow>i{flex-basis:45px;width:45px;height:8px}.gridLegendRow>span{font-size:9px}}
 .notice{position:absolute;z-index:500;bottom:34px;left:10px;background:#fffef6e9;border:1px solid #d6c9a1;color:#69593d;border-radius:6px;padding:5px 9px;font-size:11px;max-width:80%}
 .hint{position:absolute;z-index:500;bottom:7px;left:8px;background:#ffffffee;border:1px solid #c8dbe8;color:#46637a;border-radius:6px;padding:4px 7px;font-size:10px;pointer-events:none}
 

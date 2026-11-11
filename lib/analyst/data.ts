@@ -3,6 +3,7 @@ import { reviewAdaptivePosition } from '../location-estimation/review';
 import { latestGnssReference } from '../location-estimation/gnss-reference';
 import { distanceM } from '../location-estimation/geo';
 import { normalizeStartTimestamp } from './call-time';
+import {deriveCallQoe} from './derived-qoe';
 import { summarizeCallMdtObservations } from './mdt-observation';
 import type {
   AnalystDataset,
@@ -323,7 +324,7 @@ export function normalizeDay(
       endSecond,
       durationSeconds,
       ...(endGnssReference?{endGnssReference}:{}),
-      qoe: num(call.qoe),
+      qoe: source==='MDT'?deriveCallQoe(num(call.mosV5Original)??num(call.mos),call.sipCause):num(call.qoe),
       mosV5Original: num(call.mosV5Original),
       mosStatus: call.mosStatus,
       matchStatus: call.matchStatus,

@@ -1,0 +1,42 @@
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const read=p=>fs.readFileSync(p,'utf8');
+const rail=read('components/analyst/quality-investigation-rail.tsx');
+const css=read('components/analyst/quality-investigation-rail.module.css');
+const chart=read('components/analyst/candidate-mdt-rsrp-chart.tsx');
+const db=read('components/analyst/quality-two-candidate-workspace.tsx');
+const alt=read('components/analyst/quality-model-alternative-workspace.tsx');
+test('fullscreen selected evidence hides duplicate GPS/MDT line and range review prose without changing candidate filtering',()=>{
+ assert(rail.includes('선택 후보 근거'));
+ assert(!rail.includes('GPS {active.gnssCalls}건'));
+ assert(!rail.includes('군집 구성점 사이 최대 거리'));
+ assert(!rail.includes('원인이나 정확한 저하 위치가 확정된 것은 아닙니다.'));
+ assert(!rail.includes('범위 검토 필요 — 후보는 유지'));
+ assert(!rail.includes('개선 순위: {active.rank'));
+ assert(rail.includes("candidates.filter(c=>c.rangeReview)"));
+ assert(rail.includes('candidate.rangeReview&&'));
+ assert(rail.includes('<div className={styles.metrics}>'));
+ assert(rail.includes('{rsrpChart}'));
+});
+test('compact 5 dB graph remains actual full-MDT histogram, including both model families',()=>{
+ assert(chart.includes('compact=false'));
+ assert(chart.includes('compact?Math.max(105,plotSize.height||160):204'));
+ assert(chart.includes('const observer=new ResizeObserver(measure)'));
+ assert(chart.includes('ref={plotContainer}'));
+ assert(chart.includes('compact?svgHeight-8:195'));
+ assert(chart.includes("data-compact={compact?'true':'false'}"));
+ assert(chart.includes('aggregateCandidateMdtRsrp(state.sidecar,callIds)'));
+ assert(chart.includes('data-earfcn={item.earfcn} data-rsrp-bin={p.dbm} data-count={p.count}'));
+ assert(db.includes('rsrpChart={selected?<CandidateMdtRsrpChart compact'));
+ assert(alt.includes('rsrpChart={active?<CandidateMdtRsrpChart compact'));
+ assert(db.includes('{selected&&<CandidateMdtRsrpChart callIds='));
+ assert(alt.includes("{detailTab==='summary'&&<CandidateMdtRsrpChart"));
+});
+test('fullscreen rail reserves more vertical area for evidence/chart, without deleting candidate list or action',()=>{
+ assert(css.includes('.root[data-has-rsrp="true"] .listCard{flex:0 0 36%;min-height:195px}'));
+ assert(css.includes('.root[data-has-rsrp="true"] .details{display:flex;flex-direction:column;flex:1 1 auto;min-height:0}'));
+ assert(css.includes('.root[data-has-rsrp="true"] .detailCard{min-height:0;display:flex;flex-direction:column;overflow-y:auto}'));
+ assert(rail.includes('선택 후보 고객·통화 보기'));
+ assert(rail.includes('후보 선택 목록'));
+});

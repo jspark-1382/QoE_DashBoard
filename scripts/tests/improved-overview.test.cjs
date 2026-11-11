@@ -5,6 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { load } = require('../analyst-ts-loader.cjs');
 
+const {effectiveCallQoe}=load('lib/analyst/derived-qoe.ts');
 const { buildImprovedView, buildOriginalCallLink } = load('lib/analyst/improved-overview.ts');
 const root = path.resolve(__dirname, '../..');
 const date = '2026-10-30';
@@ -15,7 +16,8 @@ const original = fs.readFileSync(path.join(root, 'components/analyst/quality-ove
 test('old quality overview is preserved and explicitly named 기존안', () => {
   assert(source.includes('QualityTopNav'));
   const shared=fs.readFileSync(path.join(root,'components/analyst/quality-top-nav.tsx'),'utf8');
-  assert(shared.includes('>기존안</Link>'));
+  assert(!shared.includes('>기존안</Link>'));
+  assert(fs.readFileSync(path.join(root,'app/page.tsx'),'utf8').includes("view === 'overview'"));
   assert(shared.includes('품질 현황'));
   assert(!source.includes('overview-proposal-1'));
   assert(!source.includes('overview-proposal-2'));
@@ -33,13 +35,13 @@ test('new overview uses the same real 10/30 CDR and keeps missing MOS outside po
   assert.equal(full.globalSummary.total, 37731);
   assert.equal(full.globalSummary.evaluated, 26688);
   assert.equal(full.globalSummary.unscored, 11043);
-  assert.equal(full.globalSummary.poor, 288);
+  assert.equal(full.globalSummary.poor, 325);
   assert(full.meanMos >= 1 && full.meanMos <= 5);
   assert.equal(full.hourly.length,24);
   assert.equal(full.hourly.reduce((n,row)=>n+row.total,0),37731);
   assert.equal(full.hourly.reduce((n,row)=>n+row.evaluated,0),26688);
-  assert.equal(full.hourly.reduce((n,row)=>n+row.poor,0),288);
-  assert.equal(full.locatedPoorCalls,overview.callLocations.filter(p=>p.mos!=null&&p.mos<3).length);
+  assert.equal(full.hourly.reduce((n,row)=>n+row.poor,0),325);
+  assert.equal(full.locatedPoorCalls,overview.callLocations.filter(p=>{const q=effectiveCallQoe(overview.calls.find(c=>c.id===p.callId));return q!==null&&q<3;}).length);
   assert.equal(full.locations.length,full.locatedPoorCalls);
   assert.equal(full.regions.length,new Set(full.locations.map(p=>p.areaId)).size);
   assert.equal(new Set(full.focusedCalls.map(c=>c.id)).size,full.focusedCalls.length,
@@ -61,10 +63,10 @@ test('GNSS versus estimates and dong selection scope only occurrence markers, no
   assert(bye.locations.every(point=>point.positionQuality==='bye-cell-site'));
   const fair=buildImprovedView(overview,{...base,band:'fair'});
   const good=buildImprovedView(overview,{...base,band:'good'});
-  assert.equal(fair.locations.length,overview.callLocations.filter(p=>p.mos!=null&&p.mos>=3&&p.mos<3.5).length);
-  assert.equal(good.locations.length,overview.callLocations.filter(p=>p.mos!=null&&p.mos>=3.5).length);
-  assert(fair.locations.every(point=>point.mos>=3&&point.mos<3.5));
-  assert(good.locations.every(point=>point.mos>=3.5));
+  assert.equal(fair.locations.length,overview.callLocations.filter(p=>{const q=effectiveCallQoe(overview.calls.find(c=>c.id===p.callId));return q!==null&&q>=3&&q<3.5;}).length);
+  assert.equal(good.locations.length,overview.callLocations.filter(p=>{const q=effectiveCallQoe(overview.calls.find(c=>c.id===p.callId));return q!==null&&q>=3.5;}).length);
+  assert(fair.focusedCalls.every(call=>effectiveCallQoe(call)>=3&&effectiveCallQoe(call)<3.5));
+  assert(good.focusedCalls.every(call=>effectiveCallQoe(call)>=3.5));
   assert.equal(good.globalSummary.poor,all.globalSummary.poor);
 
   assert.equal(gnss.globalSummary.total,all.globalSummary.total);
@@ -75,7 +77,7 @@ test('GNSS versus estimates and dong selection scope only occurrence markers, no
   const selected = buildImprovedView(overview,{...base,districtId:gaepo1.id});
   assert.equal(selected.locations.length,all.locations.filter(p=>p.areaId===gaepo1.id).length);
   assert(selected.locations.every(point=>point.areaId===gaepo1.id));
-  assert.equal(selected.globalSummary.poor,288,'region filtering must not corrupt overall CDR stats');
+  assert.equal(selected.globalSummary.poor,325,'region filtering must not corrupt overall CDR stats');
   assert(selected.focusedCalls.length <= selected.locations.length);
 });
 

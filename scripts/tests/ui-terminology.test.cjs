@@ -4,9 +4,9 @@ const fs = require('node:fs');
 const path = require('node:path');
 const ts = require('typescript');
 
-const forbidden = /GNSS|3\s*[-–]?\s*Site|3사이트|3변측량|다변측량|무선 추정|MOS/g;
+const forbidden = /GNSS|3\s*[-–]?\s*Site|3사이트|3변측량|다변측량|무선 추정/g;
 const roots = ['app', 'components', 'lib'];
-const machineCode = /(RAW_MDT_GNSS|TRAINING_GNSS_|GNSS_CDR_ASSOCIATION|GNSS_REFERENCE_POLICY|strict-3-site-v1|coarse-three-site-v1)/;
+const machineCode = /(RAW_MDT_GNSS|TRAINING_GNSS_|GNSS_CDR_ASSOCIATION|GNSS_MDT_ROUGH_ASSOCIATION|GNSS_REFERENCE_POLICY|strict-3-site-v1|coarse-three-site-v1)/;
 
 test('display strings consistently use GPS and 삼각 측량; preserve internal IDs', () => {
   const violations = [];
@@ -42,7 +42,7 @@ test('display strings consistently use GPS and 삼각 측량; preserve internal 
   assert(ui.includes("policy:'strict-3-site-v1'"));
   assert(ui.includes("name:'QoE 평가 가능'"));
   assert(ui.includes('QoE 대비 {entry.mosRate}'));
-  assert(fs.readFileSync('components/analyst/quality-top-nav.tsx','utf8').includes('QoE 알고리즘 비교'));
+  assert(!fs.readFileSync('components/analyst/quality-top-nav.tsx','utf8').includes('QoE 알고리즘 비교'));
   assert(fs.readFileSync('components/analyst/mos-lab.tsx','utf8').includes("qoeBasis !== 'rtcp-mos-v5'"));
   assert(fs.readFileSync('components/analyst/improvement-candidates.tsx','utf8').includes('displayQualityLabel(candidate.label)'));
   assert(fs.readFileSync('components/analyst/improvement-candidate-map.tsx','utf8').includes('displayQualityLabel(candidate.label)'));

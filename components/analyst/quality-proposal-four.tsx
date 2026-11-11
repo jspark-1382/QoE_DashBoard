@@ -9,7 +9,7 @@ import {
 } from 'lucide-react';
 import { loadDataset, loadDay, loadOverview } from '../../lib/analyst/data-loader';
 import { indexDataset } from '../../lib/analyst/dataset-index';
-import { buildImprovedView, buildOriginalCallLink, type ImprovedLocationFilter } from '../../lib/analyst/improved-overview';
+import { buildImprovedView, buildOriginalCallLink, summarizeMappedLocationEvidence, mapWithoutByeCellEvidence, type ImprovedLocationFilter } from '../../lib/analyst/improved-overview';
 import { getOverviewAnalytics, type ExperienceGroup } from '../../lib/analyst/overview-analytics';
 import { calculateProposalGrades, type MosBand } from '../../lib/analyst/quality-proposal-metrics';
 import { buildFourthHourly, fourthMaskedCustomer, fourthMosBand, fourthBandCalls, fourthPoorRates } from '../../lib/analyst/quality-proposal-four';
@@ -25,6 +25,7 @@ import { ImprovementCandidateWorkspace } from './improvement-candidates';
 import { classifySipReason11,sipReasonLabel,type SipReasonGroup } from '../../lib/analyst/sip-reason';
 import { formatMdtObservation } from '../../lib/analyst/mdt-observation';
 import { onlyDropCalls } from '../../lib/analyst/sip-drop-overview';
+import {effectiveCallQoe} from '../../lib/analyst/derived-qoe';
 import { QualityCustomerPicker } from './quality-customer-picker';
 import { MapPanelFrame } from './map-panel-frame';
 import { scopeOverviewToCustomers } from '../../lib/analyst/customer-overview-scope';
@@ -32,6 +33,7 @@ import { byeSelectionLabel, byeSelectionDescription } from '../../lib/analyst/by
 import { parseQualityComparisonState,qualityComparisonHref,type QualityComparisonState,type QualityOverviewVariant } from '../../lib/analyst/quality-comparison-state';
 import { buildQualityImprovementMetrics,qualityCandidateInvestigationCalls,type QualityEvidenceIndex,type QualityCandidateInvestigation } from '../../lib/analyst/quality-improvement-adapter';
 import { QualityImprovementCandidatePanel } from './quality-improvement-candidate-panel';
+import {relatedStationMarkersForMap,detailStationMarkersForMap,countStationMapPositions,loadGpsMapStations} from '../../lib/analyst/quality-map-stations';
 
 import { loadQualityEvidenceIndex } from '../../lib/analyst/quality-improvement-candidates';
 
@@ -56,8 +58,8 @@ function MicroChart({data,color}:{data:number[];color:string}) {
 }
 
 function Topbar({date,variant,state}:{date:string;variant:QualityOverviewVariant;state:QualityComparisonState}){
-  return <QualityTopNav active={variant==='improvement2'?'improvement2':variant==='improvement1'?'improvement1':'quality'} date={date}
-    qualityHref={qualityComparisonHref(state,'current')} improvementHref={qualityComparisonHref(state,'improvement1')} improvementTwoHref={qualityComparisonHref(state,'improvement2')}/>;
+  return <QualityTopNav active={variant==='improvement1'?'improvement1':'quality'} date={date}
+    qualityHref={qualityComparisonHref(state,'improvement2')} improvementHref={qualityComparisonHref(state,'improvement1')} improvementTwoHref={qualityComparisonHref(state,'improvement2')}/>;
 }
 function PanelHeading({icon:Icon,title,caption,actions,className}:{
   icon:typeof Activity; title:string; caption?:string; actions?:React.ReactNode;className?:string;
@@ -101,10 +103,10 @@ function GradeDonut({grades,selected,onSelect,mode,onModeChange}:{
     if(grades.bands.find(entry=>entry.id===band)?.count)choose(band);
   };
   return <section className={styles.panel}>
-    <PanelHeading icon={Activity} title="QoE 점수 분포"
-      caption={mode==='drop'?'SIP CDR 11.REASON이 Drop인 통화만 모아 QoE 등급별 비율을 계산합니다. 미평가는 제외합니다.':'유효 QoE(v5) 통화만 분모로 사용합니다. 미평가 통화는 제외합니다.'}
+    <PanelHeading icon={Activity} title="QoE 분포"
+      caption={mode==='drop'?'SIP Drop 통화는 원본 MOS(v5)에서 2.5점을 차감한 QoE로 분류합니다. 미평가는 제외합니다.':'원본 MOS(v5) 기반 QoE · SIP Drop은 −2.5점 적용 · 미평가 제외.'}
       actions={<label className={styles.distributionSelect}>분석 기준
-        <select aria-label="QoE 점수 분포 기준" value={mode}
+        <select aria-label="QoE 분포 기준" value={mode}
           onChange={e=>onModeChange(e.target.value as 'mos'|'drop')}>
           <option value="mos">QoE</option>
           <option value="drop">절단 (SIP 상태코드)</option>
@@ -148,7 +150,7 @@ function HourlyChart({hourly,selected,onChoose}:{
   const maxAxis=Math.ceil(max/500)*500||500;
   const step=usable/24,barWidth=Math.max(9,step*.63);
   const line=hourly.flatMap(h=>h.mean===null?[]:[{
-    x:left+step*(h.hour+.5), y:innerBottom-((h.mean-1)/4)*(innerBottom-innerTop),
+    x:left+step*(h.hour+.5), y:innerBottom-(Math.max(1,Math.min(5,h.mean))-1)/4*(innerBottom-innerTop),
   }]);
   const linePoints=line.map(p=>p.x.toFixed(1)+','+p.y.toFixed(1)).join(' ');
   return <section className={styles.panel}>
@@ -156,7 +158,7 @@ function HourlyChart({hourly,selected,onChoose}:{
       actions={<div className={styles.legend}><span><i className={styles.red}/>저품질 통화</span><span><i className={styles.blue}/>그 외 통화</span><span><i className={styles.purple}/>평균 QoE</span></div>}/>
     <div className={styles.hourPlot}>
       <svg viewBox={`0 0 ${width} ${height}`} width="100%" height="100%"
-        aria-label="시간대별 QoE 유효 통화 누적 막대와 시간대 평균 QoE(v5) 추이">
+        aria-label="시간대별 QoE 유효 통화 누적 막대와 시간대 평균 QoE(Drop −2.5 반영) 추이">
         {[0,1,2,3,4].map(i=>{
           const val=maxAxis*(4-i)/4,y=innerTop+(innerBottom-innerTop)*i/4;
           return <g key={i}><line x1={left} x2={right} y1={y} y2={y} stroke="#e6edf6" strokeWidth="1"/>
@@ -253,7 +255,7 @@ function Table({calls,selectedBand,distributionMode,regionNames,locationByCall,d
     return day&&actual?{day,call:actual}:null;
   };
   return <section className={styles.panel} id="qoe-proposal-four-calls">
-    <PanelHeading icon={PhoneCall} title={investigation?'후보 조사 · 통화 상세 목록':selectedBand?
+    <PanelHeading icon={PhoneCall} title={investigation?'개선후보 · 통화 상세 목록':selectedBand?
       `${distributionMode==='drop'?'절단(Drop) · ':''}QoE ${{poor:'불량',fair:'보통',good:'양호'}[selectedBand]} 통화 목록`:'통화 상세 목록'}
       caption={investigation?'후보 관련 통화와 관련 고객의 기간 전체 통화를 구분합니다. 관련 고객 전체에는 정상·미평가·다른 지역 통화가 포함되며 후보 구성 통화 표시는 발견 구성원에만 붙습니다.':selectedBand?
         (distributionMode==='drop'?'원본 SIP CDR 11.REASON Drop 통화 중 ':'')+'선택한 QoE 등급의 CDR 전체 통화 목록입니다. 지도 좌표가 없는 통화도 포함합니다.':
@@ -273,12 +275,12 @@ function Table({calls,selectedBand,distributionMode,regionNames,locationByCall,d
           onChange={e=>setSearch(e.target.value)} placeholder="고객 표시 ID·행정동·시각 검색" aria-label="통화 목록 검색"/></label>
         <button className={styles.csvButton} type="button" onClick={onCsv}><Download size={15}/>CSV 내보내기</button>
       </div>}/>
-    {investigation&&<div className={styles.investigationScope} aria-label="후보 통화 조사 범위">
+    {investigation&&<div className={styles.investigationScope} aria-label="개선후보 통화 선택 범위">
       <strong>{investigation.candidateId}</strong>
       <button type="button" aria-pressed={investigationMode==='members'} onClick={()=>onInvestigationMode('members')}>후보 관련 통화</button>
       <button type="button" aria-pressed={investigationMode==='customers'} onClick={()=>onInvestigationMode('customers')}>관련 고객 전체 통화</button>
       <small>전체 통화는 선택 기간·시간의 정상·미평가 및 다른 지역 통화를 포함합니다.</small>
-      <button type="button" onClick={onClearInvestigation}>조사 해제 <X size={12}/></button>
+      <button type="button" onClick={onClearInvestigation}>개선 필터 해제 <X size={12}/></button>
     </div>}
     {pinned&&<div className={styles.pinnedNotice}>
       <MapPin size={14}/>선택 통화를 목록 최상단에 고정했습니다.
@@ -302,7 +304,7 @@ function Table({calls,selectedBand,distributionMode,regionNames,locationByCall,d
             onClick={event=>{event.stopPropagation();onSelect(call.id);}}>{dateOfCall(call,DATE).slice(5)} {call.start}</button></td><td>{call.end}</td>
           <td>{fourthMaskedCustomer(call.customerId)}{investigation?.callIds.includes(call.id)&&<small className={styles.candidateMember}>후보 구성 통화</small>}</td>
           <td>{regionNames.get(loc?.areaId??'')??'—'}</td>
-          <td><span className={styles.mosBadge} data-band={fourthMosBand(call)} title="원본 RTCP QoE(v5)">{number(call.mos)}</span></td>
+          <td><span className={styles.mosBadge} data-band={fourthMosBand(call)} title="원본 MOS(v5), SIP Drop은 QoE −2.5점 반영">{number(effectiveCallQoe(call))}</span></td>
           <td><span className={styles.sipBadge} data-reason={classifySipReason11(call.sipCause)}
             title={'원본 SIP CDR 11. REASON: '+(call.sipCause??'미제공')}>
               {sipReasonLabel(classifySipReason11(call.sipCause))}</span></td>
@@ -317,7 +319,7 @@ function Table({calls,selectedBand,distributionMode,regionNames,locationByCall,d
             </small>}</span>:'—'}</td>
         </tr>;
       })}
-      {!shown.length&&<tr><td colSpan={11} className={styles.noData}>{investigation?'현재 후보 조사 범위와 검색·SIP 조건에 해당하는 통화가 없습니다.':selectedBand?
+      {!shown.length&&<tr><td colSpan={11} className={styles.noData}>{investigation?'현재 개선후보 선택 범위와 검색·SIP 조건에 해당하는 통화가 없습니다.':selectedBand?
         '선택한 QoE 등급·시간·고객·위치 조건에 해당하는 통화가 없습니다.':
         '해당 조건에 위치가 연결된 통화가 없습니다.'}</td></tr>}
       </tbody></table>
@@ -335,6 +337,7 @@ export function QualityProposalFour({variant='current'}:{variant?:QualityOvervie
   const improvementTwo=variant==='improvement2';
   const [selectedDate,setSelectedDate]=useState(DATE);
   const [mapMode,setMapMode]=useState<'current'|'improvement'>('current');
+  const [showMapStations,setShowMapStations]=useState(true);
 
   const [startDate,setStartDate]=useState(DATE);
   const [loaded,setLoaded]=useState<{loading:boolean;dataset:AnalystDataset|null;overview:AnalystOverview|null;rough:ThreeSiteRoughDataset|null;roughError:string|null;error:string|null}>({
@@ -389,7 +392,7 @@ export function QualityProposalFour({variant='current'}:{variant?:QualityOvervie
         setLoaded(prev=>prev.overview?.date===restoredDate?prev:{...prev,loading:true,overview:null});
         setStartDate(s.dateStart);setSelectedDate(s.dateEnd);setFrom(s.from);setTo(s.to);
         setSelectedCustomerIds(s.customerIds);setSelectedBand(s.selectedBand);setDistributionMode(s.distributionMode);
-        setSelectedHour(s.selectedHour);setDistrict(s.district);setEvidence(s.evidence);setCohort(s.cohort);
+        setSelectedHour(s.selectedHour);setDistrict(s.district);setEvidence(improvementTwo&&s.evidence==='bye-cell'?'all':s.evidence);setCohort(s.cohort);
         setMapMode(s.customerIds.length?'current':s.mapMode);setChosenCall(s.chosenCall);setDialogOpen(Boolean(s.chosenCall));
         setInvestigation(null);setSearch(s.search??'');setSipFilter(s.sipFilter??'all');setMore(12);
       }catch(error){if(!controller.signal.aborted)setComparisonError(error instanceof Error?error.message:'비교 조건을 복원하지 못했습니다.');}
@@ -442,7 +445,10 @@ export function QualityProposalFour({variant='current'}:{variant?:QualityOvervie
         const dataset=await loadDataset('MDT',controller.signal);
         const rangeDates=datesInRange(dataset.meta.dates,startDate,selectedDate);
         if(!rangeDates.length)throw new Error('분석 기간에 해당하는 날짜별 자료를 확인하세요.');
-        const summaries=await Promise.all(rangeDates.map(day=>loadOverview(dataset,'MDT',day,controller.signal)));
+        const summaries=await Promise.all(rangeDates.map(async day=>{
+          const summary=await loadOverview(dataset,'MDT',day,controller.signal);
+          return improvementTwo?loadGpsMapStations(summary,controller.signal):summary;
+        }));
         const summary=combineDateOverviews(summaries);
         if(!summary.administrativeDongs?.length||!summary.callLocations?.length)
           throw new Error(selectedDate+' 행정동 경계·통화 위치 자료가 없습니다.');
@@ -483,13 +489,13 @@ export function QualityProposalFour({variant='current'}:{variant?:QualityOvervie
   const analytics=useMemo(()=>{
     if(!selectedOverview)return null;
     const valid=/^\d\d:\d\d$/;
-    if(!valid.test(from)||!valid.test(to))return getOverviewAnalytics([],'mos',3);
+    if(!valid.test(from)||!valid.test(to))return getOverviewAnalytics([],'qoe',3);
     const toMin=(v:string)=>Number(v.slice(0,2))*60+Number(v.slice(3));
     const lower=toMin(from),upper=toMin(to);
     return getOverviewAnalytics(lower<=upper?selectedOverview.calls.filter(call=>{
       const min=Math.floor(call.startSecond/60);
       return min>=lower&&min<=upper;
-    }):[],'mos',3);
+    }):[],'qoe',3);
   },[selectedOverview,from,to]);
   const cohortIds=useMemo(()=>{
     if(!cohort||!analytics)return null;
@@ -520,6 +526,13 @@ export function QualityProposalFour({variant='current'}:{variant?:QualityOvervie
   // Each selected MOS grade gets its OWN original CDR-end-location subset.
   // No low-MOS location is ever reused to represent a different MOS grade.
   const geographicModel=model;
+  const mappedLocation=useMemo(()=>geographicModel?summarizeMappedLocationEvidence(geographicModel):null,[geographicModel]);
+  const mapEvidence=useMemo(()=>geographicModel
+    ?improvementTwo?mapWithoutByeCellEvidence(geographicModel)
+      :{locations:geographicModel.locations,mapCells:geographicModel.mapCells}
+    :null,[geographicModel,improvementTwo]);
+  const currentStations=useMemo(()=>relatedStationMarkersForMap(mapEvidence?.locations??[]),[mapEvidence]);
+  const currentStationCount=useMemo(()=>countStationMapPositions(currentStations),[currentStations]);
   const orderedCalls=useMemo(()=>{
     if(!model)return [];
     if(improvement&&investigation&&overview){
@@ -586,6 +599,14 @@ export function QualityProposalFour({variant='current'}:{variant?:QualityOvervie
     ?formatMdtObservation(selectedActual.mdtObservation,selectedActual.matchStatus):null;
   const maxRegion=Math.max(1,...(geographicModel?.regions.map(area=>area.poorCalls)??[]));
   const poorRates=metrics?fourthPoorRates(metrics.bands[0].count,metrics.evaluated+metrics.unavailable,metrics.evaluated):null;
+  // The location KPI compares mapped calls to the SAME grade's call population.
+  // The main poor-QoE card uses metrics.bands[0], so the default reads 237 / 1,580.
+  const mappedBand=selectedBand??'poor';
+  const mappedBandCalls=metrics?.bands.find(item=>item.id===mappedBand)?.count??0;
+  const mappedLocationRate=mappedLocation?ratio(mappedLocation.U,mappedBandCalls):'—';
+  const mappedLocationRateLabel=mappedBand==='good'?'양호 통화 대비':mappedBand==='fair'?'보통 통화 대비':'저품질 통화 대비';
+
+
   const chooseBand=(next:MosBand|null)=>{
     setInvestigation(null);
     setSelectedBand(distributionMode==='drop'?(next??'poor'):next);
@@ -651,13 +672,13 @@ export function QualityProposalFour({variant='current'}:{variant?:QualityOvervie
   },[dialogOpen]);
   const downloadCsv=()=>{
     if(!model||!dataCalls.length)return;
-    const head=['시작','종료','고객 익명 표시ID','행정동','QoE(v5)','SIP 구분 (11.REASON)','원본 SIP 11.REASON','RTP Loss 원본','Jitter 원본','RSRP dBm','SINR dB','위도','경도','위치 근거','대표 관측 UTC','CDR 종료 UTC','종료 전 시간차(초)','BYE Cell ID','BYE RU ID','좌표 선정 방식','BYE RU 선택 근거','BYE 후보 수','BYE 선택 MDT 종료 전 시간차(초)'];
+    const head=['시작','종료','고객 익명 표시ID','행정동','QoE(Drop 반영)','원본 MOS(v5)','SIP 구분 (11.REASON)','원본 SIP 11.REASON','RTP Loss 원본','Jitter 원본','RSRP dBm','SINR dB','위도','경도','위치 근거','대표 관측 UTC','CDR 종료 UTC','종료 전 시간차(초)','BYE Cell ID','BYE RU ID','좌표 선정 방식','BYE RU 선택 근거','BYE 후보 수','BYE 선택 MDT 종료 전 시간차(초)'];
     const lines=[head,...dataCalls.map(call=>{
       const place=tableLocations.get(call.id);
       const day=details[call.customerId+':'+dateOfCall(call,selectedDate)],found=day?.calls.find(c=>c.id===(call.rawCallId??call.id.slice(call.customerId.length+1)));
       const mdt=found?.matchStatus==='MATCHED'&&found.hasMdt;
       return [dateOfCall(call,selectedDate)+' '+call.start,call.end,fourthMaskedCustomer(call.customerId),regionNames.get(place?.areaId??'')??'',
-        call.mos??'',sipReasonLabel(classifySipReason11(call.sipCause)),call.sipCause??'',found?.rtp?.txPacketLoss??'',found?.rtp?.txJitter??'',
+        effectiveCallQoe(call)??'',call.mos??'',sipReasonLabel(classifySipReason11(call.sipCause)),call.sipCause??'',found?.rtp?.txPacketLoss??'',found?.rtp?.txJitter??'',
         mdt?found.rsrp??'':'',mdt?found.sinr??'':'',place?.lat??'',place?.lon??'',place?.evidence??'',place?.observedAt??'',place?.cdrEndAt??'',place?.secondsBeforeEnd??'',place?.byeCellId??'',place?.byeRuId??'',place?.representativeBasis??'',place?.byeSelectionMethod??'',place?.byeCandidateCount??'',place?.byeSelectionDeltaSeconds??''];
     })].map(row=>row.map(csvCell).join(','));
     const file=new Blob(['\ufeff'+lines.join('\r\n')],{type:'text/csv;charset=utf-8;'});
@@ -701,16 +722,16 @@ export function QualityProposalFour({variant='current'}:{variant?:QualityOvervie
         <div className={styles.filterSpacer}/>
         <fieldset className={styles.mapModeButtons} aria-label="지도 모드">
           <button type="button" aria-pressed={mapMode==='current'}
-            onClick={()=>{setMapMode('current');setChosenCall(null);setDialogOpen(false);}}>기존 현황</button>
+            onClick={()=>{setMapMode('current');setChosenCall(null);setDialogOpen(false);}}>품질현황</button>
           <button type="button" aria-pressed={mapMode==='improvement'}
             disabled={selectedCustomerIds.length>0}
             aria-describedby={selectedCustomerIds.length?'customer-filter-candidate-note':undefined}
-            title={improvement?`${startDate} ~ ${selectedDate} · ${from}~${to} 반복 불량 조사 후보`:'2026.10.26~10.30 원본 5일로 계산한 반복 불량 조사 후보'}
-            onClick={()=>{setMapMode('improvement');setChosenCall(null);setDialogOpen(false);}}>개선 후보 분석</button>
+            title={improvement?`${startDate} ~ ${selectedDate} · ${from}~${to} 반복 불량 개선 후보`:'2026.10.26~10.30 원본 5일로 계산한 반복 불량 개선 후보'}
+            onClick={()=>{setMapMode('improvement');setChosenCall(null);setDialogOpen(false);}}>개선후보</button>
         </fieldset>
         <QualityCustomerPicker dataset={loaded.loading?null:dataset} overview={customerOverview} from={from} to={to}
           selectedCustomerIds={selectedCustomerIds} onApplyCustomerIds={applyCustomerIds}/>
-        <span className={styles.analysisBasis} title="데이터 출처 MDT · 원본 RTCP QoE(v5) · 저품질 기준 QoE < 3.0">MDT · QoE(v5) · 저품질 &lt; 3.0</span>
+        <span className={styles.analysisBasis} title="데이터 출처 MDT · 원본 MOS(v5) 기반 · SIP Drop QoE −2.5점 · 저품질 기준 QoE < 3.0">MDT · QoE · 저품질 &lt; 3.0</span>
         {selectedHour!==null&&<button className={styles.filterApplied} onClick={()=>setSelectedHour(null)}>{selectedHour}시 선택 <X size={13}/></button>}
         {district&&<button className={styles.filterApplied} onClick={()=>focusDistrict(null)}>{regionNames.get(district)} <X size={13}/></button>}
         {selectedBand&&distributionMode==='mos'&&<button className={styles.filterApplied} onClick={()=>chooseBand(null)}
@@ -726,7 +747,7 @@ export function QualityProposalFour({variant='current'}:{variant?:QualityOvervie
           {!loaded.loading&&customersWithCalls<selectedCustomerIds.length&&<span>
             현재 기간·시간에 통화가 없는 선택 고객 {n(selectedCustomerIds.length-customersWithCalls)}명
           </span>}
-          <small id="customer-filter-candidate-note">개선 후보 분석은 전체 고객으로 미리 계산한 자료입니다. 고객 필터를 해제하면 열 수 있습니다.</small>
+          <small id="customer-filter-candidate-note">개선후보는 전체 고객으로 미리 계산한 자료입니다. 고객 필터를 해제하면 열 수 있습니다.</small>
         </div>
         <button type="button" onClick={()=>applyCustomerIds([])} aria-label="선택 고객 필터 해제">전체 고객으로 보기 <X size={14}/></button>
       </section>}
@@ -736,26 +757,35 @@ export function QualityProposalFour({variant='current'}:{variant?:QualityOvervie
       {loaded.error&&<div className={styles.loadError} role="alert">{loaded.error}</div>}
       {stateReady&&overview&&metrics&&model&&analytics&&<>
         {!model.validRange&&<div className={styles.loadError}>시간 범위를 확인하세요. 종료 시간이 시작 시간보다 빠릅니다.</div>}
-        {mapMode==='current'&&<section className={styles.kpis} id={improvementTwo?'quality-two-primary':undefined} data-request-label={improvementTwo?'본부장 요구 · QoE 품질 현황':undefined} aria-label="주요 QoE 품질 지표">
+        {mapMode==='current'&&<section className={styles.kpis} data-five={improvementTwo?'true':undefined} id={improvementTwo?'quality-two-primary':undefined} data-request-label={improvementTwo?'본부장 요구 · QoE 품질 현황':undefined} aria-label="주요 QoE 품질 지표">
           {[
             {name:'전체 통화',value:n(metrics.evaluated+metrics.unavailable)+'건',sub:`QoE 평가 ${n(metrics.evaluated)}건 · 미평가 ${n(metrics.unavailable)}건`,icon:PhoneCall,color:'#328ee3',background:'#e4f1ff',data:hourly.map(h=>h.total)},
             {name:'QoE 평가 가능',value:n(metrics.evaluated)+'건',sub:`전체의 ${ratio(metrics.evaluated,metrics.evaluated+metrics.unavailable)}`,icon:Layers3,color:'#12ba9f',background:'#dffaf5',data:hourly.map(h=>h.evaluated)},
-            {name:'평균 QoE (v5)',value:number(metrics.mean),sub:'원본 RTCP 품질점수 기반',icon:Activity,color:'#8f69e4',background:'#f0eaff',data:hourly.map(h=>h.mean??0)},
+            {name:'평균 QoE',value:number(metrics.mean),sub:'MOS(v5) 기반',icon:Activity,color:'#8f69e4',background:'#f0eaff',data:hourly.map(h=>h.mean??0)},
             {name:'저품질 통화',value:n(metrics.bands[0].count)+'건',
               sub:`전체 대비 ${poorRates?.total==null?'—':poorRates.total.toFixed(1)+'%'} · QoE < 3.0`,
               mosRate:poorRates?.evaluated==null?'—':poorRates.evaluated.toFixed(1)+'%',
               icon:AlertTriangle,color:'#eb4e5d',background:'#ffeaee',data:hourly.map(h=>h.poor)},
+            ...(improvementTwo?[{name:selectedBand==='good'?'양호 QoE 위치 활용':selectedBand==='fair'?'보통 QoE 위치 활용':'저품질통화 (위치활용)',
+              value:mappedLocation?n(mappedLocation.U)+'건':'—',
+              extraSub:mappedLocation?`GPS ${n(mappedLocation.G)}건 · 삼각 측량 근사 ${n(mappedLocation.T)}건`:'지도 위치 근거 확인 중',
+              locationRate:mappedLocationRate,
+              locationRateLabel:mappedLocationRateLabel,
+              icon:MapPin,color:'#328ee3',background:'#e4f1ff'}]:[]),
           ].map(entry=>{
             const Icon=entry.icon;
-            return <div className={styles.kpi} key={entry.name}>
+            const isLocationCard='locationRate' in entry;
+            return <div className={[styles.kpi,isLocationCard?styles.locationKpi:''].filter(Boolean).join(' ')} key={entry.name} title={isLocationCard?'현재 지도에 표시되는 QoE 등급·기간·시간·고객·지역·위치 유형 기준 GPS + 삼각 측량 근사 위치 합계. 통화별 중복 제외 · BYE 기지국 제외 · 삼각 측량은 단말 실측 좌표가 아닌 RSRP 가중중심 조사 참고 위치':undefined}>
               <div className={styles.kpiSymbol} style={{color:entry.color,background:entry.background}}><Icon size={28}/></div>
               <div className={styles.kpiContent}><span>{entry.name}</span>
                 <div className={styles.kpiValueLine}>
-                  <strong style={entry.name==='저품질 통화'?{color:'#cb3546'}:{}}>{entry.value}</strong>
+                  <strong style={entry.name==='저품질 통화'||isLocationCard?{color:'#cb3546'}:{}}>{entry.value}</strong>
                   {entry.mosRate&&<em className={styles.poorTotalRate} title="유효 QoE 평가 통화 대비">QoE 대비 {entry.mosRate}</em>}
+                  {'locationRate' in entry&&<em className={styles.locationCoverageRate} title="위치 활용 통화 수 ÷ 동일 기간·시간 범위의 해당 등급 통화 수 (지도 추가 필터 적용 시 분자만 감소)">{entry.locationRateLabel} {entry.locationRate}</em>}
                 </div>
-                <small>{entry.sub}</small></div>
-              <MicroChart data={entry.data} color={entry.color}/>
+                {'sub' in entry&&entry.sub&&<small>{entry.sub}</small>}
+                {'extraSub' in entry&&entry.extraSub&&<small className={styles.locationBreakdown}>{entry.extraSub}</small>}</div>
+              {!improvementTwo&&'data' in entry&&entry.data&&<MicroChart data={entry.data} color={entry.color}/>}
             </div>;
           })}
         </section>}
@@ -783,8 +813,8 @@ export function QualityProposalFour({variant='current'}:{variant?:QualityOvervie
           {({toggleButton})=><>
             <PanelHeading icon={MapPinned}
               className={styles.mapPanelHeading}
-              title={(distributionMode==='drop'?'절단(Drop) · ':'')+(selectedBand==='good'?'양호 통화 종료 위치 지도':selectedBand==='fair'?'보통 통화 종료 위치 지도':'저품질 통화 종료 위치 지도')}
-              caption="GPS 실측 우선 → GPS가 없는 통화는 삼각 측량(3개 사이트 RSRP 가중중심 방식)으로 대략적인 조사 권역을 표시 → BYE 기지국 참고. 삼각 측량 중심점은 실제 단말 위치나 검증된 정확도가 아닙니다. 기지국 좌표는 단말 실제 위치가 아닙니다."
+              title={(distributionMode==='drop'?'절단(Drop) · ':'')+(selectedBand==='good'?'양호 통화 위치':selectedBand==='fair'?'보통 통화 위치':'저품질 통화 위치')}
+              caption={improvementTwo?'GPS 실측과 삼각 측량 근사 조사 위치만 표시합니다. BYE 기지국 참고점은 숨겼으며, 삼각 측량 중심점은 실제 단말 위치나 검증된 정확도가 아닙니다.':'GPS 실측 우선 → GPS가 없는 통화는 삼각 측량(3개 사이트 RSRP 가중중심 방식)으로 대략적인 조사 권역을 표시 → BYE 기지국 참고. 삼각 측량 중심점은 실제 단말 위치나 검증된 정확도가 아닙니다. 기지국 좌표는 단말 실제 위치가 아닙니다.'}
               actions={<div className={styles.mapFilters}>
                 <button aria-pressed={evidence==='all'} type="button" onClick={()=>setEvidence('all')}>
                   {evidence==='all'&&<Check size={13}/>} 전체
@@ -795,9 +825,10 @@ export function QualityProposalFour({variant='current'}:{variant?:QualityOvervie
                 <button aria-pressed={evidence==='estimated'} type="button" onClick={()=>setEvidence('estimated')}>
                   삼각 측량
                 </button>
-                <button aria-pressed={evidence==='bye-cell'} type="button" onClick={()=>setEvidence('bye-cell')}>
+                <button type="button" aria-label="기지국 표시 전환" aria-pressed={showMapStations} title="GPS 관측 연결 기지국(미확보 시 같은 통화의 BYE 참고 기지국)과 삼각 측량 입력 기지국 · 동일 좌표는 1곳으로 집계" onClick={()=>setShowMapStations(v=>!v)}>기지국 {showMapStations?'숨기기':'표시'} · {n(currentStationCount)}곳</button>
+                {!improvementTwo&&<button aria-pressed={evidence==='bye-cell'} type="button" onClick={()=>setEvidence('bye-cell')}>
                   BYE 기지국
-                </button>
+                </button>}
                 {toggleButton}
               </div>}/>
             <div className={styles.mapHost} data-map-surface>
@@ -805,10 +836,14 @@ export function QualityProposalFour({variant='current'}:{variant?:QualityOvervie
                 source="MDT"
                 scoreBand={selectedBand??'poor'}
                 administrativeDongs={overview.administrativeDongs}
-                cells={geographicModel?.mapCells??[]}
-                callLocations={geographicModel?.locations??[]}
+                cells={mapEvidence?.mapCells??[]}
+                callLocations={mapEvidence?.locations??[]}
+                stations={currentStations}
+                showStations={showMapStations&&improvementTwo&&currentStations.length>0}
+                hideByeSiteMarkers={improvementTwo}
                 clusterOccurrences
-                separateEvidence={improvement}
+                separateEvidence={improvement&&!(improvementTwo&&evidence==='all')}
+                unifiedOccurrenceBubbles={improvementTwo&&evidence==='all'}
                 focusKey={'proposal-four-'+startDate+'-'+selectedDate+'-'+customerFocusKey}
                 focusTarget={focus}
                 selectedCellId={district}
@@ -816,19 +851,21 @@ export function QualityProposalFour({variant='current'}:{variant?:QualityOvervie
                 onCallLocationSelect={selectCall}
               />
             </div>
-            <div className={styles.mapFoot}><div><span className={styles.gnssDot}/>GPS {n(geographicModel?.locations.filter(p=>p.evidence==='gnss').length??0)}건</div>
-              <div><span className={styles.trilatDot}/>삼각 측량 대략 위치 후보 {n(geographicModel?.locations.filter(p=>p.evidence==='estimated').length??0)}건</div>
-              <div><span className={styles.byeCellDot}/>BYE 기지국 {n(geographicModel?.locations.filter(p=>p.evidence==='bye-cell').length??0)}건 <span title="실제 단말 위치 아님">(UE 위치 아님)</span></div>
+            <div className={styles.mapFoot}><div><span className={improvementTwo&&evidence==='all'?styles.bubbleDot:styles.gnssDot}/>GPS {n(geographicModel?.locations.filter(p=>p.evidence==='gnss').length??0)}건</div>
+              <div><span className={improvementTwo&&evidence==='all'?styles.bubbleDot:styles.trilatDot}/>삼각 측량 대략 위치 후보 {n(geographicModel?.locations.filter(p=>p.evidence==='estimated').length??0)}건</div>
+              {!improvementTwo&&<div><span className={styles.byeCellDot}/>BYE 기지국 {n(geographicModel?.locations.filter(p=>p.evidence==='bye-cell').length??0)}건 <span title="실제 단말 위치 아님">(UE 위치 아님)</span></div>}
               <div><span className={styles.outlineDot}/>행정동 경계</div>
               <small>GPS 중 종료 60~180초 전 마지막 실측 {n(geographicModel?.locations.filter(p=>p.positionQuality==='gnss-last-known').length??0)}건은 종료 실측 위치가 아닌 참고점입니다.</small>
-              <small>{`선택 등급 위치 근거 ${n(geographicModel?.locatedPoorCalls??0)}통화 · 삼각 측량은 대략적인 조사 영역이며 실제 불량 시점 위치가 아님 · BYE Cell은 기지국 좌표`}</small>
+              <small>{improvementTwo
+                ?`지도에 표시된 위치 ${n(mapEvidence?.locations.length??0)}건 · GPS 및 삼각 측량 근사만 표시 · BYE 기지국 참고점 제외 · 실제 불량 순간 위치 확정 아님`
+                :`선택 등급 위치 근거 ${n(geographicModel?.locatedPoorCalls??0)}통화 · 삼각 측량은 대략적인 조사 영역이며 실제 불량 시점 위치가 아님 · BYE Cell은 기지국 좌표`}</small>
               {loaded.roughError&&<small><output>삼각 측량 후보 자료 미적용: {loaded.roughError}</output></small>}
             </div>
           </>}
           </MapPanelFrame>
           <section className={styles.panel}>
             <PanelHeading icon={Signal}
-              title={(distributionMode==='drop'?'절단(Drop) · ':'')+(selectedBand==='good'?'양호 통화 위치 기준 행정동 순위':selectedBand==='fair'?'보통 통화 위치 기준 행정동 순위':'종료 위치 기준 행정동 저품질 순위')}
+              title={(distributionMode==='drop'?'절단(Drop) · ':'')+(selectedBand==='good'?'양호 순위':selectedBand==='fair'?'보통 순위':'저품질 순위')}
               caption="QoE는 CDR 원본 그대로입니다. GPS는 180초 이내 마지막 실측 시점의 행정동이며 BYE 종료 시점의 실제 위치와 다를 수 있습니다. BYE 기지국 기준 지역도 UE 위치를 의미하지 않습니다."
               actions={<span className={styles.rankingSort}>위치 연결 건수 순 <ChevronDown size={13}/></span>}/>
             <div className={styles.rankingHeader}><span>순위 / 위치 행정동</span><span>연결 통화</span><span>위치 근거</span><span>고객</span></div>
@@ -864,7 +901,7 @@ export function QualityProposalFour({variant='current'}:{variant?:QualityOvervie
           <dialog open id="qoe-call-analysis-dialog" className={styles.investigate+' '+styles.analysisModal}
             aria-modal="true" aria-labelledby="qoe-call-analysis-title">
           <div className={styles.investigateHead}>
-            <strong id="qoe-call-analysis-title">선택한 통화 분석 · {selected.start} · QoE {number(selected.mos)}</strong>
+            <strong id="qoe-call-analysis-title">선택한 통화 분석 · {selected.start} · QoE {number(effectiveCallQoe(selected))}</strong>
             <div><Link href={buildOriginalCallLink(selected,dateOfCall(selected,selectedDate))}>고객·통화 분석 원본 <ChevronRight size={14}/></Link>
             <button type="button" onClick={()=>setDeep(v=>!v)}>{deep?'원인 분석 접기':'RTP·무선 근거 자세히'} <ChevronDown size={14}/></button>
             <button type="button" className={styles.dialogClose} ref={dialogCloseRef}
@@ -886,6 +923,11 @@ export function QualityProposalFour({variant='current'}:{variant?:QualityOvervie
                   source="MDT"
                   scoreBand={selectedBand??'poor'}
                   callLocations={[selectedLocation]}
+                  stations={detailStationMarkersForMap(selectedLocation)}
+                  showStations
+                  byeSiteCellId={selectedLocation.byeCellId}
+                  byeSiteRuId={selectedLocation.byeRuId}
+                  byeSiteTechnology={selectedLocation.byeTechnology}
                   focusKey={'proposal-four-call-dialog-'+selected.id}
                   focusTarget={selectedLocation.byeRuId&&selectedLocation.byeStationLat!=null&&selectedLocation.byeStationLon!=null
                     ? null : {key:selected.id,lat:selectedLocation.lat,lon:selectedLocation.lon}}
@@ -934,7 +976,7 @@ export function QualityProposalFour({variant='current'}:{variant?:QualityOvervie
           </details>}
           {selectedActual&&selectedDay?<>
             <div className={styles.selectedMetrics}>
-              <div><span>CDR QoE(v5)</span><b>{number(selectedActual.mosV5Original??selectedActual.mos,3)}</b></div>
+              <div><span>QoE (Drop 반영)</span><b>{number(selectedActual.qoe,3)}</b><small> · 원본 MOS(v5) {number(selectedActual.mosV5Original??selectedActual.mos,3)}</small></div>
               <div className={styles.sipResultMetric} data-reason={classifySipReason11(selectedActual.sipCause)}
                 title={'원본 SIP CDR 11.REASON: '+(selectedActual.sipCause||'미제공')+' · SIP 응답코드가 아닌 통화 종료 사유입니다.'}>
                 <span>상태코드 결과 (11.REASON)</span>
@@ -965,7 +1007,7 @@ export function QualityProposalFour({variant='current'}:{variant?:QualityOvervie
           </dialog>
         </div>}
         
-        <footer className={styles.footer}><ShieldCheck size={15}/>원본 SIP CDR QoE(v5) 사용 · GPS/삼각 측량 또는 CDR BYE Cell 기지국 기반 대체 위치.
+        <footer className={styles.footer}><ShieldCheck size={15}/>원본 RTCP MOS(v5)에서 SIP Drop −2.5점을 반영한 QoE 사용 · GPS/삼각 측량 또는 CDR BYE Cell 기지국 기반 대체 위치.
           BYE 기지국 좌표는 UE 실제 위치가 아니며, QoE 저하 순간을 나타내지 않습니다. RTP 원본 단위는 검증 전입니다.
           행정동 경계 기준일 {overview.boundaryBaseDate?.replace(/^(\d{4})(\d{2})(\d{2})$/,'$1-$2-$3')??'미제공'}.
         </footer>
