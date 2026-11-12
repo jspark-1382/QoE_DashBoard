@@ -41,7 +41,7 @@ function descendants(node) {
 }
 const mos = {
   metric: 'mos',
-  threshold: 3.5,
+  threshold: 3,
   total: 102,
   evaluated: 100,
   unscored: 2,
@@ -55,9 +55,9 @@ const mos = {
   bins: Array.from({ length: 20 }, (_, index) => ({
     from: index / 4,
     to: (index + 1) / 4,
-    count: index === 19 ? 72 : index === 14 ? 24 : index === 12 ? 4 : 0,
-    color: index < 14 ? '#e16868' : index < 16 ? '#f1c847' : '#23a86e',
-    band: index < 14 ? 'poor' : index < 16 ? 'fair' : 'good',
+    count: index === 19 ? 72 : index === 13 ? 24 : index === 11 ? 4 : 0,
+    color: index < 12 ? '#e16868' : index < 14 ? '#f1c847' : '#23a86e',
+    band: index < 12 ? 'poor' : index < 14 ? 'fair' : 'good',
   })),
   experience: [
     {
@@ -105,7 +105,9 @@ try {
     },
   });
   const html = renderToStaticMarkup(distributionTree);
-  assert.match(html, /MOS 점수 분포/);
+  assert.match(html, /QoE 점수 분포/);
+  assert.match(html, /aria-label="불량 3\.0 미만, 4통화/);
+  assert.match(html, /aria-label="보통 3\.0 이상 3\.5 미만, 24통화/);
   assert.match(html, /미평가 2/);
   assert.match(html, /width:72%/);
   assert.match(html, /width:24%/);
@@ -219,23 +221,23 @@ try {
     React.createElement(QualityDistribution, {
       analytics: {
         ...qoe,
-        threshold: 3.5,
+        threshold: 3.25,
         bins: qoe.bins.map((bin, index) => ({
           ...bin,
-          count: index === 0 ? 4 : index === 14 ? 24 : index === 16 ? 72 : 0,
-          band: bin.from < 3.5 ? 'poor' : bin.from < 4 ? 'fair' : 'good',
+          count: index === 0 ? 4 : index === 13 ? 24 : index === 14 ? 72 : 0,
+          band: bin.from < 3.25 ? 'poor' : bin.from < 3.5 ? 'fair' : 'good',
           color:
-            bin.from < 3.5 ? '#e16868' : bin.from < 4 ? '#f1c847' : '#23a86e',
+            bin.from < 3.25 ? '#e16868' : bin.from < 3.5 ? '#f1c847' : '#23a86e',
         })),
       },
       selectedBand: null,
       onBandSelect() {},
     }),
   );
-  assert.match(alternateHTML, /aria-label="보통 3\.5 이상 4\.0 미만/);
-  assert.match(alternateHTML, /aria-label="불량 3\.5 미만/);
-  assert.match(alternateHTML, /aria-label="양호 4\.0 이상/);
-  assert.match(alternateHTML, /QoE 3\.50 이상 3\.75 미만, 24통화, 보통/);
+  assert.match(alternateHTML, /aria-label="보통 3\.25 이상 3\.5 미만/);
+  assert.match(alternateHTML, /aria-label="불량 3\.25 미만/);
+  assert.match(alternateHTML, /aria-label="양호 3\.5 이상/);
+  assert.match(alternateHTML, /QoE 3\.25 이상 3\.50 미만, 24통화, 보통/);
   const empty = {
     ...mos,
     total: 0,

@@ -56,6 +56,10 @@ try {
     'const loadDataset=()=>Promise.reject(new Error("SSR must not fetch")),loadDay=loadDataset,loadOverview=loadDataset;',
   );
   code = code.replace(
+    /import\s+\{[^}]+\}\s+from\s+['"]\.\.\/\.\.\/lib\/analyst\/server-query['"];?/s,
+    'const voiceQuery=()=>Promise.reject(new Error("SSR must not fetch"));',
+  );
+  code = code.replace(
     /import\s+\{[^}]+\}\s+from\s+['"]\.\.\/\.\.\/lib\/analyst\/data['"];?/s,
     'const getContractId=c=>c?.sourceContractId??null;',
   );

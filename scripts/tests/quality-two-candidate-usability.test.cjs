@@ -1,3 +1,6 @@
+// Historical source assertions use the preserved original cohort; current sources have a separate census test.
+const {historicalRead,historicalJson,skipHistoricalSource}=require('./published-fixture.cjs');
+if(skipHistoricalSource(__filename))return;
 /* Existing raw evidence must validate the improvement 2 presentation: no inferred repeats. */
 const test=require('node:test');
 const assert=require('node:assert/strict');
@@ -5,7 +8,7 @@ const fs=require('node:fs');
 const path=require('node:path');
 const {load}=require('../analyst-ts-loader.cjs');
 const root=path.resolve(__dirname,'../..');
-const read=p=>JSON.parse(fs.readFileSync(path.join(root,p),'utf8'));
+const read=p=>JSON.parse(historicalRead(path.join(root,p),'utf8'));
 const {buildCandidateCustomerRows,repeatedCustomerCount,candidateAdministrativeDong,candidateEvidenceSummary,candidateStatus,candidateTitle,verifyCandidateSummaryConsistency}=load('lib/analyst/quality-two-candidate-view-model.ts');
 const index=read('public/quality-improvement/index.json');
 const entry=index.entries.find(x=>x.scope.dateStart==='2026-10-26'&&x.scope.dateEnd==='2026-10-30'&&x.scope.from==='00:00'&&x.scope.to==='23:59');
@@ -76,10 +79,10 @@ test('candidate area names are sourced only from the actual point-in-polygon adm
 });
 
 test('UI separates new candidate panel from 1 and hides reporting outlines by default',()=>{
- const panel=fs.readFileSync(path.join(root,'components/analyst/quality-improvement-candidate-panel.tsx'),'utf8');
- const two=fs.readFileSync(path.join(root,'components/analyst/quality-two-candidate-workspace.tsx'),'utf8');
- const rootUi=fs.readFileSync(path.join(root,'components/analyst/quality-proposal-four.tsx'),'utf8');
- const css=fs.readFileSync(path.join(root,'components/analyst/quality-proposal-four.module.css'),'utf8');
+ const panel=historicalRead(path.join(root,'components/analyst/quality-improvement-candidate-panel.tsx'),'utf8');
+ const two=historicalRead(path.join(root,'components/analyst/quality-two-candidate-workspace.tsx'),'utf8');
+ const rootUi=historicalRead(path.join(root,'components/analyst/quality-proposal-four.tsx'),'utf8');
+ const css=historicalRead(path.join(root,'components/analyst/quality-proposal-four.module.css'),'utf8');
  assert(panel.includes('if(proposalTwo)return'));
  assert(panel.includes('<CandidateWorkspaceView'),'1 must retain its own shared candidate view');
  for(const label of ['개선 후보 지역 목록','선택한 개선 대상','선정 이유','선택 지역의 고객별 통화','원본 근거·Cell·RF','후보 구성 위치 근거','후보 범위가 다른 후보와 겹칠 수 있어'])

@@ -1,3 +1,6 @@
+// Historical source assertions use the preserved original cohort; current sources have a separate census test.
+const {historicalRead,historicalJson,skipHistoricalSource}=require('./published-fixture.cjs');
+if(skipHistoricalSource(__filename))return;
 /* eslint-disable @typescript-eslint/no-require-imports -- Exercises TypeScript through the shared CJS loader. */
 const test=require('node:test');
 const assert=require('node:assert/strict');
@@ -34,11 +37,11 @@ test('GNSS reference picks the latest real fix only, not future, station or mode
  assert.equal(anchor.ageSeconds,11);
 });
 test('real MDT call with GNSS retains original fixes and has end reference; no false points on later missing GNSS samples',()=>{
- const manifest=JSON.parse(fs.readFileSync('public/voice-1030.json','utf8'));
+ const manifest=JSON.parse(historicalRead('public/voice-1030.json','utf8'));
  const entries=manifest.days.filter(d=>d.gnssSampleCount>0);
  let selected;
  for(const entry of entries){
-  const raw=JSON.parse(fs.readFileSync('public/'+entry.dataPath,'utf8'));
+  const raw=JSON.parse(historicalRead('public/'+entry.dataPath,'utf8'));
   const day=normalizeDay(manifest,raw,'MDT');
   const call=day.calls.find(c=>c.endGnssReference&&day.samples.some(s=>
     s.callId===c.id&&s.gnssReference&&s.lat===null));
@@ -62,8 +65,8 @@ test('real MDT call with GNSS retains original fixes and has end reference; no f
  }
 });
 test('customer-only map shows GNSS movement envelope and BYE site separately; global map does not plot assumed routes',()=>{
- const map=fs.readFileSync('components/analyst/analyst-map.tsx','utf8');
- const contract=fs.readFileSync('components/analyst/contract-workspace.tsx','utf8');
+ const map=historicalRead('components/analyst/analyst-map.tsx','utf8');
+ const contract=historicalRead('components/analyst/contract-workspace.tsx','utf8');
  assert(map.includes('gnssReference?:GnssReference|null'));
  assert(map.includes('radius,'));
  assert(map.includes('이동 가능 영역'));
@@ -78,7 +81,7 @@ test('customer-only map shows GNSS movement envelope and BYE site separately; gl
 
 
 test('2026-10-30 combined GNSS anchor + verified BYE station remains two different geographical records',()=>{
- const overview=JSON.parse(fs.readFileSync('public/analyst-overview/MDT/2026-10-30.json','utf8'));
+ const overview=JSON.parse(historicalRead('public/analyst-overview/MDT/2026-10-30.json','utf8'));
  const p=overview.callLocations.find(p=>p.positionQuality==='gnss-last-known'&&p.byeRuId);
  assert(p,'must contain a recent earlier GNSS and a separate BYE tower reference');
  assert.equal(p.evidence,'gnss');
@@ -93,7 +96,7 @@ test('2026-10-30 combined GNSS anchor + verified BYE station remains two differe
  assert(c);
  assert.equal(c.endCellId,p.byeCellId);
  assert.equal((Date.parse(p.cdrEndAt)-Date.parse(p.observedAt))/1000,p.secondsBeforeEnd);
- const source=fs.readFileSync('scripts/administrative_dong.py','utf8');
+ const source=historicalRead('scripts/administrative_dong.py','utf8');
  assert(source.includes('MAX_END_POSITION_AGE_SECONDS = 180.0'));
  assert(source.includes('GNSS_ASSUMED_SPEED_KMH = 120.0'));
  assert(source.includes('GNSS_BASE_OFFSET_M = 250.0'));

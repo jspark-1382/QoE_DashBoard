@@ -1,3 +1,6 @@
+// Numerical source regressions retain the original two-workbook cohort.
+const {historicalRead,historicalJson,skipHistoricalSource}=require('./published-fixture.cjs');
+if(skipHistoricalSource(__filename))return;
 /* eslint-disable @typescript-eslint/no-require-imports */
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
@@ -12,16 +15,16 @@ const {relatedStationMarkersForMap,detailStationMarkersForMap,countStationMapPos
 const {buildImprovedView}=load('lib/analyst/improved-overview.ts');
 const {overlayThreeSiteRough}=load('lib/analyst/three-site-rough.ts');
 const dates=[26,27,28,29,30].map(i=>'2026-10-'+i);
-const overview=combineDateOverviews(dates.map(d=>require('../../public/analyst-overview/MDT/'+d+'.json')));
-const parts=dates.map(d=>require('../../public/three-site-rough/'+d+'.json'));
+const overview=combineDateOverviews(dates.map(d=>historicalJson('../../public/analyst-overview/MDT/'+d+'.json')));
+const parts=dates.map(d=>historicalJson('../../public/three-site-rough/'+d+'.json'));
 const scope={sourceRevision:overview.sourceRevision,dateStart:dates[0],dateEnd:dates.at(-1),from:'00:00',to:'23:59',policy:'strict-3-site-v1'};
-const idx=require('../../public/quality-improvement-full/index.json');
+const idx=historicalJson('../../public/quality-improvement-full/index.json');
 const ent=idx.entries.find(e=>e.scope.dateStart===scope.dateStart&&e.scope.dateEnd===scope.dateEnd);
 assert(ent);
-const report=require('../../public/quality-improvement-full/'+ent.path);
+const report=historicalJson('../../public/quality-improvement-full/'+ent.path);
 const candidates=buildQualityPresentationCandidates(report,null);
 const rough=matchCandidateRoughPoints(candidates,buildCandidateRoughPoints(overview,scope,parts));
-const LTE=require('../../public/station-catalog.json'), NR=require('../../public/nr-station-catalog.json');
+const LTE=historicalJson('../../public/station-catalog.json'), NR=historicalJson('../../public/nr-station-catalog.json');
 const list=(range='inside',rat='LTE',highlightRelated=true,selectedId=candidates[0].id)=>selectCandidateStationSites(candidates,[LTE,NR],{range,rat,highlightRelated},selectedId,rough);
 
 test('real 8-candidate LTE and NR sites are grouped by coordinate, not by every RU cell',()=>{
@@ -111,11 +114,11 @@ test('GPS station sidecar must match source revision, date, call and exact obser
 });
 
 test('generated GPS stations reconcile to exact original MDT rows without changing positions or metrics',()=>{
- const manifest=require('../../public/voice-1030.json');
+ const manifest=historicalJson('../../public/voice-1030.json');
  const partitions=new Map();
  for(const date of dates){
-   const source=require('../../public/analyst-overview/MDT/'+date+'.json');
-   const sidecar=require('../../public/gps-map-stations/'+date+'.json');
+   const source=historicalJson('../../public/analyst-overview/MDT/'+date+'.json');
+   const sidecar=historicalJson('../../public/gps-map-stations/'+date+'.json');
    const enriched=overlayGpsMapStations(source,sidecar);
    const calls=new Map(source.calls.map(c=>[c.id,c]));
    const entries=new Map(manifest.days.filter(d=>d.date===date).map(d=>[d.customerId,d]));
@@ -129,7 +132,7 @@ test('generated GPS stations reconcile to exact original MDT rows without changi
      assert.equal(p.lat,original.lat);assert.equal(p.lon,original.lon);
      const call=calls.get(p.callId),entry=entries.get(call.customerId);
      let partition=partitions.get(entry.dataPath);
-     if(!partition){partition=require('../../public/'+entry.dataPath);partitions.set(entry.dataPath,partition);}
+     if(!partition){partition=historicalJson('../../public/'+entry.dataPath);partitions.set(entry.dataPath,partition);}
      const row=partition.samples.find(r=>r[19]===call.rawCallId&&Date.parse(r[21]?.timestamp)===Date.parse(p.observedAt));
      assert(row,'GPS station must belong to the same call and exact observation time');
      assert.equal(p.gpsStation.baseStationId,row[21].baseStationId);
@@ -146,20 +149,20 @@ test('station icon is visually distinct, reusable across candidate, customer and
   assert(svg.includes('<rect')&&svg.includes('<path'));
   assert(!svg.includes('<script'));
  }
- const catalogMap=fs.readFileSync('components/analyst/analyst-map.tsx','utf8');
+ const catalogMap=historicalRead('components/analyst/analyst-map.tsx','utf8');
  assert(catalogMap.includes("stationTowerSvg(isByeSite?'linked':'standard'"));
- const candidateMap=fs.readFileSync('components/analyst/improvement-candidate-map.tsx','utf8');
+ const candidateMap=historicalRead('components/analyst/improvement-candidate-map.tsx','utf8');
  assert(candidateMap.includes('stationTowerSvg(variant,23)'));
  assert(candidateMap.includes('data-station-site'));
  assert(candidateMap.includes('MDT RSRP'));
  assert(candidateMap.includes('기지국 등록 위치는 단말 위치'));
 });
 test('all three quality-map surfaces include correct tower overlays and explicit toggles',()=>{
- const quality=fs.readFileSync('components/analyst/quality-proposal-four.tsx','utf8');
- const customer=fs.readFileSync('components/analyst/contract-workspace.tsx','utf8');
- const panel=fs.readFileSync('components/analyst/quality-improvement-candidate-panel.tsx','utf8');
- const dbscan=fs.readFileSync('components/analyst/quality-two-candidate-workspace.tsx','utf8');
- const alt=fs.readFileSync('components/analyst/quality-model-alternative-workspace.tsx','utf8');
+ const quality=historicalRead('components/analyst/quality-proposal-four.tsx','utf8');
+ const customer=historicalRead('components/analyst/contract-workspace.tsx','utf8');
+ const panel=historicalRead('components/analyst/quality-improvement-candidate-panel.tsx','utf8');
+ const dbscan=historicalRead('components/analyst/quality-two-candidate-workspace.tsx','utf8');
+ const alt=historicalRead('components/analyst/quality-model-alternative-workspace.tsx','utf8');
  assert(quality.includes('stations={currentStations}'));
  assert(quality.includes('stations={detailStationMarkersForMap(selectedLocation)}'));
  assert(quality.includes('showStations={showMapStations&&improvementTwo&&currentStations.length>0}'));
@@ -167,7 +170,7 @@ test('all three quality-map surfaces include correct tower overlays and explicit
  assert(panel.includes('stationLayer={stationLayer}'));
  assert(dbscan.includes('StationLayerControls layer={stationLayer}'));
  assert(alt.includes('StationLayerControls layer={stationLayer}'));
- const altCss=fs.readFileSync('components/analyst/quality-model-alternative.module.css','utf8');
+ const altCss=historicalRead('components/analyst/quality-model-alternative.module.css','utf8');
  assert(altCss.includes('.mapView{display:flex;flex-direction:column;min-height:0;overflow:hidden}'));
  assert(altCss.includes('.mapView>div:last-child{height:auto;min-height:0;flex:1 1 0}'));
 });

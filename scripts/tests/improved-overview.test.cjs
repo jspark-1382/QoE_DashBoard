@@ -1,3 +1,6 @@
+// Historical source assertions use the preserved original cohort; current sources have a separate census test.
+const {historicalRead,historicalJson,skipHistoricalSource}=require('./published-fixture.cjs');
+if(skipHistoricalSource(__filename))return;
 /* eslint-disable @typescript-eslint/no-require-imports */
 const test = require('node:test');
 const assert = require('node:assert/strict');
@@ -10,14 +13,14 @@ const { buildImprovedView, buildOriginalCallLink } = load('lib/analyst/improved-
 const root = path.resolve(__dirname, '../..');
 const date = '2026-10-30';
 const dataPath = path.join(root, 'public/analyst-overview/MDT/2026-10-30.json');
-const source = fs.readFileSync(path.join(root, 'components/analyst/analyst-dashboard.tsx'), 'utf8');
-const original = fs.readFileSync(path.join(root, 'components/analyst/quality-overview.tsx'), 'utf8');
+const source = historicalRead(path.join(root, 'components/analyst/analyst-dashboard.tsx'), 'utf8');
+const original = historicalRead(path.join(root, 'components/analyst/quality-overview.tsx'), 'utf8');
 
 test('old quality overview is preserved and explicitly named 기존안', () => {
   assert(source.includes('QualityTopNav'));
-  const shared=fs.readFileSync(path.join(root,'components/analyst/quality-top-nav.tsx'),'utf8');
+  const shared=historicalRead(path.join(root,'components/analyst/quality-top-nav.tsx'),'utf8');
   assert(!shared.includes('>기존안</Link>'));
-  assert(fs.readFileSync(path.join(root,'app/page.tsx'),'utf8').includes("view === 'overview'"));
+  assert(historicalRead(path.join(root,'app/page.tsx'),'utf8').includes("view === 'overview'"));
   assert(shared.includes('품질 현황'));
   assert(!source.includes('overview-proposal-1'));
   assert(!source.includes('overview-proposal-2'));
@@ -27,7 +30,7 @@ test('old quality overview is preserved and explicitly named 기존안', () => {
 });
 
 test('new overview uses the same real 10/30 CDR and keeps missing MOS outside poor denominator', () => {
-  const overview = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
+  const overview = JSON.parse(historicalRead(dataPath, 'utf8'));
   const full = buildImprovedView(overview, {
     from:'00:00',to:'23:59',hour:null,districtId:null,evidence:'all',
   });
@@ -51,7 +54,7 @@ test('new overview uses the same real 10/30 CDR and keeps missing MOS outside po
 });
 
 test('GNSS versus estimates and dong selection scope only occurrence markers, not nationwide CDR KPIs', () => {
-  const overview = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
+  const overview = JSON.parse(historicalRead(dataPath, 'utf8'));
   const base = {from:'00:00',to:'23:59',hour:null,districtId:null,evidence:'all'};
   const all = buildImprovedView(overview,base);
   const gnss = buildImprovedView(overview,{...base,evidence:'gnss'});
@@ -82,7 +85,7 @@ test('GNSS versus estimates and dong selection scope only occurrence markers, no
 });
 
 test('hour and date range filter the map and update the corresponding hourly series', () => {
-  const overview = JSON.parse(fs.readFileSync(dataPath, 'utf8'));
+  const overview = JSON.parse(historicalRead(dataPath, 'utf8'));
   const base = {from:'00:00',to:'23:59',hour:null,districtId:null,evidence:'all'};
   const all = buildImprovedView(overview,base);
   const chosen = all.hourly.find(row=>row.poor>0);
@@ -104,7 +107,7 @@ test('hour and date range filter the map and update the corresponding hourly ser
 });
 
 test('call drilldown generates same original selected customer/call identity', () => {
-  const overview = JSON.parse(fs.readFileSync(dataPath,'utf8'));
+  const overview = JSON.parse(historicalRead(dataPath,'utf8'));
   const withLocation = overview.calls.find(call=>call.gridIds.length>0);
   assert(withLocation);
   const href = buildOriginalCallLink(withLocation,date);

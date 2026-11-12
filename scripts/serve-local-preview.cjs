@@ -7,13 +7,15 @@
  * dist/client/qoe/_next/static/*; the production app-router asset dispatcher
  * uses an empty assetPrefix when detecting requests.
  *
- * Intercept ONLY the prebuilt hashed CSS/JS/font asset requests and delegate
- * every other request to the unmodified Vinext handler. Never expose externally.
+ * Serve prebuilt hashed assets and the local worker-backed voice query API;
+ * delegate application routes to Vinext. Never expose externally.
  */
 const fs = require('node:fs');
 const path = require('node:path');
 const {pathToFileURL} = require('node:url');
 const {isLocalPreviewBuild,createPublicAssetHandler} = require('./local-public-assets.cjs');
+const {createVoiceQueryHandler} = require('./voice-query-api.cjs');
+const {createQwenAnalysisHandler} = require('./qwen-analysis-api.cjs');
 
 const root=path.resolve(__dirname,'..');
 const dist=path.join(root,'dist');
@@ -85,6 +87,8 @@ async function main(){
   }
   const servePublic=isLocalPreviewBuild(dist)
     ? createPublicAssetHandler(path.join(root,'public')) : null;
+  const serveVoice=createVoiceQueryHandler({root});
+  const serveAnalysis=createQwenAnalysisHandler({root});
   const {startProdServer}=await import(pathToFileURL(path.join(root,'node_modules/vinext/dist/server/prod-server.js')).href);
   const {server}=await startProdServer({
     port:3014,
@@ -98,6 +102,7 @@ async function main(){
     throw new Error('Unexpected Vinext handler layout; refusing to install preview adapter');
   }
   const delegate=listeners[0];
+  server.once('close',()=>{void Promise.all([serveVoice.close(),serveAnalysis.close()]);});
   server.removeAllListeners('request');
   server.on('request',(req,res)=>{
     const pathname=(req.url??'/').split('?')[0];
@@ -107,15 +112,19 @@ async function main(){
       }
       void serveLocalAsset(req,res,pathname);
     }else{
-      if(servePublic){
-        void servePublic(req,res,pathname).then(handled=>{
-          if(!handled)delegate.call(server,req,res);
-        }).catch(()=>{if(!res.headersSent){res.writeHead(500);res.end('Asset unavailable');}else res.destroy();});
-      }else delegate.call(server,req,res);
+      void serveAnalysis(req,res,pathname).then(handled=>handled||serveVoice(req,res,pathname)).then(handled=>{
+        if(handled)return;
+        if(servePublic){
+          return servePublic(req,res,pathname).then(publicHandled=>{
+            if(!publicHandled)delegate.call(server,req,res);
+          });
+        }
+        delegate.call(server,req,res);
+      }).catch(()=>{if(!res.headersSent){res.writeHead(500);res.end('Asset unavailable');}else res.destroy();});
     }
   });
   console.log('[preview] Production UI + static assets: http://127.0.0.1:3014/qoe/');
-  console.log('[preview] Local only; original app and datasets remain unchanged');
+  console.log('[preview] Local only; source workbooks and original published data remain unchanged');
   if(servePublic)console.log('[preview] Local build: source public assets with revalidation');
 }
 main().catch(error=>{console.error(error);process.exitCode=1;});

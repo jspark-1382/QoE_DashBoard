@@ -1,3 +1,6 @@
+// Numerical source regressions retain the original two-workbook cohort.
+const {historicalRead,historicalJson,skipHistoricalSource}=require('./published-fixture.cjs');
+if(skipHistoricalSource(__filename))return;
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
@@ -53,7 +56,7 @@ test('Changing day and time filters updates observation sequence without linking
   assert.equal(buildCustomerRoute(testData,'nonexistent',testData.dates[0],testData.dates[1],'00:00','23:59'),null);
 });
 test('All-calls route source has BYE-time/site provenance, preserves existing KPI reconciliation',()=>{
-  const payload=JSON.parse(fs.readFileSync('public/customer-screening-data/2026-10-26_2026-10-30.json'));
+  const payload=JSON.parse(historicalRead('public/customer-screening-data/2026-10-26_2026-10-30.json'));
   assert(Object.keys(payload.cellSites).length>100);
   const lead=payload.customers.find(c=>c.number==='605243761');
   assert(lead);

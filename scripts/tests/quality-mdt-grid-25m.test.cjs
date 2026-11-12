@@ -1,3 +1,6 @@
+// Historical source assertions use the preserved original cohort; current sources have a separate census test.
+const {historicalRead,historicalJson,skipHistoricalSource}=require('./published-fixture.cjs');
+if(skipHistoricalSource(__filename))return;
 const test=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
@@ -5,7 +8,7 @@ const path=require('node:path');
 const root=path.resolve(__dirname,'../..');
 const {load}=require('../analyst-ts-loader.cjs');
 const {isValidMdt25mGrid,inVisibleCandidate25m,grid25mCorners,grid25mRsrpColor,selectMdtGridMetric,MDT_GRID_MODES,MDT_RSRP_LEGEND}=load('lib/analyst/mdt-25m-grid.ts');
-const grid=JSON.parse(fs.readFileSync(path.join(root,'public/quality-improvement/mdt-grid-25m-v1.json'),'utf8'));
+const grid=JSON.parse(historicalRead(path.join(root,'public/quality-improvement/mdt-grid-25m-v1.json'),'utf8'));
 const first=grid.records.find(x=>x.pot==='38415_77716');
 test('MDT grid uses original dated 25m POT centers and real per-frequency RSRP',()=>{
  assert(isValidMdt25mGrid(grid));
@@ -60,10 +63,10 @@ test('frequency options select per-grid measured LTE EARFCN, Top1 uses measureme
  assert.deepEqual(selectMdtGridMetric({bands:{'900':[-90,10],'1.8협':[-91,10]}},'top1'),{frequency:'900',rsrp:-90,samples:10});
 });
 test('overlay switch is placed before the entire-period selection, never changes clustering',()=>{
- const panel=fs.readFileSync(path.join(root,'components/analyst/quality-improvement-candidate-panel.tsx'),'utf8');
- const map=fs.readFileSync(path.join(root,'components/analyst/improvement-candidate-map.tsx'),'utf8');
- const two=fs.readFileSync(path.join(root,'components/analyst/quality-two-candidate-workspace.tsx'),'utf8');
- const alt=fs.readFileSync(path.join(root,'components/analyst/quality-model-alternative-workspace.tsx'),'utf8');
+ const panel=historicalRead(path.join(root,'components/analyst/quality-improvement-candidate-panel.tsx'),'utf8');
+ const map=historicalRead(path.join(root,'components/analyst/improvement-candidate-map.tsx'),'utf8');
+ const two=historicalRead(path.join(root,'components/analyst/quality-two-candidate-workspace.tsx'),'utf8');
+ const alt=historicalRead(path.join(root,'components/analyst/quality-model-alternative-workspace.tsx'),'utf8');
  const toggle=panel.indexOf('aria-label="25m MDT 격자 주파수 선택"');
  const period=panel.indexOf('aria-label="전체 기간 후보 분석 (기본)"');
  assert(toggle>=0&&period>toggle);
@@ -78,5 +81,5 @@ test('overlay switch is placed before the entire-period selection, never changes
  assert(map.includes("' · PotID '+cell.pot"),'tooltip displays original POT_GPOT ID immediately after measurement count');
  assert(two.includes('mdtGridMode={mdtGridMode}'));
  assert(alt.includes('mdtGridMode={mdtGridMode}'));
- assert(!fs.readFileSync(path.join(root,'scripts/build-quality-mixed-candidates.py'),'utf8').includes('mdt-grid-25m-v1.json'));
+ assert(!historicalRead(path.join(root,'scripts/build-quality-mixed-candidates.py'),'utf8').includes('mdt-grid-25m-v1.json'));
 });

@@ -1,6 +1,9 @@
+// Historical source assertions use the preserved original cohort; current sources have a separate census test.
+const {historicalRead,historicalJson,skipHistoricalSource}=require('./published-fixture.cjs');
+if(skipHistoricalSource(__filename))return;
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
 const root=path.resolve(__dirname,'../..');
-const read=p=>JSON.parse(fs.readFileSync(path.join(root,p),'utf8'));
+const read=p=>JSON.parse(historicalRead(path.join(root,p),'utf8'));
 const old=read('public/quality-improvement/index.json');
 const full=read('public/quality-improvement-full/index.json');
 const evalModels=read('public/quality-models/index.json');
@@ -59,8 +62,8 @@ test('five-day full-period results add Oct 30 to candidate calculation, not a cl
  assert.deepEqual(m.validationDates,[]);assert.deepEqual(oldm.validationDates,['2026-10-30']);
 });
 test('default mode and mode-isolated fetches exist in client',()=>{
- const ui=fs.readFileSync(path.join(root,'components/analyst/quality-improvement-candidate-panel.tsx'),'utf8');
- const src=fs.readFileSync(path.join(root,'lib/analyst/quality-model-alternatives.ts'),'utf8');
+ const ui=historicalRead(path.join(root,'components/analyst/quality-improvement-candidate-panel.tsx'),'utf8');
+ const src=historicalRead(path.join(root,'lib/analyst/quality-model-alternatives.ts'),'utf8');
  assert(ui.includes("useState<'all'|'evaluation'>('all')"));
  assert(ui.includes("disabled={!eligibleEvaluation}"));
  assert(ui.includes("loadQualityCandidateSummary(scope,controller.signal,effectiveMode,proposalTwo?'mixed':'strict')"));

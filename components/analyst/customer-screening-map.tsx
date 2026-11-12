@@ -1,6 +1,7 @@
 'use client';
 
 import {useEffect,useRef,useState} from 'react';
+import {ChevronDown} from 'lucide-react';
 import type {LayerGroup,Map as LeafletMap} from 'leaflet';
 import {metricColor,metricLabel,metricSteps,metricUnit,metricValue,validScreeningBoundaries,
   type ScreeningBoundary,type ScreeningGeography,type ScreeningMapMetric,type ScreeningMapView} from '../../lib/analyst/customer-screening-map';
@@ -341,6 +342,8 @@ export function CustomerScreeningMap({
         {topCustomers.total}명 {topPathsVisible?'경로 전체 범위':'전체 경로 보기'}</button>
       {topPathsVisible&&<button type="button" onClick={showTopBubbles}>버블 보기</button>}
     </div>}
+    <details className={styles.mapLegendDisclosure} aria-label="고객 지도 범례 및 설명">
+      <summary>범례 · 설명 <ChevronDown size={14}/></summary>
     {mode==='top10'?<div className={styles.screenMapLegend} aria-label="저품질 고객 TOP 10 범례">
       <strong>저품질 고객 TOP 10 · 전체 {topCustomers.total}명</strong>
       {topPathsVisible?<>
@@ -373,6 +376,7 @@ export function CustomerScreeningMap({
       </div>
       <small>{mode==='dong'?'행정동 BYE Cell 참고 권역':mode==='cell'?'기지국 서빙 셀 참고 위치':'GPS 실측 고객 위치'}</small>
     </div>}
+    </details>
     <span className={styles.mapModeCount}>{mode==='top10'?`TOP 10 · 위치 표시 ${topCustomers.points.length}/${topCustomers.total}명`:
       `${mode==='route'?'선택 통화':mode==='dong'?'집계 행정동':mode==='cell'?'관측 셀':'GPS 격자'} ${mode==='route'?customerRoute?.totalCalls??0:count}건`}</span>
     {notice&&<div className={styles.mapNotice}>{notice}</div>}

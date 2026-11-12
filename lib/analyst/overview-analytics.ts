@@ -1,5 +1,5 @@
 import { parseFullTimestamp } from './call-time';
-import {effectiveCallQoe} from './derived-qoe';
+import {classifyConsecutiveBlocks,type ConsecutiveBlock} from './consecutive-poor';
 import type { AnalystOverview, OverviewCall } from './types';
 
 export type ScoreMetric = 'qoe' | 'mos';
@@ -112,25 +112,21 @@ function customersByGroup(
     result.affected!.push(id);
     if (poor < 2) continue;
     result.repeat!.push(id);
-    // Every call participates in adjacency, including healthy and unscored calls.
-    if (
-      list.some((row) => row.timestamp == null) ||
-      new Set(list.map((row) => row.timestamp)).size !== list.length
-    ) {
+    // Every source call participates, including healthy and unscored breakers.
+    // Equal starts are unknown only when their possible orders change the result.
+    const blocks=new Map<number|null,ConsecutiveBlock>();
+    for(const row of list){
+      const block=blocks.get(row.timestamp)??{timestamp:row.timestamp,total:0,poor:0};
+      block.total++;
+      if(row.value!=null&&row.value<threshold)block.poor++;
+      blocks.set(row.timestamp,block);
+    }
+    const consecutive=classifyConsecutiveBlocks([...blocks.values()]);
+    if (consecutive===null) {
       result.consecutive = null;
       continue;
     }
-    const ordered = [...list].sort((a, b) => a.timestamp! - b.timestamp!);
-    if (
-      ordered.some(
-        (row, i) =>
-          i > 0 &&
-          row.value != null &&
-          row.value < threshold &&
-          ordered[i - 1].value != null &&
-          ordered[i - 1].value! < threshold,
-      )
-    ) {
+    if (consecutive) {
       result.consecutive?.push(id);
     }
   }

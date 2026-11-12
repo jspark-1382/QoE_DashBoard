@@ -1,3 +1,6 @@
+// Numerical source regressions retain the original two-workbook cohort.
+const {historicalRead,historicalJson,skipHistoricalSource}=require('./published-fixture.cjs');
+if(skipHistoricalSource(__filename))return;
 const {effectiveCallQoe}=require('../analyst-ts-loader.cjs').load('lib/analyst/derived-qoe.ts');
 /* Source-backed range selection and cross-day GNSS/3-site integrity tests. */
 const {test}=require('node:test');
@@ -12,7 +15,7 @@ const {overlayThreeSiteRough}=load('lib/analyst/three-site-rough.ts');
 const days=['2026-10-26','2026-10-27','2026-10-28','2026-10-29','2026-10-30'];
 const path=date=>'public/analyst-overview/MDT/'+date+'.json';
 const data={};
-const getDate=(date)=>data[date]??(data[date]=JSON.parse(fs.readFileSync(path(date),'utf8')));
+const getDate=(date)=>data[date]??(data[date]=JSON.parse(historicalRead(path(date),'utf8')));
 test('range includes every available day without a duration cap and never bridges missing dates',()=>{
  assert.deepEqual(datesInRange(days,'2026-10-28','2026-10-30'),days.slice(2));
  assert.deepEqual(datesInRange(days,'2026-10-26','2026-10-30'),days);
@@ -31,7 +34,7 @@ test('range includes every available day without a duration cap and never bridge
    {start:'2026-10-26',end:'2026-10-26'});
 });
 test('selection URL preserves full range, rejects invalid endpoints and keeps exact call date',()=>{
- const source=JSON.parse(fs.readFileSync('public/voice-1030.json','utf8'));
+ const source=JSON.parse(historicalRead('public/voice-1030.json','utf8'));
  const demo=source.customers.find(x=>x.dates.includes('2026-10-30'));
  assert(demo,'required real customer with 10/30 partition');
  const parsed=parseSelection('?source=MDT&view=contract&date=2026-10-30'+
@@ -86,7 +89,7 @@ test('original 3 source dates combine exactly, with no duplicate CDR IDs or loca
  assert(original);
  assert.equal(dateOfCall(original,'2026-10-28'),'2026-10-30');
  const rawPositions=new Map(result.callLocations.map(p=>[p.callId,p]));
- const candidates=sourceDays.map(d=>JSON.parse(fs.readFileSync('public/three-site-rough/'+d.date+'.json','utf8')));
+ const candidates=sourceDays.map(d=>JSON.parse(historicalRead('public/three-site-rough/'+d.date+'.json','utf8')));
  const rough={...candidates[0],date:result.date,points:candidates.flatMap(c=>c.points)};
  const merged=overlayThreeSiteRough(result,rough,true);
  const changed=merged.callLocations.find(p=>p.callId===key);

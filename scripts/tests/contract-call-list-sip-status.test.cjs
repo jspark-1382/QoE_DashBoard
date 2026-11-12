@@ -1,11 +1,14 @@
+// Historical source assertions use the preserved original cohort; current sources have a separate census test.
+const {historicalRead,historicalJson,skipHistoricalSource}=require('./published-fixture.cjs');
+if(skipHistoricalSource(__filename))return;
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const {load}=require('../analyst-ts-loader.cjs');
 const {classifySipReason11,sipReasonLabel}=load('lib/analyst/sip-reason.ts');
-const source=fs.readFileSync('components/analyst/contract-workspace.tsx','utf8');
-const css=fs.readFileSync('components/analyst/contract-workspace.module.css','utf8');
+const source=historicalRead('components/analyst/contract-workspace.tsx','utf8');
+const css=historicalRead('components/analyst/contract-workspace.module.css','utf8');
 test('customer analysis list has SIP status immediately after MOS and before source',()=>{
   const i=source.indexOf("<th>{day.source === 'MDT' ? 'QoE' : 'QoE'}</th>");
   assert(i>0);
@@ -18,10 +21,10 @@ test('customer analysis list has SIP status immediately after MOS and before sou
   assert(css.includes(".sipReasonBadge[data-reason='drop']"));
 });
 test('actual screenshot CDR-only call has SIP reason K: No_RTP -> 기타 while MOS unavailable',()=>{
-  const manifest=JSON.parse(fs.readFileSync('public/voice-1030.json','utf8'));
+  const manifest=JSON.parse(historicalRead('public/voice-1030.json','utf8'));
   const entry=manifest.days.find(e=>e.date==='2026-10-30' && e.customerId==='mdt-9ca03fc82627fe865226a54e');
   assert(entry);
-  const detail=JSON.parse(fs.readFileSync(path.join('public',entry.dataPath),'utf8'));
+  const detail=JSON.parse(historicalRead(path.join('public',entry.dataPath),'utf8'));
   const call=detail.calls.find(x=>x.start==='09:43:36'&&x.end==='09:43:53');
   assert(call);
   assert.equal(call.mos,null);

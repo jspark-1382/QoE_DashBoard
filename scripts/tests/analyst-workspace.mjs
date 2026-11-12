@@ -209,7 +209,7 @@ try {
   assert.match(html, /다음 30초 초과 공백/);
   assert.match(html, /원인 판정 아님/);
   assert.match(html, /value="2"/);
-  assert.doesNotMatch(html, /MOS/);
+  assert.doesNotMatch(html, /QoE/);
   const measured = renderToStaticMarkup(
     React.createElement(RadioTimeline, {
       samples: samples.map((sample) => ({ ...sample, mos: 3.5 })),
@@ -220,8 +220,8 @@ try {
   const measuredTools = measured.match(
     /<details\b[^>]*><summary>시간축 도구<\/summary>[\s\S]*?<\/details>/,
   )?.[0];
-  assert.match(measuredTools, /MOS/);
-  assert.doesNotMatch(measured.replace(measuredTools, ''), /MOS/);
+  assert.match(measuredTools, /QoE/);
+  assert.doesNotMatch(measured.replace(measuredTools, ''), /QoE/);
   // A missing middle RSRP event must produce two isolated path moves, never a line across it.
   assert.match(html, /d="M42\.00,40\.80 /);
   assert.match(html, /d="M742\.00,40\.80 /);

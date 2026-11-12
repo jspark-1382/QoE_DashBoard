@@ -1,3 +1,6 @@
+// Historical source assertions use the preserved original cohort; current sources have a separate census test.
+const {historicalRead,historicalJson,skipHistoricalSource}=require('./published-fixture.cjs');
+if(skipHistoricalSource(__filename))return;
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
@@ -60,7 +63,7 @@ test('ten nearby customers across a bucket boundary form one 10-person bubble wh
 });
 
 test('maximum zoom enables all ten color-separated customer call routes with intact provenance',()=>{
- const source=JSON.parse(fs.readFileSync('public/customer-screening-data/2026-10-26_2026-10-30.json'));
+ const source=JSON.parse(historicalRead('public/customer-screening-data/2026-10-26_2026-10-30.json'));
  const report=aggregateScreening(source,source.dates[0],source.dates.at(-1),'00:00','23:59');
  const routes=buildTopCustomerRoutes(source,report.rows,source.dates[0],source.dates.at(-1),'00:00','23:59');
  assert.equal(TOP_CUSTOMER_ROUTE_ZOOM,19);
@@ -76,7 +79,7 @@ test('maximum zoom enables all ten color-separated customer call routes with int
 });
 
 test('real TOP 10 matches filtered ranking and representatives exist in original call evidence',()=>{
- const source=JSON.parse(fs.readFileSync('public/customer-screening-data/2026-10-26_2026-10-30.json'));
+ const source=JSON.parse(historicalRead('public/customer-screening-data/2026-10-26_2026-10-30.json'));
  for(const [start,end,from,to] of [[source.dates[0],source.dates.at(-1),'00:00','23:59'],
    [source.dates.at(-1),source.dates.at(-1),'09:00','18:00']]){
    const report=aggregateScreening(source,start,end,from,to);

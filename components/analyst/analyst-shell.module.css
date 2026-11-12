@@ -115,6 +115,9 @@
   min-width: 0;
   flex: 1;
 }
+.searchPager {display:flex;align-items:center;justify-content:space-between;gap:6px;flex-wrap:wrap;padding:6px 0}
+.searchPager span {font-size:11px;color:#596574}
+.searchPager button {padding:4px 8px}
 .searchLine button {
   color: #2459a6;
   border-color: #9fb5d1;

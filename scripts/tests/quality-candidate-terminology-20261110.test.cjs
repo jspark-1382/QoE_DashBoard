@@ -38,7 +38,7 @@ test('model selector, fullscreen rail, details, and supporting simulator agree',
  const guide=read('quality-two-algorithm-guide.tsx');
  const simulator=read('quality-two-simulator.tsx');
  const map=read('improvement-candidate-map.tsx');
- const detail=read('quality-proposal-four.tsx');
+ const detail=read('quality-summary-panels.tsx');
  assert(selector.includes('개선 후보 산정 모델 선택'));
  assert(selector.includes('전체화면 개선 후보 알고리즘'));
  assert(rail.includes('전체화면 개선 후보 탐색'));

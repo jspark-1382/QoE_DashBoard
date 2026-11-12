@@ -112,15 +112,15 @@ try {
       }),
     );
   };
-  assert.match(render(undefined), /GNSS 확보율[^]*?<b>미제공<\/b>/);
-  assert.match(render({ gnss: false }), /GNSS 확보율[^]*?<b>0\.0%<\/b>/);
+  assert.match(render(undefined), /GPS 확보율[^]*?<b>미제공<\/b>/);
+  assert.match(render({ gnss: false }), /GPS 확보율[^]*?<b>0\.0%<\/b>/);
   assert.match(
     render({ locationSource: 'radio' }),
-    /GNSS 확보율[^]*?<b>0\.0%<\/b>/,
+    /GPS 확보율[^]*?<b>0\.0%<\/b>/,
   );
   assert.match(
     render({ gnssUtmkx: null, gnssUtmky: null }),
-    /GNSS 확보율[^]*?<b>0\.0%<\/b>/,
+    /GPS 확보율[^]*?<b>0\.0%<\/b>/,
   );
   assert.match(render({ gnss: false }), /data-map-threshold="3.1"/);
   const automatic = renderToStaticMarkup(
@@ -165,7 +165,7 @@ try {
   );
   assert(automatic.includes('자동 위치 추정'));
   assert(automatic.includes('2개 기지국 가중중심 1건'));
-  assert(automatic.includes('무선 추정 시점으로 이동 (1건)'));
+  assert(automatic.includes('삼각 측량 시점으로 이동 (1건)'));
   assert(automatic.includes('추정 근거 보기'));
   assert.match(automatic, /<table[^>]*aria-label="고객 통화 목록"/);
   assert.match(automatic, /aria-label="MDT 관측 여부"/);

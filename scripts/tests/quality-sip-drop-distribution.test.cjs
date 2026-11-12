@@ -1,3 +1,6 @@
+// Historical source assertions use the preserved original cohort; current sources have a separate census test.
+const {historicalRead,historicalJson,skipHistoricalSource}=require('./published-fixture.cjs');
+if(skipHistoricalSource(__filename))return;
 /* eslint-disable no-restricted-syntax */
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
@@ -10,7 +13,7 @@ const {buildImprovedView}=load('lib/analyst/improved-overview.ts');
 const {fourthBandCalls}=load('lib/analyst/quality-proposal-four.ts');
 const {classifySipReason11}=load('lib/analyst/sip-reason.ts');
 const root=path.resolve(__dirname,'../..');
-const read=file=>fs.readFileSync(path.join(root,file),'utf8');
+const read=file=>historicalRead(path.join(root,file),'utf8');
 const input=JSON.parse(read('public/analyst-overview/MDT/2026-10-30.json'));
 
 test('SIP CDR 11.REASON Drop only: real October 30 count, MOS 3 grades, missing MOS distinct',()=>{
@@ -66,7 +69,7 @@ test('date/time range used identically in drop distribution and drilldown',()=>{
  }
 });
 test('chart dropdown MOS -> SIP Drop, all three grades, table and map share the filtered source',()=>{
- const ui=read('components/analyst/quality-proposal-four.tsx');
+ const ui=read('components/analyst/quality-proposal-four.tsx')+'\n'+read('components/analyst/quality-summary-panels.tsx');
  const css=read('components/analyst/quality-proposal-four.module.css');
  assert(ui.includes('aria-label="QoE 분포 기준"'));
  assert(ui.includes('<option value="mos">QoE</option>'));

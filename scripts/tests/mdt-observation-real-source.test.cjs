@@ -1,3 +1,6 @@
+// Historical source assertions use the preserved original cohort; current sources have a separate census test.
+const {historicalRead,historicalJson,skipHistoricalSource}=require('./published-fixture.cjs');
+if(skipHistoricalSource(__filename))return;
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
@@ -7,11 +10,11 @@ const {normalizeDay}=load('lib/analyst/data.ts');
 const {formatMdtObservation}=load('lib/analyst/mdt-observation.ts');
 const PUBLIC=path.resolve('public');
 test('October 30 actual source tagged MDT samples and CDR end support observation status, without cross-call bleed',()=>{
- const manifest=JSON.parse(fs.readFileSync(path.join(PUBLIC,'voice-1030.json'),'utf8'));
+ const manifest=JSON.parse(historicalRead(path.join(PUBLIC,'voice-1030.json'),'utf8'));
  let verified=0,missing=0,results=[];
  for(const entry of manifest.days){
   if(entry.date!=='2026-10-30'||!entry.sampleCount||!entry.dataPath)continue;
-  const detail=JSON.parse(fs.readFileSync(path.join(PUBLIC,entry.dataPath),'utf8'));
+  const detail=JSON.parse(historicalRead(path.join(PUBLIC,entry.dataPath),'utf8'));
   const has=detail.calls.some(c=>c.matchStatus==='MATCHED'&&detail.samples.some(r=>r[19]===c.id));
   if(!has)continue;
   const day=normalizeDay(manifest,detail,'MDT');

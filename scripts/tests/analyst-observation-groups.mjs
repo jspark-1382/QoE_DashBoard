@@ -147,9 +147,9 @@ try {
     assert(
       content.includes(
         {
-          gnss: 'GNSS 관측',
+          gnss: 'GPS 관측',
           measured: '제공 좌표',
-          radio: '무선 추정',
+          radio: '삼각 측량',
           unavailable: '위치 근거 없음',
         }[source],
       ),
@@ -178,7 +178,7 @@ try {
       siteCount: 0,
       locationSource: 'gnss',
       warning: '측정(GNSS) 좌표 우선 · 보정 오프셋 약 ±250m',
-      expected: 'GNSS 측정 정확도 미확인',
+      expected: 'GPS 측정 정확도 미확인',
     },
   ];
   for (const fixture of diagnosticFixtures) {

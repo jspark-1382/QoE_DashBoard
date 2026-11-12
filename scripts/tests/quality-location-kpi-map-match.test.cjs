@@ -1,3 +1,6 @@
+// Numerical source regressions retain the original two-workbook cohort.
+const {historicalRead,historicalJson,skipHistoricalSource}=require('./published-fixture.cjs');
+if(skipHistoricalSource(__filename))return;
 /* eslint-disable @typescript-eslint/no-require-imports */
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
@@ -9,9 +12,9 @@ const {overlayThreeSiteRough}=load('lib/analyst/three-site-rough.ts');
 const {buildImprovedView,summarizeMappedLocationEvidence}=load('lib/analyst/improved-overview.ts');
 
 const dates=[26,27,28,29,30].map(n=>'2026-10-'+n);
-const parts=dates.map(date=>JSON.parse(fs.readFileSync('public/analyst-overview/MDT/'+date+'.json','utf8')));
+const parts=dates.map(date=>JSON.parse(historicalRead('public/analyst-overview/MDT/'+date+'.json','utf8')));
 const raw=combineDateOverviews(parts);
-const rough=dates.map(date=>JSON.parse(fs.readFileSync('public/three-site-rough/'+date+'.json','utf8')));
+const rough=dates.map(date=>JSON.parse(historicalRead('public/three-site-rough/'+date+'.json','utf8')));
 const displayed=overlayThreeSiteRough(raw,{...rough[0],date:raw.date,points:rough.flatMap(d=>d.points)},true);
 const scope=(extra={})=>({from:'00:00',to:'23:59',hour:null,districtId:null,evidence:'all',band:'poor',...extra});
 const build=(overview=displayed,s=scope())=>buildImprovedView(overview,s);
@@ -60,7 +63,7 @@ test('duplicate locations can never inflate evidence count, and GPS takes priori
 });
 
 test('improvement2 fifth card uses map-derived KPI; no old all-grade 425 figure',()=>{
- const ui=fs.readFileSync('components/analyst/quality-proposal-four.tsx','utf8');
+ const ui=historicalRead('components/analyst/quality-proposal-four.tsx','utf8');
  assert(ui.includes('summarizeMappedLocationEvidence(geographicModel)'));
  assert(ui.includes("'저품질통화 (위치활용)'"));
  assert(ui.includes("mappedLocation?n(mappedLocation.U)+'건':'—'"));

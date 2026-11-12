@@ -1,3 +1,6 @@
+// Historical source assertions use the preserved original cohort; current sources have a separate census test.
+const {historicalRead,historicalJson,skipHistoricalSource}=require('./published-fixture.cjs');
+if(skipHistoricalSource(__filename))return;
 /* eslint-disable @typescript-eslint/no-require-imports */
 const test=require('node:test');
 const assert=require('node:assert/strict');
@@ -10,7 +13,7 @@ const {calculateProposalGrades}=load('lib/analyst/quality-proposal-metrics.ts');
 const {buildImprovedView}=load('lib/analyst/improved-overview.ts');
 const {getOverviewAnalytics}=load('lib/analyst/overview-analytics.ts');
 const root=path.resolve(__dirname,'../..');
-const read=(relative)=>fs.readFileSync(path.join(root,relative),'utf8');
+const read=(relative)=>historicalRead(path.join(root,relative),'utf8');
 const overview=JSON.parse(read('public/analyst-overview/MDT/2026-10-30.json'));
 
 test('original overview preserved as 기존안 and former 4th proposal becomes main quality overview',()=>{
@@ -22,11 +25,13 @@ test('original overview preserved as 기존안 and former 4th proposal becomes m
   const main=read('app/page.tsx');
   const shell=read('components/analyst/analyst-dashboard.tsx');
   const topbar=read('components/analyst/quality-proposal-four.tsx');
-  assert(main.includes('return <QualityProposalFour variant=')&&main.includes("?'current':'improvement2'"));
+  assert(main.includes('return <ServerQualityOverview />'));
+  assert(main.includes('return <QualityProposalFour variant={params.variant}'));
+  assert(main.includes("params?.variant==='current'||params?.variant==='improvement1'"));
   assert(main.includes("view === 'overview' || view === 'contract'"));
   assert(shell.includes('<QualityTopNav'));
   assert(topbar.includes('<QualityTopNav')&&topbar.includes('improvement1')&&topbar.includes('qualityHref'));
-  assert(read('app/overview-proposal-4/page.tsx').includes('<QualityProposalFour />'));
+  assert(read('app/overview-proposal-4/page.tsx').includes('<ServerQualityOverview />'));
   for(const version of [1,2,3]){
     assert(!fs.existsSync(path.join(root,'app/overview-proposal-'+version+'/page.tsx')));
     assert(!shell.includes('href="/overview-proposal-'+version+'"'));
@@ -35,7 +40,7 @@ test('original overview preserved as 기존안 and former 4th proposal becomes m
 });
 
 test('new design mirrors the second selected reference composition without fabricated claims',()=>{
-  const ui=read('components/analyst/quality-proposal-four.tsx');
+  const ui=read('components/analyst/quality-proposal-four.tsx')+'\n'+read('components/analyst/quality-summary-panels.tsx');
   const css=read('components/analyst/quality-proposal-four.module.css');
   const order=['<Topbar ','className={styles.filters}','className={styles.kpis}',
     'className={styles.charts}','<GradeDonut','<HourlyChart','<ExperiencePanel',
@@ -148,7 +153,7 @@ test('total CDR low-quality percentage is separately presented beside evaluated 
  assert.equal(rate.total.toFixed(1),'0.9');
  assert.equal(rate.evaluated.toFixed(1),'1.2');
  assert.deepEqual(fourthPoorRates(0,0,0),{total:null,evaluated:null});
- const ui=read('components/analyst/quality-proposal-four.tsx');
+ const ui=read('components/analyst/quality-proposal-four.tsx')+'\n'+read('components/analyst/quality-summary-panels.tsx');
  const css=read('components/analyst/quality-proposal-four.module.css');
  assert(ui.includes("grades={distributionMode==='drop'?(dropGrades??metrics):metrics}"));
  assert(ui.includes('onModeChange={chooseDistributionMode}'));
@@ -171,7 +176,7 @@ test('total CDR low-quality percentage is separately presented beside evaluated 
 
 
 test('map popup opens selected CDR immediately and table retains accessible call modal',()=>{
- const ui=read('components/analyst/quality-proposal-four.tsx');
+ const ui=read('components/analyst/quality-proposal-four.tsx')+'\n'+read('components/analyst/quality-summary-panels.tsx');
  const css=read('components/analyst/quality-proposal-four.module.css');
  assert(ui.includes('const shown=pinned'));
  assert(ui.includes('first.filter(call=>call.id!==selected)'));
@@ -206,8 +211,9 @@ test('customer-call analysis shows LTE towers even without GNSS; BYE-only call u
  assert(map.includes('const stationFitKey=focusKey'));
  assert(map.includes('visibleStationBounds.length'));
  assert(map.includes('map.fitBounds(L.latLngBounds(positions)'));
- assert(shell.includes('byeLocation={overview.data?.callLocations?.find'));
- assert(shell.includes("resolved.view === 'contract' && resolved.source === 'MDT'"));
+ assert(shell.includes('byeLocation={callLocation.data?.locations.find'));
+ assert(shell.includes("allCalls:true,callId:activeCall.id"));
+ assert(shell.includes("selection.source==='MDT'&&selection.view==='contract'"));
  const manifest=JSON.parse(read('public/voice-1030.json'));
  const entry=manifest.days.find(day=>day.customerId==='mdt-54f36ba5c24410cc2b256068'&&day.date==='2026-10-30');
  assert(entry,'example customer from supplied browser screenshot');
@@ -223,7 +229,7 @@ test('customer-call analysis shows LTE towers even without GNSS; BYE-only call u
 
 
 test('selected-call dialog draws exactly its linked CDR-end coordinate, not an area centroid or unrelated call',()=>{
- const ui=read('components/analyst/quality-proposal-four.tsx');
+ const ui=read('components/analyst/quality-proposal-four.tsx')+'\n'+read('components/analyst/quality-summary-panels.tsx');
  const map=read('components/analyst/analyst-map.tsx');
  const css=read('components/analyst/quality-proposal-four.module.css');
  assert(ui.includes("const selectedLocation=selected?tableLocations.get(selected.id):undefined;"));

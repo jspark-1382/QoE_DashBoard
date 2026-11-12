@@ -1,3 +1,6 @@
+// Historical source assertions use the preserved original cohort; current sources have a separate census test.
+const {historicalRead,historicalJson,skipHistoricalSource}=require('./published-fixture.cjs');
+if(skipHistoricalSource(__filename))return;
 /* eslint-disable @typescript-eslint/no-require-imports -- CommonJS Node scripts and the existing test harness require CommonJS imports. */
 const assert=require('node:assert/strict');
 const test=require('node:test');
@@ -37,7 +40,7 @@ async function request(handler,url,options={}) {
 }
 async function config(mode) {
   const configModule={exports:{}};
-  const js=ts.transpileModule(fs.readFileSync('vite.config.ts','utf8'),{
+  const js=ts.transpileModule(historicalRead('vite.config.ts','utf8'),{
     compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022},
   }).outputText;
   vm.runInNewContext(js,{
@@ -66,7 +69,7 @@ test('only local-preview mode removes public route scanning and emits an externa
   assert(!normal.plugins.some(p=>p.name===plugin.name));
   await plugin.writeBundle.call({environment:{name:'client'}},{dir:path.join(root,'dist/client')});
   const marker=path.join(root,'dist/.qoe-local-preview.json');
-  assert.deepEqual(JSON.parse(fs.readFileSync(marker,'utf8')),{schemaVersion:1,mode:'local-preview'});
+  assert.deepEqual(JSON.parse(historicalRead(marker,'utf8')),{schemaVersion:1,mode:'local-preview'});
   assert(!fs.existsSync(path.join(root,'dist/client/.qoe-local-preview.json')),'marker is outside HTTP asset root');
   const {scanPublicFileRoutes}=await import(pathToFileURL(path.resolve('node_modules/vinext/dist/utils/public-routes.js')).href);
   assert.deepEqual(scanPublicFileRoutes(root,local.publicDir),[]);

@@ -1,10 +1,13 @@
+// Numerical source regressions retain the original two-workbook cohort.
+const {historicalRead,historicalJson,skipHistoricalSource}=require('./published-fixture.cjs');
+if(skipHistoricalSource(__filename))return;
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const {load}=require('../analyst-ts-loader.cjs');
 const root=path.resolve(__dirname,'../..');
-const read=filename=>JSON.parse(fs.readFileSync(path.join(root,filename),'utf8'));
+const read=filename=>JSON.parse(historicalRead(path.join(root,filename),'utf8'));
 const D={all:'public/quality-models-mixed-full',evaluation:'public/quality-models-mixed-evaluation'};
 const baseline={all:'public/quality-improvement-mixed-full',evaluation:'public/quality-improvement-mixed-evaluation'};
 const methodNames=['hdbscan','st_dbscan','adaptive_kde','spatial_scan','bayesian'];
@@ -114,7 +117,7 @@ test('each alternative model selects only its own MDT member call IDs; can show 
  }
 });
 test('UI uses mixed model API and correct GPS frequency/RSRP sidecar on every model map',()=>{
- const src=p=>fs.readFileSync(path.join(root,p),'utf8');
+ const src=p=>historicalRead(path.join(root,p),'utf8');
  const client=src('components/analyst/quality-model-alternative-workspace.tsx');
  const panel=src('components/analyst/quality-improvement-candidate-panel.tsx');
  const lib=src('lib/analyst/quality-model-alternatives.ts');

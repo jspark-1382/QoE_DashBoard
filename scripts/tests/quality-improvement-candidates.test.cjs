@@ -20,7 +20,7 @@ test('exact scope loader uses small summaries, distinguishes missing scope and s
  assert.equal((await api.loadQualityCandidateSummary(scope)).candidates.length,0);
  assert.equal(requests.some(u=>u.endsWith('report.json')),false);
  await assert.rejects(()=>api.loadQualityCandidateSummary({...scope,from:'09:00'}),e=>e.code==='not-generated');
- index.sourceRevision='old';await assert.rejects(()=>api.loadQualityCandidateSummary(scope),e=>e.code==='revision-mismatch');
+ index.sourceRevision='old';await assert.rejects(()=>api.loadQualityCandidateSummary({...scope,sourceRevision:'new'}),e=>e.code==='revision-mismatch');
 });
 test('candidate detail rejects validation dates leaking into discovery membership',()=>{
  const summary={scope,scopeKey:'key',candidates:[{id:'x',detailPath:'rev/key/x.json'}],discoveryDates:['2026-10-26'],validationDates:['2026-10-27']};

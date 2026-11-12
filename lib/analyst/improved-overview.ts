@@ -39,10 +39,15 @@ export function buildImprovedView(overview: AnalystOverview, scope: ImprovedScop
   const timeCalls = validRange ? overview.calls.filter(
     (call) => call.startSecond >= from && call.startSecond <= to + 59,
   ) : [];
-  const globalSummary = getOverviewSummary(timeCalls.map(c=>({...c,qoe:effectiveCallQoe(c)})), 3);
-  const mosValues = timeCalls.flatMap((call) => {const v=effectiveCallQoe(call);return v===null?[]:[v];});
-  const meanMos = mosValues.length ? mosValues.reduce((sum, mos) => sum + mos, 0) / mosValues.length : null;
-  const hourly = getHourlyCalls(timeCalls.map(c=>({...c,qoe:effectiveCallQoe(c)})), 3);
+  let scoreSum=0,scoreCount=0;
+  const scoredCalls=timeCalls.map(call=>{
+    const qoe=effectiveCallQoe(call);
+    if(qoe!==null){scoreSum+=qoe;scoreCount++;}
+    return call.qoe===qoe?call:{...call,qoe};
+  });
+  const globalSummary = getOverviewSummary(scoredCalls, 3);
+  const meanMos = scoreCount ? scoreSum / scoreCount : null;
+  const hourly = getHourlyCalls(scoredCalls, 3);
   const visibleHours = timeCalls.filter(
     (call) => (scope.hour == null || Math.floor(call.startSecond / 3600) === scope.hour)
       && (!scope.customerIds || scope.customerIds.has(call.customerId)),

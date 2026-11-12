@@ -1,5 +1,5 @@
-import { QualityProposalFour } from '@/components/analyst/quality-proposal-four';
+import { ServerQualityOverview } from '@/components/analyst/server-quality-overview';
 
 export default function QualityProposalFourPage() {
-  return <QualityProposalFour />;
+  return <ServerQualityOverview />;
 }

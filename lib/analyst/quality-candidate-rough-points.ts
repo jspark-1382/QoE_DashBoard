@@ -2,6 +2,7 @@ import type {AnalystOverview} from './types';
 import {overlayThreeSiteRough,type ThreeSiteRoughDataset} from './three-site-rough';
 import {buildImprovedView} from './improved-overview';
 import type {QualityCandidateScope} from './quality-improvement-candidates';
+import {candidateResource} from './candidate-resource-cache';
 
 export interface CandidateRoughPoint {
   callId:string;
@@ -85,11 +86,14 @@ export async function loadCandidateRoughPoints(
     throw new Error('삼각 측량 근사 날짜 범위 오류');
   const dates:string[]=[];
   for(let t=start;t<=end;t+=86400000)dates.push(new Date(t).toISOString().slice(0,10));
-  const data=await Promise.all(dates.map(async date=>{
-    const response=await fetch('/qoe/three-site-rough/'+date+'.json',{signal,cache:'no-cache'});
+  const data=await Promise.all(dates.map(date=>candidateResource('candidate-rough|'+scope.sourceRevision+'|'+date,async sharedSignal=>{
+    const response=await fetch('/qoe/three-site-rough/'+date+'.json',{signal:sharedSignal,cache:'no-cache'});
     if(!response.ok)throw new Error('삼각 측량 근사 자료를 불러오지 못했습니다: '+date);
-    return response.json() as Promise<ThreeSiteRoughDataset>;
-  }));
+    const part=await response.json() as ThreeSiteRoughDataset;
+    if(part.date!==date||part.sourceRevision!==scope.sourceRevision||part.schemaVersion!=='coarse-three-site-v1'||part.method!=='THREE_SITE_RSRP_CENTROID'||part.notA90PercentAccuracyRegion!==true)
+      throw new Error('삼각 측량 근사 근거 자료 검증 실패');
+    return part;
+  },signal)));
   if(data.some((part,i)=>part.date!==dates[i]||part.sourceRevision!==scope.sourceRevision||
     part.schemaVersion!=='coarse-three-site-v1'||part.method!=='THREE_SITE_RSRP_CENTROID'||
     part.notA90PercentAccuracyRegion!==true))

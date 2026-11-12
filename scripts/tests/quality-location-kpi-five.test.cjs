@@ -1,3 +1,6 @@
+// Numerical source regressions retain the original two-workbook cohort.
+const {historicalRead,historicalJson,skipHistoricalSource}=require('./published-fixture.cjs');
+if(skipHistoricalSource(__filename))return;
 /* eslint-disable @typescript-eslint/no-require-imports */
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
@@ -5,10 +8,10 @@ const fs=require('node:fs');
 const {load}=require('../analyst-ts-loader.cjs');
 const {buildQualityImprovementMetrics}=load('lib/analyst/quality-improvement-adapter.ts');
 const {combineDateOverviews}=load('lib/analyst/date-range.ts');
-const index=require('../../public/quality-improvement/index.json');
+const index=historicalJson('../../public/quality-improvement/index.json');
 const dates=index.availableDates;
-const overviews=dates.map(date=>JSON.parse(fs.readFileSync('public/analyst-overview/MDT/'+date+'.json','utf8')));
-const partitions=index.evidence.map(e=>JSON.parse(fs.readFileSync('public/quality-improvement/'+e.path,'utf8')));
+const overviews=dates.map(date=>JSON.parse(historicalRead('public/analyst-overview/MDT/'+date+'.json','utf8')));
+const partitions=index.evidence.map(e=>JSON.parse(historicalRead('public/quality-improvement/'+e.path,'utf8')));
 const allEvidence={revision:index.sourceRevision,policy:'strict-3-site-v1',
  censusComplete:partitions.every(p=>p.censusComplete),records:partitions.flatMap(p=>p.records)};
 const scope=(dateStart,dateEnd,extra={})=>({dateStart,dateEnd,from:'00:00',to:'23:59',
@@ -43,8 +46,8 @@ test('selected date, time and customer filters change the location KPI consisten
  assert.equal(customer.locationHourly.reduce((a,b)=>a+b,0),customer.coverage.U);
 });
 test('visual layout adds a fifth card only to improvement 2, with truthful evidence fallback',()=>{
- const ui=fs.readFileSync('components/analyst/quality-proposal-four.tsx','utf8');
- const css=fs.readFileSync('components/analyst/quality-proposal-four.module.css','utf8');
+ const ui=historicalRead('components/analyst/quality-proposal-four.tsx','utf8');
+ const css=historicalRead('components/analyst/quality-proposal-four.module.css','utf8');
  assert(ui.includes("data-five={improvementTwo?'true':undefined}"));
  assert(ui.includes("...(improvementTwo?[{name:selectedBand==='good'"));
  assert(ui.includes("mappedLocation?n(mappedLocation.U)+'건':'—'"));

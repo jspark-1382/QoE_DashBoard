@@ -1,3 +1,6 @@
+// Numerical source regressions retain the original two-workbook cohort.
+const {historicalRead,historicalJson,skipHistoricalSource}=require('./published-fixture.cjs');
+if(skipHistoricalSource(__filename))return;
 /* eslint-disable @typescript-eslint/no-require-imports */
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
@@ -8,8 +11,8 @@ const {calculateProposalGrades}=load('lib/analyst/quality-proposal-metrics.ts');
 const {overlayThreeSiteRough}=load('lib/analyst/three-site-rough.ts');
 const {buildImprovedView,summarizeMappedLocationEvidence}=load('lib/analyst/improved-overview.ts');
 const dates=[26,27,28,29,30].map(d=>'2026-10-'+d);
-const raw=combineDateOverviews(dates.map(day=>require('../../public/analyst-overview/MDT/'+day+'.json')));
-const rough=dates.map(day=>require('../../public/three-site-rough/'+day+'.json'));
+const raw=combineDateOverviews(dates.map(day=>historicalJson('../../public/analyst-overview/MDT/'+day+'.json')));
+const rough=dates.map(day=>historicalJson('../../public/three-site-rough/'+day+'.json'));
 const mappedOverview=overlayThreeSiteRough(raw,{...rough[0],date:raw.date,points:rough.flatMap(d=>d.points)},true);
 const scope=(extra={})=>({from:'00:00',to:'23:59',hour:null,districtId:null,evidence:'all',band:'poor',...extra});
 const mapped=(extra={})=>summarizeMappedLocationEvidence(buildImprovedView(mappedOverview,scope(extra)));
@@ -35,8 +38,8 @@ test('date/time, GPS-only and grade filters give truthful coverage fractions',()
   }
 });
 test('improvement2 all five KPI cards remove miniature graphs while keeping ratio badges',()=>{
-  const source=fs.readFileSync('components/analyst/quality-proposal-four.tsx','utf8');
-  const css=fs.readFileSync('components/analyst/quality-proposal-four.module.css','utf8');
+  const source=historicalRead('components/analyst/quality-proposal-four.tsx','utf8');
+  const css=historicalRead('components/analyst/quality-proposal-four.module.css','utf8');
   assert(source.includes("const mappedBand=selectedBand??'poor'"));
   assert(source.includes("metrics?.bands.find(item=>item.id===mappedBand)?.count"));
   assert(source.includes('mappedLocation?ratio(mappedLocation.U,mappedBandCalls)'));
@@ -46,8 +49,8 @@ test('improvement2 all five KPI cards remove miniature graphs while keeping rati
   assert(source.includes('locationRate:mappedLocationRate'));
   assert(source.includes("{entry.locationRateLabel} {entry.locationRate}"));
   assert(source.includes("isLocationCard?styles.locationKpi:''"));
-  assert(source.includes("entry.name==='저품질 통화'||isLocationCard?{color:'#cb3546'}:{}"));
-  assert(source.includes("icon:MapPin,color:'#328ee3',background:'#e4f1ff'"));
+  assert(source.includes("isLocationCard?{color:'#cb3546'}:{}"));
+  assert(source.includes("icon:MapPin,color:'#eb4e5d',background:'#ffeaee'"));
   assert(!css.includes('.locationKpiPoor'));
   assert(!source.includes('data:mappedLocation?.hourly'));
   assert(!source.includes("sub:'GPS + 삼각 측량 근사 합계'"));

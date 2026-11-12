@@ -1,8 +1,11 @@
+// Numerical source regressions retain the original two-workbook cohort.
+const {historicalRead,historicalJson,skipHistoricalSource}=require('./published-fixture.cjs');
+if(skipHistoricalSource(__filename))return;
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs'),path=require('node:path');
 const root=path.resolve(__dirname,'../..');
-const read=f=>JSON.parse(fs.readFileSync(path.join(root,f),'utf8'));
+const read=f=>JSON.parse(historicalRead(path.join(root,f),'utf8'));
 const sidecar=read('public/quality-improvement/candidate-mdt-rsrp-v1.json');
 const manifest=read('public/voice-1030.json');
 const mixedIdx=read('public/quality-improvement-mixed-full/index.json');
@@ -95,9 +98,9 @@ test('all six algorithm candidate inputs select only member call EARFCN curves, 
  }
 });
 test('map legend removes GPS RSRP and unknown while preserving low/high measurement colors',()=>{
- const db=fs.readFileSync(path.join(root,'components/analyst/quality-two-candidate-workspace.tsx'),'utf8');
- const alt=fs.readFileSync(path.join(root,'components/analyst/quality-model-alternative-workspace.tsx'),'utf8');
- const chart=fs.readFileSync(path.join(root,'components/analyst/candidate-mdt-rsrp-chart.tsx'),'utf8');
+ const db=historicalRead(path.join(root,'components/analyst/quality-two-candidate-workspace.tsx'),'utf8');
+ const alt=historicalRead(path.join(root,'components/analyst/quality-model-alternative-workspace.tsx'),'utf8');
+ const chart=historicalRead(path.join(root,'components/analyst/candidate-mdt-rsrp-chart.tsx'),'utf8');
  assert(!db.includes('<span className={styles.legendHeading}>GPS RSRP</span>'));
  assert(!db.includes('<span><i className={styles.rsrpUnknown}/>미확보</span>'));
  assert(!alt.includes('<span>GPS RSRP</span>'));

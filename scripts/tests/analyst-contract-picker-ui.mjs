@@ -72,7 +72,7 @@ try {
   assert.match(html, /0000123/);
   assert.match(html, /현재 선택/);
   assert.match(html, /미제공/);
-  assert.match(html, /GNSS 없는 고객만/);
+  assert.match(html, /GPS 없는 고객만/);
   assert.match(html, /25개/);
   assert.match(html, /50개/);
   assert.doesNotMatch(html, /999/);
@@ -85,7 +85,7 @@ try {
       onSelect: () => {},
     }),
   );
-  assert.doesNotMatch(measured, /GNSS 없는 고객만/);
+  assert.doesNotMatch(measured, /GPS 없는 고객만/);
   console.log(
     'Contract picker SSR accessible dialog, metadata counts and source filter passed',
   );

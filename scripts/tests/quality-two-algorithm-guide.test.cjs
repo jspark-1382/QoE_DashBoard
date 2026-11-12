@@ -1,6 +1,9 @@
+// Historical source assertions use the preserved original cohort; current sources have a separate census test.
+const {historicalRead,historicalJson,skipHistoricalSource}=require('./published-fixture.cjs');
+if(skipHistoricalSource(__filename))return;
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
 const root=path.resolve(__dirname,'../..');
-const read=(s)=>fs.readFileSync(path.join(root,s),'utf8');
+const read=(s)=>historicalRead(path.join(root,s),'utf8');
 const json=s=>JSON.parse(read(s));
 const idx=json('public/quality-improvement/index.json');
 const entry=idx.entries.find(e=>e.scope.dateStart==='2026-10-26'&&e.scope.dateEnd==='2026-10-30'&&e.scope.from==='00:00');

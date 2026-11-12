@@ -51,7 +51,7 @@ const day = (samples, baseStations = []) => ({
   samples,
   baseStations,
   calls: [
-    { id: 'c', start: '01:00:00', end: '01:00:09', qoe: 1 },
+    { id: 'c', start: '01:00:00', end: '01:00:09', qoe: 1, mos: 1 },
     { id: 'other', start: '01:00:10', end: '01:00:19', qoe: null },
   ],
 });
@@ -156,6 +156,7 @@ console.log(
     // An unversioned inline source may have been regenerated while an old summary remains.
     const freshDay = day([]);
     freshDay.calls[0].qoe = 4;
+    freshDay.calls[0].mos = 4;
     const unversioned = {
       ...ds,
       meta: { ...ds.meta, revision: undefined },
@@ -172,7 +173,7 @@ console.log(
           date: '2026-01-01',
           gridSizeM: 60,
           cells: [],
-          calls: [{ id: 'a:c', qoe: 1 }],
+          calls: [{ id: 'a:c', qoe: 1, mos: 1 }],
         }),
       };
     };

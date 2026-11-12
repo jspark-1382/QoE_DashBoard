@@ -1,3 +1,6 @@
+// Historical source assertions use the preserved original cohort; current sources have a separate census test.
+const {historicalRead,historicalJson,skipHistoricalSource}=require('./published-fixture.cjs');
+if(skipHistoricalSource(__filename))return;
 /* eslint-disable @typescript-eslint/no-require-imports */
 // Validates the published 2026-10-30 administrative-dong SHP overlay and joins.
 const test = require('node:test');
@@ -10,8 +13,8 @@ const source = path.join(publicRoot, 'voice-1030.json');
 const overviewPath = path.join(publicRoot, 'analyst-overview/MDT/2026-10-30.json');
 
 test('SHP-based administrative-dong overlay is complete, projected, and GNSS provenance is preserved', () => {
-  const dataset = JSON.parse(fs.readFileSync(source, 'utf8'));
-  const overview = JSON.parse(fs.readFileSync(overviewPath, 'utf8'));
+  const dataset = JSON.parse(historicalRead(source, 'utf8'));
+  const overview = JSON.parse(historicalRead(overviewPath, 'utf8'));
   assert.equal(overview.sourceRevision, dataset.meta.revision);
   assert.equal(overview.spatialUnit, 'administrative-dong');
   assert.equal(overview.representativeLocationBasis, 'cdr-end-nearest-or-bye-cell-site');
@@ -128,7 +131,7 @@ test('SHP-based administrative-dong overlay is complete, projected, and GNSS pro
     ...(dataset.meta.byeStationInventories?.some(item=>item.technology==='NR')?[['NR','nr-station-catalog.json']]:[])];
   const candidates=new Map();
   for(const [technology,filename] of inventoryNames){
-    const inventory=JSON.parse(fs.readFileSync(path.join(publicRoot,filename),'utf8'));
+    const inventory=JSON.parse(historicalRead(path.join(publicRoot,filename),'utf8'));
     for(const [ru,cell,,lat,lon] of inventory.rows){
       const sites=candidates.get(cell)??new Set();
       sites.add(JSON.stringify([technology,ru,lat,lon]));candidates.set(cell,sites);
@@ -173,13 +176,13 @@ test('SHP-based administrative-dong overlay is complete, projected, and GNSS pro
 });
 
 test('published NR BYE sites retain exact source RAT, cell, registered coordinate and provenance',()=>{
-  const dataset=JSON.parse(fs.readFileSync(source,'utf8'));
-  const overview=JSON.parse(fs.readFileSync(overviewPath,'utf8'));
+  const dataset=JSON.parse(historicalRead(source,'utf8'));
+  const overview=JSON.parse(historicalRead(overviewPath,'utf8'));
   const declared=dataset.meta.byeStationInventories;
   assert(declared?.some(item=>item.technology==='NR'),'NR inventory participates in the source revision');
   const registry=new Map();
   for(const [technology,filename] of [['LTE','station-catalog.json'],['NR','nr-station-catalog.json']]){
-    const catalog=JSON.parse(fs.readFileSync(path.join(publicRoot,filename),'utf8'));
+    const catalog=JSON.parse(historicalRead(path.join(publicRoot,filename),'utf8'));
     const inventory=declared.find(item=>item.technology===technology);
     assert.equal(catalog.source.file,inventory.file);assert.equal(catalog.source.sha256,inventory.sha256);
     for(const [ru,cell,pci,lat,lon] of catalog.rows)registry.set(JSON.stringify([technology,ru,cell]),{pci,lat,lon,inventory});

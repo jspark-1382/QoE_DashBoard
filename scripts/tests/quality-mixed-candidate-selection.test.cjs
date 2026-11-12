@@ -1,3 +1,6 @@
+// Numerical source regressions retain the original two-workbook cohort.
+const {historicalRead,historicalJson,skipHistoricalSource}=require('./published-fixture.cjs');
+if(skipHistoricalSource(__filename))return;
 /* eslint-disable @typescript-eslint/no-require-imports */
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
@@ -10,7 +13,7 @@ const dirs={
   eval:'public/quality-improvement-mixed-evaluation',
   strict:'public/quality-improvement-full'
 };
-const read=relative=>JSON.parse(fs.readFileSync(path.join(root,relative),'utf8'));
+const read=relative=>JSON.parse(historicalRead(path.join(root,relative),'utf8'));
 const indexes=Object.fromEntries(Object.entries(dirs).map(([key,prefix])=>[key,read(prefix+'/index.json')]));
 const five=idx=>idx.entries.find(e=>e.scope.dateStart==='2026-10-26'&&e.scope.dateEnd==='2026-10-30');
 const full=five(indexes.mixed),prior=five(indexes.strict),hold=five(indexes.eval);
@@ -112,10 +115,10 @@ test('candidate map selected layer contains exactly the selected candidate MDT m
  }
 });
 test('UI defaults to mixed while strict original files and GPS-only alternative models are clearly distinct',()=>{
- const panel=fs.readFileSync(path.join(root,'components/analyst/quality-improvement-candidate-panel.tsx'),'utf8');
- const ui=fs.readFileSync(path.join(root,'components/analyst/quality-two-candidate-workspace.tsx'),'utf8');
- const alt=fs.readFileSync(path.join(root,'components/analyst/quality-model-alternative-workspace.tsx'),'utf8');
- const loader=fs.readFileSync(path.join(root,'lib/analyst/quality-improvement-candidates.ts'),'utf8');
+ const panel=historicalRead(path.join(root,'components/analyst/quality-improvement-candidate-panel.tsx'),'utf8');
+ const ui=historicalRead(path.join(root,'components/analyst/quality-two-candidate-workspace.tsx'),'utf8');
+ const alt=historicalRead(path.join(root,'components/analyst/quality-model-alternative-workspace.tsx'),'utf8');
+ const loader=historicalRead(path.join(root,'lib/analyst/quality-improvement-candidates.ts'),'utf8');
  assert(panel.includes("proposalTwo?'mixed':'strict'"));
  assert(loader.includes("'/qoe/quality-improvement-mixed-full/'"));
  assert(loader.includes("'/qoe/quality-improvement-mixed-evaluation/'"));

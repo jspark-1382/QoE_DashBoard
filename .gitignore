@@ -77,6 +77,7 @@ __pycache__/
 # Generated customer and location analysis data (rebuilt from private inputs)
 /public/customer-screening-data/
 /public/gps-map-stations/
+/public/voice-query-index.json
 /public/quality-improvement-mixed-evaluation/
 /public/quality-improvement-mixed-full/
 /public/quality-models-mixed-evaluation/
