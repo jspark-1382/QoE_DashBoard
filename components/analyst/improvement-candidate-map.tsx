@@ -19,9 +19,10 @@ import styles from './improvement-candidate-map.module.css';
 interface Props {
   candidates:ImprovementCandidate[];
   selectedId:string;
+  listFocusRequest?:{id:string};
   onSelect:(id:string)=>void;
   sourceRevision?:string;
-  observationPoints?:Array<{callId:string;customerId:string;date:string;lat:number;lon:number;kind:'gnss'|'reviewed-radio';observedAt?:string|null}>;
+  observationPoints?:Array<{callId:string;customerId:string;date:string;lat:number;lon:number;kind:'gnss'|'reviewed-radio';observedAt?:string|null;candidateId?:string}>;
   /** Display-only low-QoE 3-site RSRP barycentres; never clustering inputs. */
   roughPoints?:readonly CandidateRoughMatch[];
   stationSites?:readonly StationSiteMarker[];
@@ -34,7 +35,7 @@ interface Props {
 }
 const TILE_NOTICE='배경지도 불러오기 실패 · 후보 좌표는 계속 표시됩니다.';
 
-export function ImprovementCandidateMap({candidates,selectedId,onSelect,sourceRevision,observationPoints=[],roughPoints=[],stationSites=[],roughUsedForCandidate=false,hint,presentation='legacy',fullscreenEnhanced=false,mdtGridMode='hidden',unmatchedTopTen}:Props){
+export function ImprovementCandidateMap({candidates,selectedId,listFocusRequest,onSelect,sourceRevision,observationPoints=[],roughPoints=[],stationSites=[],roughUsedForCandidate=false,hint,presentation='legacy',fullscreenEnhanced=false,mdtGridMode='hidden',unmatchedTopTen}:Props){
   const host=useRef<HTMLDivElement|null>(null);
   const live=useRef<LeafletMap|null>(null);
   const layer=useRef<LayerGroup|null>(null);
@@ -44,6 +45,7 @@ export function ImprovementCandidateMap({candidates,selectedId,onSelect,sourceRe
   const [map,setMap]=useState<LeafletMap|null>(null);
   const [notice,setNotice]=useState<string|null>(null);
   const fitOnce=useRef(false);
+  const handledFocus=useRef<Props['listFocusRequest']>(undefined);
   const unmatchedOverlayActive=!!unmatchedTopTen?.customers.length;
   const [rfRecords,setRfRecords]=useState<Record<string,GpsRfRecord>>({});
   const [gridSource,setGridSource]=useState<Mdt25mGrid|null>(null);
@@ -198,6 +200,10 @@ export function ImprovementCandidateMap({candidates,selectedId,onSelect,sourceRe
     let current=true;
     void import('leaflet').then(L=>{
       if(!current)return;
+      // Rebuilding Leaflet's SVG layer replaces even the focused marker after a selection.
+      const focusedMarker=document.activeElement;
+      const focusedId=focusedMarker instanceof SVGElement && map.getContainer().contains(focusedMarker)
+        ? focusedMarker.getAttribute('data-candidate-id') : null;
       layer.current?.remove();
       const next=L.layerGroup().addTo(map);
       layer.current=next;
@@ -302,6 +308,7 @@ export function ImprovementCandidateMap({candidates,selectedId,onSelect,sourceRe
         link.textContent='원본 통화 상세';link.style.display='block';
         popup.appendChild(link);
         marker.bindPopup(popup,{maxWidth:340});
+        marker.on('click',()=>callback.current(selectedId));
       }
       candidates.forEach((candidate,index)=>{
         const loc=candidate.location;
@@ -356,10 +363,12 @@ export function ImprovementCandidateMap({candidates,selectedId,onSelect,sourceRe
           markerElement.setAttribute('data-candidate-id',candidate.id);
           markerElement.setAttribute('role','button');
           markerElement.setAttribute('tabindex','0');
+          markerElement.setAttribute('aria-pressed',String(active));
           markerElement.setAttribute('aria-label','후보 지역 '+(index+1)+' 지도에서 선택');
           markerElement.addEventListener('keydown',event=>{
             if(event instanceof KeyboardEvent&&(event.key==='Enter'||event.key===' ')){event.preventDefault();callback.current(candidate.id);}
           });
+          if(focusedId===candidate.id && markerElement instanceof SVGElement)markerElement.focus({preventScroll:true});
         }
         marker.on('click',()=>callback.current(candidate.id));
         if(active)marker.bringToFront();
@@ -393,9 +402,11 @@ export function ImprovementCandidateMap({candidates,selectedId,onSelect,sourceRe
           link.style.display='block';link.style.marginTop='5px';
           popup.appendChild(link);
           dot.bindPopup(popup);
+          if(point.candidateId===selectedId)dot.on('click',()=>callback.current(selectedId));
         }else{
           const dot=L.circleMarker(loc,{radius:4,weight:1,color:'#fff',fillColor:'#8376c5',fillOpacity:.75}).addTo(next);
           dot.bindTooltip(point.date+' · 검토 통과 삼각 측량');
+          if(point.candidateId===selectedId)dot.on('click',()=>callback.current(selectedId));
         }
       }
       for(const point of selected?.relatedGnss??[]){
@@ -425,6 +436,7 @@ export function ImprovementCandidateMap({candidates,selectedId,onSelect,sourceRe
         link.style.display='block';link.style.marginTop='5px';
         popup.appendChild(link);
         dot.bindPopup(popup);
+        dot.on('click',()=>callback.current(selectedId));
         dot.bindTooltip(point.date.slice(5)+' · GPS'+(rf?.rsrpDbm==null?' · RSRP 미확보':' · RSRP '+rf.rsrpDbm+' dBm'));
       }
       if(!unmatchedOverlayActive&&!fitOnce.current&&coords.length){
@@ -432,15 +444,22 @@ export function ImprovementCandidateMap({candidates,selectedId,onSelect,sourceRe
         // Establish the initial view immediately so a mode switch cannot leave
         // a deferred zoom transition targeting an already removed map.
         map.fitBounds(L.latLngBounds(coords),{padding:[38,38],maxZoom:14,animate:false});
-      }else if(!unmatchedOverlayActive){
+      }else if(presentation!=='proposal2'&&!unmatchedOverlayActive){
         const chosen=candidates.find(x=>x.id===selectedId);
         const focus=chosen?.location??chosen?.relatedGnss?.[0];
         if(focus)
           map.panTo([focus.lat,focus.lon],{animate:true,duration:.35});
       }
+      if(listFocusRequest && listFocusRequest!==handledFocus.current){
+        handledFocus.current=listFocusRequest;
+        const location=candidates.find(candidate=>candidate.id===listFocusRequest.id)?.location;
+        if(location && listFocusRequest.id===selectedId && !unmatchedOverlayActive){
+          map.panInside([location.lat,location.lon],{padding:[36,36],animate:false});
+        }
+      }
     }).catch(()=>{if(current)setNotice('지도 후보 표시 실패');});
     return()=>{current=false;};
-  },[candidates,map,selectedId,observationPoints,roughPoints,stationSites,roughUsedForCandidate,presentation,fullscreenEnhanced,rfRecords,unmatchedOverlayActive]);
+  },[candidates,map,selectedId,listFocusRequest,observationPoints,roughPoints,stationSites,roughUsedForCandidate,presentation,fullscreenEnhanced,rfRecords,unmatchedOverlayActive]);
   return <div className={[styles.container,fullscreenEnhanced?styles.referenceMap:''].filter(Boolean).join(' ')} aria-label="개선 후보 지도">
     <div className={styles.map} ref={host}/>
     {unmatchedTopTen&&unmatchedOverlayActive&&<CandidateTopTenOverlay map={map} scope={unmatchedTopTen.scope}

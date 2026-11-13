@@ -61,11 +61,11 @@ function validAnalysisGrid(grid:Mdt25mGrid):boolean{
 export type MdtGridMode='top1'|'900'|'1.8협'|'1.8광'|'2.1'|'hidden';
 export type MdtGridFrequency=Exclude<MdtGridMode,'top1'|'hidden'>;
 export const MDT_GRID_MODES:readonly {value:MdtGridMode;label:string}[]=[
- {value:'top1',label:'Top1 (최다 측정)'},
- {value:'900',label:'900'},
- {value:'1.8협',label:'1.8협'},
- {value:'1.8광',label:'1.8광'},
- {value:'2.1',label:'2.1'},
+ {value:'top1',label:'최다 측정 대역'},
+ {value:'900',label:'900 MHz'},
+ {value:'1.8협',label:'1.8 GHz 협대역'},
+ {value:'1.8광',label:'1.8 GHz 광대역'},
+ {value:'2.1',label:'2.1 GHz'},
  {value:'hidden',label:'숨김'},
 ];
 // Deterministic priority applies ONLY when sample counts are exactly tied.

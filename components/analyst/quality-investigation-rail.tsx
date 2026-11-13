@@ -1,10 +1,11 @@
 'use client';
-import {useEffect,useRef,useState,type ReactNode} from 'react';
+import {useState,type ReactNode} from 'react';
 import {ChevronRight,ClipboardList} from 'lucide-react';
 import {CandidateVisibilityToggle} from './candidate-visibility-toggle';
 import type {CandidateDisplayMode} from '../../lib/analyst/quality-candidate-visibility';
 import type {CandidateTopTenCustomer,CandidateTopTenMatch,CandidateTopTenMember,CandidateTopTenState} from '../../lib/analyst/candidate-top-ten';
 import {CandidateTopTenCoverage,CandidateTopTenMembers} from './candidate-top-ten-members';
+import {useCandidateListScroll} from './use-candidate-list-scroll';
 import styles from './quality-investigation-rail.module.css';
 
 export interface InvestigationRailCandidate{
@@ -38,6 +39,7 @@ interface Props{
  displayMode?:CandidateDisplayMode;
  onDisplayModeChange?:(mode:CandidateDisplayMode)=>void;
  selectedId:string|null;
+ mapPick?:number;
  onSelect:(id:string)=>void;
  onCalls:()=>void;
  analysisMode:'all'|'evaluation';
@@ -52,36 +54,25 @@ interface Props{
 
 /** Fullscreen investigation workspace. A map-marker click updates selectedId;
  * only the list container scrolls, never the map or document. */
-export function QualityInvestigationRail({candidates,totalCount,coreCount,topTenCount,topTenStatus,topTenCustomers,topTenMatches,minimumDays=3,displayMode,onDisplayModeChange,selectedId,onSelect,onCalls,analysisMode,modelName,emptyMessage,guidance,rsrpChart,aiSummary,onAnalyze,aiLabel}:Props){
+export function QualityInvestigationRail({candidates,totalCount,coreCount,topTenCount,topTenStatus,topTenCustomers,topTenMatches,minimumDays=3,displayMode,onDisplayModeChange,selectedId,mapPick=0,onSelect,onCalls,analysisMode,modelName,emptyMessage,guidance,rsrpChart,aiSummary,onAnalyze,aiLabel}:Props){
  const [filter,setFilter]=useState<'all'|'review'>('all');
- const [reviewAnchorId,setReviewAnchorId]=useState<string|null>(null);
- const rows=useRef<HTMLFieldSetElement|null>(null);
  const active=candidates.find(c=>c.id===selectedId)??candidates[0]??null;
- const visibleFilter=filter==='review'&&active&&!active.rangeReview&&active.id!==reviewAnchorId?'all':filter;
- const shown=visibleFilter==='review'?candidates.filter(c=>c.rangeReview):candidates;
  const reviewCount=candidates.filter(c=>c.rangeReview).length;
- useEffect(()=>{
-  const list=rows.current;
-  const target=[...list?.querySelectorAll<HTMLButtonElement>('button[data-candidate-id]')??[]]
-   .find(button=>button.dataset.candidateId===active?.id);
-  if(!list||!target)return;
-  const top=target.getBoundingClientRect().top-list.getBoundingClientRect().top+list.scrollTop;
-  const bottom=top+target.offsetHeight;
-  if(top<list.scrollTop)list.scrollTop=Math.max(0,top-6);
-  else if(bottom>list.scrollTop+list.clientHeight)list.scrollTop=bottom-list.clientHeight+6;
- },[active?.id,visibleFilter,shown.length]);
+ const visibleFilter=filter==='review'&&(!reviewCount||!active?.rangeReview)?'all':filter;
+ const shown=visibleFilter==='review'?candidates.filter(c=>c.rangeReview):candidates;
+ const rows=useCandidateListScroll<HTMLFieldSetElement>(active?.id,mapPick,[displayMode,visibleFilter].join('/'),shown.length);
  return <div className={styles.root} data-has-rsrp={rsrpChart?'true':'false'} data-top-ten={displayMode==='top10'?'true':'false'} aria-label="전체화면 개선 후보 탐색">
-  <section className={styles.listCard} aria-label="전체화면 개선 후보 지역 목록">
+  <section className={styles.listCard} aria-label="전체화면 개선 후보 지역 목록" data-candidate-list-viewport>
    <header className={styles.listHeading}>
     <div><h3>개선 후보 지역 <span>{displayMode==='top10'&&topTenStatus!=='ready'?(topTenStatus==='error'?'미확인':'확인 중'):candidates.length+'곳'}</span></h3>
     <p>목록과 지도 마커를 선택하면 같은 후보로 이동합니다.</p></div>
     <fieldset className={styles.filter} aria-label="후보 목록 필터">
      {displayMode&&onDisplayModeChange?<CandidateVisibilityToggle mode={displayMode} coreCount={coreCount??(displayMode==='core'?candidates.length:candidates.filter(c=>c.calls>=6&&c.customers>=3&&c.days>=minimumDays).length)} totalCount={totalCount??candidates.length} minimumDays={minimumDays} topTenCount={topTenCount} topTenStatus={topTenStatus} onChange={mode=>{setFilter('all');onDisplayModeChange(mode);}}/>:<button type="button" aria-pressed={visibleFilter==='all'} onClick={()=>setFilter('all')}>전체 {candidates.length}</button>}
-     <button type="button" aria-pressed={visibleFilter==='review'} onClick={()=>{const first=candidates.find(c=>c.rangeReview);setFilter('review');setReviewAnchorId(first?.id??active?.id??null);if(first&&!active?.rangeReview)onSelect(first.id);}}>범위 검토 {reviewCount}</button>
+     <button type="button" disabled={!reviewCount} aria-pressed={visibleFilter==='review'} onClick={()=>{const first=candidates.find(c=>c.rangeReview);setFilter('review');if(first&&!active?.rangeReview)onSelect(first.id);}}>범위 검토 {reviewCount}</button>
     </fieldset>
    </header>
    {displayMode==='top10'&&topTenStatus==='ready'&&topTenCustomers&&topTenMatches&&<CandidateTopTenCoverage customers={topTenCustomers} matches={topTenMatches}/>}
-   <fieldset ref={rows} className={styles.rows} aria-label="후보 선택 목록">
+   <fieldset ref={rows} className={styles.rows} data-candidate-list="fullscreen" aria-label="후보 선택 목록">
     {shown.map(candidate=>{
      const index=candidates.findIndex(item=>item.id===candidate.id);
      const selected=active?.id===candidate.id;

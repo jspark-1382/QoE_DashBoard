@@ -58,13 +58,12 @@
 .regionList h2 span{background:#eaf3f8;border-radius:7px;padding:3px 7px;font-size:11px;color:#2b6986}
 .regionFilterLine{display:flex;align-items:center;justify-content:space-between;gap:7px;flex-wrap:wrap;min-width:0}
 .regionFilterLine h2{margin:0}
-.regionFilterLine button{padding:4px 7px}
 .regionList header p,.customerPanel header p{font-size:10px;line-height:1.5;color:#8495a5;margin:0}
 .regionRows{padding:0 9px 10px;display:flex;flex-direction:column;gap:5px}
 .regionRowGroup{display:flex;align-items:stretch;gap:5px;min-width:0}
 .regionRowGroup>.regionRow{flex:1;min-width:0}
 .regionCopy .regionState{align-self:flex-start;padding:2px 5px;font-size:8px;margin-top:1px}
-.aiButton{flex-shrink:0;align-self:center;min-width:60px;padding:7px 8px;background:#edf8f5;border:1px solid #acd9cc;border-radius:7px;color:#16806d;font-size:10px;font-weight:800;cursor:pointer;white-space:nowrap}
+.aiButton{flex-shrink:0;align-self:center;min-width:70px;min-height:36px;padding:6px 9px;background:white;border:1px solid #a5c9c1;border-radius:7px;color:#176b60;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap}
 .aiButton:hover{background:#dff3eb}
 .aiButton:focus-visible{outline:3px solid #2bc9b6;outline-offset:2px}
 .regionRow{display:flex;align-items:center;gap:9px;border:1px solid #e4ecf2;border-radius:8px;min-width:0;width:100%;text-align:left;background:#fbfdff;color:#314d63;cursor:pointer;padding:8px 7px}
@@ -138,43 +137,47 @@
 .workspace{gap:9px}
 .kpis{gap:9px}
 .kpis>div{padding:11px 14px;grid-template-columns:minmax(0,1fr) auto;gap:2px 9px;border-radius:10px;min-height:69px}
-.kpis span{font-size:11px}
+.kpis span{font-size:13px}
 .kpis strong{font-size:22px}
-.kpis small{font-size:9px;line-height:1.35}
+.kpis small{font-size:11px;line-height:1.4;color:#566f81}
 .workspaceGrid{grid-template-columns:minmax(0,1.67fr) minmax(365px,.9fr);gap:10px;align-items:start}
 .mapPanel{height:clamp(505px,65vh,690px);border-radius:11px}
 .mapHeading{padding:11px 13px 7px}
-.mapHeading h2{font-size:14px}
-.mapHeading p{font-size:10px}
-.mapLegend{padding:6px 13px 8px}
+.mapHeading h2{font-size:17px}
+.mapHeading p{font-size:12px}
+.mapLegend{padding:6px 13px 8px;font-size:11px}
 .mapSurface{margin:7px 9px}
-.mapBottom{padding:6px 12px;font-size:9px;line-height:1.4}
+.mapSurface > :global([aria-label="개선 후보 지도"]){min-height:0}
+.mapBottom{padding:6px 12px;font-size:11px;line-height:1.45}
 .inspectPanel{gap:8px}
 .regionList,.selectedRegion,.customerPanel{border-radius:10px}
 .regionList{overflow:hidden}
-.regionList>header{padding:10px 12px 8px}
-.regionList h2{font-size:13px}
-.regionList header p{font-size:9px}
-.regionRows{max-height:215px;overflow-y:auto;overscroll-behavior:contain;padding:0 8px 8px;gap:4px;scrollbar-width:thin}
-.regionRow{padding:7px 6px;gap:7px}
-.regionRow .regionNo{height:24px;width:23px}
-.regionCopy b{font-size:10px}
-.regionCopy small{font-size:9px}
+.regionList>header{padding:12px 13px 9px}
+.regionList h2{font-size:16px;line-height:1.4}
+.regionList header p{margin-top:4px;font-size:11px;color:#576f82}
+.regionRows{max-height:clamp(248px,34dvh,352px);overflow-y:auto;overscroll-behavior:contain;padding:2px 10px 8px;gap:5px;scrollbar-width:thin;scrollbar-gutter:stable}
+.regionRow{padding:8px;gap:8px;min-height:54px;background:white}
+.regionRow .regionNo{height:28px;width:28px;font-size:13px;font-variant-numeric:tabular-nums}
+.regionCopy{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:5px;align-items:center}
+.regionCopy b{grid-column:1;grid-row:1;font-size:14px;line-height:1.4;color:#213f54}
+.regionCopy > :not(b):not(.regionState){grid-column:1/-1}
+.regionCopy .regionState{grid-area:1/2;align-self:center;justify-self:end;margin:0;padding:2px 5px;font-size:10px;white-space:nowrap}
+.regionCopy small{font-size:12px;line-height:1.4;color:#536b7c}
 .regionState{font-size:9px;max-width:94px}
 .selectedRegion{padding:10px 12px}
-.selectedHeading h2{font-size:13px}
+.selectedHeading h2{font-size:16px}
 .summaryMetrics{margin-top:8px;gap:5px}
 .summaryMetrics>div{padding:7px 9px;gap:3px}
-.summaryMetrics span{font-size:9px}
-.summaryMetrics strong{font-size:16px}
-.locationSource{font-size:10px;margin-top:8px}
-.interpretation{padding:8px 9px;font-size:10px;margin:8px 0}
+.summaryMetrics span{font-size:12px;color:#526c7f}
+.summaryMetrics strong{font-size:18px}
+.locationSource{font-size:12px;margin-top:8px}
+.interpretation{padding:8px 9px;font-size:12px;margin:8px 0}
 .customerPanel>header{padding:10px 12px 7px}
-.customerPanel h2{font-size:12px}
-.customerPanel header p{font-size:9px}
+.customerPanel h2{font-size:15px}
+.customerPanel header p{font-size:12px}
 .inspectPanel[data-detail-tab="summary"] .customerPanel :global([aria-label="선택 후보 고객 통화 근거"]){max-height:168px;overflow-y:auto;scrollbar-width:thin}
 .detailTabs{display:flex;align-items:center;gap:4px;min-width:0;padding:5px;border:1px solid #dce8ef;border-radius:9px;background:#fff}
-.detailTabs button{flex:1;min-width:0;cursor:pointer;border:0;border-radius:6px;background:transparent;color:#617f90;padding:8px 5px;font-size:10px;line-height:1.4;font-weight:800}
+.detailTabs button{flex:1;min-width:0;min-height:36px;cursor:pointer;border:0;border-radius:6px;background:transparent;color:#496477;padding:6px 5px;font-size:13px;line-height:1.4;font-weight:700}
 .detailTabs button[aria-selected="true"]{background:#e2f7f1;color:#137c6d;box-shadow:inset 0 -2px #2bb1a0}
 .detailTabs button:focus-visible{outline:3px solid #3abca8;outline-offset:1px}
 .rfPanel{background:#fff;border:1px solid #dce8ef;border-radius:10px;padding:12px;min-width:0}
@@ -185,7 +188,15 @@
 .rfFacts b{font-size:13px;color:#2a5369}
 @media(max-width:1260px){.workspaceGrid{grid-template-columns:minmax(0,1.3fr) minmax(350px,1fr)}}
 @media(max-width:1020px){.workspaceGrid{grid-template-columns:minmax(0,1fr)}.mapColumn{position:static}.mapPanel{height:530px}.inspectPanel{display:flex;flex-direction:column}}
-@media(max-width:690px){.kpis{grid-template-columns:minmax(0,1fr)}.mapPanel{height:440px}.regionRows{max-height:230px}.inspectPanel>*{width:100%}.rfFacts{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media(max-width:690px){
+ .kpis{grid-template-columns:minmax(0,1fr)}
+ .mapPanel:not([role="dialog"]){height:auto}
+ .mapPanel:not([role="dialog"]) .fullscreenWorkspace{flex:auto}
+ .mapPanel:not([role="dialog"]) .mapSurface{flex:none;height:clamp(280px,42dvh,380px)}
+ .regionRows{max-height:clamp(230px,36dvh,320px)}
+ .inspectPanel>*{width:100%}
+ .rfFacts{grid-template-columns:repeat(3,minmax(0,1fr))}
+}
 
 
 /* Fullscreen map interpretation rail, based on the approved left-panel mockup. */
@@ -351,3 +362,4 @@
  .mapPanel[role="dialog"] .mapHeading{position:absolute;top:calc(57% + 10px);right:9px;left:auto;align-self:auto;height:auto!important;min-height:0!important;max-height:none!important;flex:0 0 auto!important;padding:0!important;z-index:931;}
 }
 
+.tabContent{display:flex;flex-direction:column;gap:inherit;min-width:0}
