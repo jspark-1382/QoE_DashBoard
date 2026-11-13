@@ -439,3 +439,55 @@
 .aiButton{align-self:center;flex-shrink:0;min-width:70px;min-height:36px;padding:6px 9px;background:white;border:1px solid #a5c9c1;border-radius:7px;color:#176b60;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap}
 .aiButton:hover{background:#dff3eb}
 .aiButton:focus-visible{outline:3px solid #2bc9b6;outline-offset:2px}
+
+/* Neutral controls and evidence hierarchy within alternative candidate workspaces. */
+.metrics>div,.list,.detail,.methodDisclosure,.state{background:#fff;border-color:#e1e2e6;border-radius:8px}
+.metrics>div>span,.metrics>div strong,.list h3,.detail h3,.mapHead h3,.railTitle h3,.railTitle h3 svg{color:#191a1b}
+.metrics small,.list header p,.detailHead p,.mapHead p,.railTitle p{color:#66686c}
+.layout{gap:14px;grid-template-columns:minmax(0,1.58fr) minmax(390px,1fr)}
+.mapFrame{background:#fff;border-color:#e1e2e6;border-radius:8px}
+.mapHead button{background:white;border-color:#d4d5d9;color:#191a1b;border-radius:6px;box-shadow:none}
+.headingControls select,.headingControls button,.mdtGridPicker select{background:#fff;border-color:#d4d5d9;color:#191a1b;border-radius:6px;font-weight:600}
+.compactModePicker button[aria-pressed="true"]{background:#191a1b;border-color:#191a1b;color:white}
+.headingSimulator:hover,.compactModePicker button:hover:not([aria-pressed="true"]){background:#f1f1f3}
+.compactModePicker button:focus-visible,.headingModelSelect:focus-visible,.headingSimulator:focus-visible,.mdtGridPicker select:focus-visible{outline:2px solid #191a1b;outline-offset:2px}
+.mdtGridPicker{color:#4e5158}
+.mapView :global([aria-label="기지국 표시 설정"]){background:#fafafb;border-color:#e9eaee;color:#4b4d53}
+.mapView :global([aria-label="기지국 표시 설정"]) select{background:#fff;border-color:#d4d5d9;color:#191a1b;border-radius:6px}
+.mapView :global([aria-label="기지국 표시 설정"]) input{accent-color:#191a1b}
+.rows{gap:0;max-height:clamp(220px,28dvh,318px);padding:1px 10px 8px}
+.aiRow{gap:7px;padding:3px 0;border-bottom:1px solid #ececef}
+.aiRow:last-child{border-bottom:0}
+.item{background:#fff;border-color:transparent;border-radius:6px;color:#191a1b;box-shadow:none;padding:7px 8px;min-height:54px}
+.item:hover{background:#f7f7f8;border-color:transparent}
+.item[aria-pressed="true"]{background:#f0f0f2;border-color:transparent;box-shadow:inset 3px 0 #191a1b}
+.num{background:#f2f2f4;border:1px solid #dedfe3;color:#484b50;border-radius:6px}
+.item[aria-pressed="true"] .num{background:#191a1b;border-color:#191a1b;color:#fff}
+.itemBody strong{color:#191a1b;font-size:14px}
+.itemBody small{color:#686b72;font-size:12px}
+.aiButton,.more{background:white;border-color:#d4d5d9;border-radius:6px;color:#292b30;font-size:12px}
+.aiButton:hover,.more:hover{background:#f0f0f2}
+.item:focus-visible,.aiButton:focus-visible,.more:focus-visible,.investigate:focus-visible{outline:2px solid #191a1b;outline-offset:2px}
+.detailTabs{background:white;border-color:#e1e2e6;gap:10px;padding:0 11px}
+.detailTabs button{background:transparent;border-bottom:2px solid transparent;border-radius:0;min-height:42px;color:#6a6c73;font-size:13px;padding:11px 2px}
+.detailTabs button[aria-selected="true"]{background:transparent;color:#191a1b;border-bottom-color:#e0282f;box-shadow:none}
+.detailTabs button:focus-visible{outline:2px solid #191a1b;outline-offset:-3px}
+.detailHead>span,.detailNote{color:#66686c}
+.detailsGrid{grid-template-columns:repeat(4,minmax(0,1fr));gap:0;padding:10px 13px}
+.detailsGrid>div{background:transparent;border:0;border-right:1px solid #e2e3e7;border-radius:0;padding:0 9px;gap:4px}
+.detailsGrid>div:nth-child(4n){border-right:0}
+.detailsGrid span{color:#66686c;font-size:11px}
+.detailsGrid strong{color:#191a1b;font-size:20px}
+.detail :global([aria-label="선택 후보 AI 요약"]){background:#f6f6f8;border-color:#e9eaee;color:#191a1b;border-radius:6px;margin:10px 13px;padding:10px}
+.detail :global([aria-label="선택 후보 AI 요약"]) strong,.detail :global([aria-label="선택 후보 AI 요약"]) dt{color:#44474e}
+.detail :global([aria-label="선택 후보 AI 요약"]) output{color:#777a81}
+.detail :global([aria-label="선택 후보 AI 요약"]) dl>div{grid-template-columns:1fr;gap:1px}
+.detail :global([aria-label="선택 후보 AI 요약"]) dd{color:#484b52;font-size:12px}
+.detail :global([data-summary-representative-title]){color:#191a1b!important;font-size:17px!important;font-weight:750}
+.detail :global([aria-label="선택 후보 AI 요약"]) button,.investigate{background:#191a1b;border-color:#191a1b;color:white;border-radius:5px;min-height:36px}
+.detail :global([aria-label="선택 후보 AI 요약"]) button:hover,.investigate:hover{background:#35373c}
+.railTabs button{background:white;border-color:#dedfe4;color:#62656b;border-radius:5px}
+.railTabs button[aria-selected="true"]{background:#f1f1f3;color:#191a1b;border-color:#191a1b}
+@media(max-width:1260px){.layout{grid-template-columns:minmax(0,1.25fr) minmax(360px,1fr)}}
+@media(max-width:1020px){.layout{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:690px){.detailsGrid{grid-template-columns:repeat(2,minmax(0,1fr));row-gap:12px}.detailsGrid>div:nth-child(2n){border-right:0}.detailsGrid strong{font-size:18px}.rows{max-height:280px}}

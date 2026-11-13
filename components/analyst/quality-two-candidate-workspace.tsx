@@ -241,9 +241,11 @@ export function QualityTwoCandidateWorkspace({summary,fullSummary,topTen,topTenC
       <div><span>관측된 날짜</span><strong>{activeCard.poorDateCount}일</strong></div>
       <div><span>{analysisMode==='all'?'별도 평가':'새 고객 재관측'}</span><strong>{analysisMode==='all'?'미실시':activeCard.validationNewCustomers+'명'}</strong></div>
      </div>
+     <details className={styles.summaryEvidence}><summary>후보 선정·위치 근거</summary>
      {evidence?<p className={styles.locationSource}>후보 구성 위치 근거: GPS {evidence.gnss}통화 · {usingMixed?'MDT 근사 '+evidence.rough+'통화 (위치 미검증)':'검토 통과 삼각 측량 '+evidence.radio+'통화'} {analysisMode==='evaluation'&&<small>· 후속 평가일 관측 {evidence.verificationCalls}통화</small>}</p>
       :<p className={styles.locationSource}>위치 근거: 후보 상세 확인 중</p>}
      <p className={styles.interpretation}><strong>선정 이유</strong> 서로 다른 고객·날짜의 저QoE 위치가 함께 관측된 조사 후보입니다. {activeCard.rangeReviewRequired?'범위 검토가 필요합니다.':'원인은 별도 확인이 필요합니다.'}</p>
+     </details>
      {aiSummary}
      {selected&&<CandidateMdtRsrpChart callIds={selected.candidate.memberCallIds} sourceRevision={summary.scope.sourceRevision}/>}
      <small className={styles.coordinate}>중심점 기준 행정동 참고 · 대표 좌표 {activeCard.medoid.lat.toFixed(5)}, {activeCard.medoid.lon.toFixed(5)}</small>

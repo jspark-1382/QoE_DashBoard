@@ -1,0 +1,100 @@
+.page[data-candidate-theme="kt"] { background:#f7f7f8; }
+
+.page[data-candidate-theme="kt"] > header {
+  background:#fff;
+  color:#191a1b;
+  border-bottom:1px solid #e9eaee;
+  box-shadow:none;
+}
+.page[data-candidate-theme="kt"] > header > a {
+  color:#191a1b !important;
+  text-shadow:none;
+}
+.page[data-candidate-theme="kt"] > header > a > span { color:#55585d; }
+.page[data-candidate-theme="kt"] > header > a svg { color:#191a1b; stroke:#191a1b; }
+.page[data-candidate-theme="kt"] > header > span { color:#55585d; }
+.page[data-candidate-theme="kt"] > header > nav > a {
+  position:relative;
+  color:#55585d;
+  border-radius:0;
+}
+.page[data-candidate-theme="kt"] > header > nav > a:hover { color:#191a1b; background:#f7f7f8; }
+.page[data-candidate-theme="kt"] > header > nav > a[aria-current="page"] {
+  color:#191a1b;
+  background:transparent;
+  box-shadow:none;
+}
+.page[data-candidate-theme="kt"] > header > nav > a[aria-current="page"]::after {
+  content:"";
+  position:absolute;
+  height:2px;
+  background:#e0282f;
+  inset:auto 12px -8px;
+}
+.page[data-candidate-theme="kt"] :global([data-candidate-toolbar]) {
+  gap:10px;
+  padding-block:14px;
+  color:#55585d;
+}
+.page[data-candidate-theme="kt"] :global([data-candidate-toolbar]) > label {
+  color:#55585d;
+  background:#fff;
+  border-color:#d7d8dc;
+  border-radius:6px;
+  box-shadow:none;
+}
+.page[data-candidate-theme="kt"] :global([data-candidate-toolbar]) > label > select,
+.page[data-candidate-theme="kt"] :global([data-candidate-toolbar]) > label > input {
+  color:#191a1b;
+  border-color:#d7d8dc;
+  border-radius:6px;
+  background:#fff;
+  box-shadow:none;
+}
+.page[data-candidate-theme="kt"] :global([data-candidate-toolbar]) > button,
+.page[data-candidate-theme="kt"] :global([data-candidate-toolbar]) > fieldset > button,
+.page[data-candidate-theme="kt"] :global([data-candidate-toolbar]) > form > button {
+  color:#191a1b;
+  background:#fff;
+  border-color:#d7d8dc;
+  border-radius:6px;
+  box-shadow:none;
+  min-height:36px;
+}
+.page[data-candidate-theme="kt"] :global([data-candidate-toolbar]) > button[aria-pressed="true"],
+.page[data-candidate-theme="kt"] :global([data-candidate-toolbar]) > fieldset > button[aria-pressed="true"] {
+  color:#fff;
+  background:#191a1b;
+  border-color:#191a1b;
+}
+.page[data-candidate-theme="kt"] :global([data-candidate-toolbar]) > fieldset {
+  border-color:#d7d8dc;
+  background:#fff;
+  border-radius:6px;
+}
+.page[data-candidate-theme="kt"] :global([data-candidate-toolbar]) > form > label {
+  color:#55585d;
+}
+.page[data-candidate-theme="kt"] :global([data-candidate-toolbar]) > form > label > input {
+  color:#191a1b;
+  background:#fff;
+  border-color:#d7d8dc;
+  border-radius:6px;
+  box-shadow:none;
+}
+.page[data-candidate-theme="kt"] > header :focus-visible,
+.page[data-candidate-theme="kt"] :global([data-candidate-toolbar]) > :is(label,form,fieldset) :focus-visible,
+.page[data-candidate-theme="kt"] :global([data-candidate-toolbar]) > button:focus-visible {
+  outline:2px solid #55585d;
+  outline-offset:3px;
+}
+.page[data-candidate-theme="kt"] :global([data-candidate-list]) button:focus-visible,
+.page[data-candidate-theme="kt"] :global([aria-label="후보 상세 정보 선택"]) > button:focus-visible,
+.page[data-candidate-theme="kt"] :global([aria-label="모델 후보 상세 정보 선택"]) > button:focus-visible {
+  outline:2px solid #55585d;
+  outline-offset:-3px;
+}
+
+@media(max-width:900px) {
+  .page[data-candidate-theme="kt"] > header > nav > a[aria-current="page"]::after { bottom:0; }
+}
