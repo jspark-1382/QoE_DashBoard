@@ -318,16 +318,16 @@ export function ImprovementCandidateMap({candidates,selectedId,listFocusRequest,
         const active=candidate.id===selectedId;
         if(candidate.kind==='spatial' && loc.radiusM!=null){
           const circle=L.circle(p,{
-            radius:loc.radiusM,color:fullscreenEnhanced?(active?'#d8414c':'#9caeb8'):presentation==='proposal2'?(active?'#c98520':'#91a6b3'):active?'#c4474e':'#d37c74',
+            radius:loc.radiusM,color:presentation==='proposal2'?(active?'#55585d':'#b6babf'):fullscreenEnhanced?(active?'#d8414c':'#9caeb8'):active?'#c4474e':'#d37c74',
             dashArray:fullscreenEnhanced&&active?'7 5':'6 5',weight:active?2.5:1.6,
-            fillColor:fullscreenEnhanced?'#f06c75':presentation==='proposal2'?'#efbf65':'#e87b78',fillOpacity:active?0.16:0.075,
+            fillColor:presentation==='proposal2'?'#a6abb2':fullscreenEnhanced?'#f06c75':'#e87b78',fillOpacity:active?0.16:0.075,
             interactive:false,
           }).addTo(next);
           circle.getElement()?.setAttribute('data-candidate-circle-id',candidate.id);
         }
         const marker=L.circleMarker(p,{
           radius:active?12:9,weight:active?3:2,
-          color:fullscreenEnhanced&&active?'#fff':presentation==='proposal2'&&active?'#a66014':'#fff',fillColor:fullscreenEnhanced?(active?'#d8414c':'#8fa4b3'):presentation==='proposal2'?(active?'#f6bb45':'#8fa4b3'):candidate.kind==='spatial'?'#d44956':'#3869a6',
+          color:'#fff',fillColor:presentation==='proposal2'?(active?'#191a1b':'#a6afb4'):fullscreenEnhanced?(active?'#d8414c':'#8fa4b3'):candidate.kind==='spatial'?'#d44956':'#3869a6',
           fillOpacity:1,
         }).addTo(next);
         const content=document.createElement('div');
@@ -460,7 +460,7 @@ export function ImprovementCandidateMap({candidates,selectedId,listFocusRequest,
     }).catch(()=>{if(current)setNotice('지도 후보 표시 실패');});
     return()=>{current=false;};
   },[candidates,map,selectedId,listFocusRequest,observationPoints,roughPoints,stationSites,roughUsedForCandidate,presentation,fullscreenEnhanced,rfRecords,unmatchedOverlayActive]);
-  return <div className={[styles.container,fullscreenEnhanced?styles.referenceMap:''].filter(Boolean).join(' ')} aria-label="개선 후보 지도">
+  return <div className={[styles.container,fullscreenEnhanced?styles.referenceMap:''].filter(Boolean).join(' ')} aria-label="개선 후보 지도" data-candidate-theme={presentation==='proposal2'?'kt':undefined}>
     <div className={styles.map} ref={host}/>
     {unmatchedTopTen&&unmatchedOverlayActive&&<CandidateTopTenOverlay map={map} scope={unmatchedTopTen.scope}
       customers={unmatchedTopTen.customers} candidates={candidates} expectedSourceRevision={sourceRevision}/>}

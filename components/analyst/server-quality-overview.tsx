@@ -16,6 +16,7 @@ import type {MosBand} from '../../lib/analyst/quality-proposal-metrics';
 import type {SipReasonGroup} from '../../lib/analyst/sip-reason';
 import styles from './quality-proposal-four.module.css';
 import ui from './server-quality-overview.module.css';
+import candidateTheme from './kt-candidate-page.module.css';
 import DocumentLink from './document-link';
 import {useVisibleMap} from '../../lib/analyst/use-visible-map';
 
@@ -163,10 +164,10 @@ export function ServerQualityOverview(){
   const stats=summary.data,dates=meta?.dataset.meta.dates??['2026-10-30'];
   const maxRegion=Math.max(1,...(stats?.regions.map(region=>region.poorCalls)??[]));
   const candidateOverview:AnalystOverview|null=candidateMap.data?.overview??null;
-  return <div className={styles.shell+' '+styles.improvementTwo} data-query-mode="server">
+  return <div className={styles.shell+' '+styles.improvementTwo+' '+candidateTheme.page} data-query-mode="server" data-candidate-theme={state?.mapMode==='improvement'?'kt':undefined}>
     <QualityTopNav active="quality" date={state?.dateEnd??dates.at(-1)} qualityHref={state?qualityComparisonHref(state,'improvement2'):undefined}/>
     <main className={styles.main}>
-      {state&&<div className={styles.filters} aria-label="품질 현황 분석 조건">
+      {state&&<div className={styles.filters} aria-label="품질 현황 분석 조건" data-candidate-toolbar>
         <label className={styles.dateField}><CalendarDays size={17}/>시작일<select aria-label="분석 시작일" value={state.dateStart} onChange={e=>{
           const d=adjustDateRange(dates,state.dateStart,state.dateEnd,'start',e.target.value);update({dateStart:d.start,dateEnd:d.end,chosenCall:null});
         }}>{dates.map(d=><option key={d}>{d}</option>)}</select></label>

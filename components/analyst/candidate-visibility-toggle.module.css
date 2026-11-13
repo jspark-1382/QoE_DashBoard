@@ -3,3 +3,11 @@
 .toggle button[aria-pressed="true"]{background:white;color:#086d5e;border-color:#82bdb1;box-shadow:0 1px 2px #183a4812}
 .toggle button:hover{border-color:#58aaab}
 .toggle button:focus-visible{outline:3px solid #2caf9e;outline-offset:1px}
+
+/* Candidate visibility is a neutral segmented selection control. */
+.toggle{background:#fff;border-color:#dedfe4;border-radius:6px;padding:0;gap:0}
+.toggle button{background:white;color:#5d6067;border-radius:4px;border-color:transparent;font-weight:600;min-height:32px}
+.toggle button+button{border-left-color:#e5e6e9}
+.toggle button[aria-pressed="true"]{background:#191a1b;color:white;border-color:#191a1b;box-shadow:none}
+.toggle button:hover:not([aria-pressed="true"]){background:#f0f0f2;border-color:#dedfe4}
+.toggle button:focus-visible{outline:2px solid #191a1b;outline-offset:2px}
