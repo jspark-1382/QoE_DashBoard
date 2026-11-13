@@ -29,7 +29,7 @@ test('all active navigation bars use the four requested tabs in order',()=>{
    for(const n of [1,2,3])
      assert(!item.includes('href="/overview-proposal-'+n+'"'),'retired tab must be absent');
  }
- const order=['품질 현황','고객 선별','고객·통화 분석','기지국·PCI'];
+ const order=['품질 현황','고객현황','고객·통화 분석','기지국·PCI'];
  const positions=order.map(label=>top.indexOf('>'+label));
  assert(positions.every(x=>x>=0),'shared tabs have all requested labels');
  assert(positions.every((x,i)=>i===0||positions[i-1]<x),'tabs follow the requested order');

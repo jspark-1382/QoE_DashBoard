@@ -143,3 +143,26 @@ test('timeout and explicit cancel abort pending HTTP without a successful report
  const controller=new AbortController();const pending=analyzeWithQwen({...config,timeoutMs:30000},evidence,controller.signal);controller.abort();
  await assert.rejects(()=>pending,e=>e.code==='ANALYSIS_CANCELLED');
 });
+
+test('candidate-only extras default empty, follow env precedence and share protected-field validation',t=>{
+ const root=temp(t);
+ assert.deepEqual(loadQwenConfig(root,{}).candidateExtraBody,{});
+ fs.writeFileSync(path.join(root,'.env'),'QWEN_EXTRA_BODY_JSON={"top_p":0.9}\nQWEN_CANDIDATE_EXTRA_BODY_JSON={"chat_template_kwargs":{"enable_thinking":true}}\n');
+ fs.writeFileSync(path.join(root,'.env.local'),'QWEN_CANDIDATE_EXTRA_BODY_JSON={"chat_template_kwargs":{"enable_thinking":false}}\n');
+ const local=loadQwenConfig(root,{});
+ assert.deepEqual(local.extraBody,{top_p:0.9});
+ assert.deepEqual(local.candidateExtraBody,{chat_template_kwargs:{enable_thinking:false}});
+ const processValue=loadQwenConfig(root,{QWEN_CANDIDATE_EXTRA_BODY_JSON:'{"reasoning_effort":"none"}'});
+ assert.deepEqual(processValue.candidateExtraBody,{reasoning_effort:'none'});
+ assert.equal(Object.hasOwn(publicConfig(processValue),'candidateExtraBody'),false);
+ for(const raw of ['not JSON','[]','{"messages":[]}','{"model":"injected"}','{"stream":true}','{"max_tokens":99999}','{"api_key":"forbidden"}','{"chat_template_kwargs":{"enable_thinking":"false"}}','{"chat_template_kwargs":{"thinking_budget":32769}}']){
+  assert.throws(()=>loadQwenConfig(root,{QWEN_CANDIDATE_EXTRA_BODY_JSON:raw}),error=>error.code==='QWEN_CONFIG_INVALID');
+ }
+});
+test('candidate-only thinking options never override customer transport settings',async t=>{
+ let body;
+ const baseUrl=await server(t,async(req,res)=>{let raw='';for await(const part of req)raw+=part;body=JSON.parse(raw);reply(res,200,{choices:[{finish_reason:'stop',message:{content:JSON.stringify(report)}}]});});
+ const config=loadQwenConfig(temp(t),{QWEN_BASE_URL:baseUrl,QWEN_MODEL:'test',QWEN_EXTRA_BODY_JSON:'{"chat_template_kwargs":{"enable_thinking":true},"top_p":0.9}',QWEN_CANDIDATE_EXTRA_BODY_JSON:'{"chat_template_kwargs":{"enable_thinking":false},"top_p":0.6}'});
+ await analyzeWithQwen(config,evidence,new AbortController().signal);
+ assert.deepEqual(body.chat_template_kwargs,{enable_thinking:true});assert.equal(body.top_p,0.9);
+});

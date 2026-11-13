@@ -39,7 +39,7 @@ export function QualityTopNav({
       </Link>
       <Link className={active==='customer-screening'?styles.current:undefined}
         aria-current={active==='customer-screening'?'page':undefined}
-        href="/customer-screening"><Users size={15}/>고객 선별</Link>
+        href="/customer-screening"><Users size={15}/>고객현황</Link>
       <Link className={active==='contract'?styles.current:undefined}
         aria-current={active==='contract'?'page':undefined} href={contract}
         onClick={handle(onContract)}><Users size={15}/>고객·통화 분석</Link>

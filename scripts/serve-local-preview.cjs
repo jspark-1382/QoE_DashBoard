@@ -1,6 +1,8 @@
 /* eslint-disable no-console */
 /**
- * Local-only Vinext preview (127.0.0.1:3014).
+ * Local-only Vinext preview (127.0.0.1:3014 by default).
+ * QOE_PREVIEW_DIST selects a distribution inside this workspace;
+ * QOE_PREVIEW_PORT selects a separate local preview port.
  *
  * Vinext 1.0.0-beta.5 currently serves /qoe/ pages, but fails to recognize
  * their /qoe/_next/static/* build assets. The files exist at
@@ -18,7 +20,27 @@ const {createVoiceQueryHandler} = require('./voice-query-api.cjs');
 const {createQwenAnalysisHandler} = require('./qwen-analysis-api.cjs');
 
 const root=path.resolve(__dirname,'..');
-const dist=path.join(root,'dist');
+function resolvePreviewConfig(env=process.env){
+  const relative=String(env.QOE_PREVIEW_DIST??'dist').trim();
+  const inside=(base,target)=>{
+    const tail=path.relative(base,target);
+    return !!tail && tail!=='..' && !tail.startsWith('..'+path.sep) && !path.isAbsolute(tail);
+  };
+  if(!relative || relative.includes('\0') || path.isAbsolute(relative) || path.win32.isAbsolute(relative) || /^[a-z][a-z0-9+.-]*:/i.test(relative)){
+    throw new Error('QOE_PREVIEW_DIST must be a relative directory inside the workspace');
+  }
+  const dist=path.resolve(root,relative);
+  if(!inside(root,dist) || fs.existsSync(dist)&&!inside(fs.realpathSync(root),fs.realpathSync(dist))){
+    throw new Error('QOE_PREVIEW_DIST must resolve to a directory inside the workspace');
+  }
+  const portText=String(env.QOE_PREVIEW_PORT??'3014').trim();
+  const port=Number(portText);
+  if(!/^\d+$/.test(portText) || !Number.isInteger(port) || port<1 || port>65535){
+    throw new Error('QOE_PREVIEW_PORT must be an integer from 1 to 65535');
+  }
+  return {dist,port};
+}
+const {dist,port}=resolvePreviewConfig();
 const assetRoot=path.join(dist,'client','qoe','_next','static');
 const prefix='/qoe/_next/static/';
 const types={
@@ -91,7 +113,7 @@ async function main(){
   const serveAnalysis=createQwenAnalysisHandler({root});
   const {startProdServer}=await import(pathToFileURL(path.join(root,'node_modules/vinext/dist/server/prod-server.js')).href);
   const {server}=await startProdServer({
-    port:3014,
+    port,
     host:'127.0.0.1',
     outDir:dist,
     silent:true,
@@ -123,8 +145,9 @@ async function main(){
       }).catch(()=>{if(!res.headersSent){res.writeHead(500);res.end('Asset unavailable');}else res.destroy();});
     }
   });
-  console.log('[preview] Production UI + static assets: http://127.0.0.1:3014/qoe/');
+  console.log('[preview] Production UI + static assets: http://127.0.0.1:'+port+'/qoe/');
   console.log('[preview] Local only; source workbooks and original published data remain unchanged');
   if(servePublic)console.log('[preview] Local build: source public assets with revalidation');
 }
-main().catch(error=>{console.error(error);process.exitCode=1;});
+module.exports={resolvePreviewConfig};
+if(require.main===module)main().catch(error=>{console.error(error);process.exitCode=1;});

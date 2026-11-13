@@ -132,7 +132,24 @@ def file_sha256(path):
     return sha.hexdigest()
 
 
-def read_cdr(cdr_path, target_date, *, seen=None, identity_source=None):
+# Preserve original namespaces literally. A string "Null" and numeric 0 may be
+# vendor source values; only an absent/empty cell is unavailable here.
+TERMINATION_COLUMNS = {
+    'fcRaw': '102. FC', 'reasonRaw': '11. REASON',
+    'releaseCauseRaw': '13. Release Cause',
+    'secondaryReleaseCause1Raw': '14. S Release Cause 1',
+    'secondaryReleaseCause2Raw': '15. S Release Cause 2',
+    'sipFailResponseCodeRaw': '109. SIP Fail Response Code',
+    'byeReasonRaw': '115. BYE REASON', 'callDirectionRaw': '9. CALL DIR',
+}
+
+
+def termination_fields(row):
+    return {key: None if row.get(column) is None or str(row[column]) == '' else str(row[column])
+            for key, column in TERMINATION_COLUMNS.items()}
+
+
+def read_cdr(cdr_path, target_date, *, seen=None, identity_source=None, wanted_ids=None):
     dates = selected_dates(target_date)
     required = ['4. START TIME', '5. END TIME', '140. RTCP MOS(v5)',
                 'E2. svc_cont_id', 'E3. Call_ID_edit']
@@ -142,6 +159,7 @@ def read_cdr(cdr_path, target_date, *, seen=None, identity_source=None):
         '109. SIP Fail Response Code', '13. Release Cause', '9. CALL DIR',
         '59. Audio Tx jitter', '60. Audio Rx jitter', '63. Audio Tx Packetloss',
         '64. Audio Rx Packetloss', '131. RTP Audio Tx Loss CNT', '132. RTP Audio Rx Loss CNT'}
+    columns.update(TERMINATION_COLUMNS.values())
     calls = []
     audit = Counter()
     occurrences = Counter()
@@ -182,6 +200,9 @@ def read_cdr(cdr_path, target_date, *, seen=None, identity_source=None):
         if identity_source is not None:
             identity.append(identity_source)
         call_id = 'call-' + sha_key(*identity)
+        # Sidecar extraction keeps exact existing identity/dedup rules without retaining all calls.
+        if wanted_ids is not None and call_id not in wanted_ids:
+            continue
         bye_cell = clean(source_field(row, '76. BYE CELL ID'))
         ack_cell = clean(source_field(row, '75. BYE 200OK CELL ID'))
         # Match the RAT to the same source message as the published end Cell.
@@ -205,6 +226,7 @@ def read_cdr(cdr_path, target_date, *, seen=None, identity_source=None):
             'endType': clean(source_field(row, '10. RESULT')),
             'sipCause': clean(source_field(row, '11. REASON')) or clean(source_field(row, '109. SIP Fail Response Code')),
             'q850Cause': clean(source_field(row, '13. Release Cause')),
+            'termination': termination_fields(row),
             'direction': clean(source_field(row, '9. CALL DIR')),
             'rtp': {
                 'txJitter': value_number(source_field(row, '59. Audio Tx jitter')),
@@ -440,7 +462,8 @@ def as_day(customer_id, contract, group, stations, station_indices):
             'endType': call['endType'],
             'sipCause': call['sipCause'],
             'q850Cause': call['q850Cause'],
-            'fc': '',
+            'fc': call.get('termination', {}).get('fcRaw') or '',
+            'termination': call.get('termination', {}),
             'direction': call['direction'],
         })
     return {

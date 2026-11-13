@@ -21,6 +21,10 @@ function createQueryEngine({dbPath,root=path.resolve(__dirname,'..'),publicDir=p
   const overviewMeta=parse(one("SELECT json FROM meta WHERE key='overview'").json);
   if(parse(one("SELECT json FROM meta WHERE key='schema'").json)!=='voice-query-db-v1')throw Error('Unsupported voice query database schema');
   const revision=meta.revision,dates=[...meta.dates].sort((a,b)=>a<b?-1:a>b?1:0);
+  const readCallObservations=require('./voice-query-export-details.cjs').createExportDetailReader({
+    publicDir,exactWindow:true,includeObservedPot:true,
+    entryFor:(id,date)=>{const row=one('SELECT json FROM days WHERE customer_id=? AND date=?',[id,date]);return row?parse(row.json):null;},
+  });
   const areaRows=all('SELECT * FROM areas');
   const areas=Object.fromEntries(areaRows.map(a=>[a.id,[a.label,a.lat,a.lon]]));
   const boundaries=areaRows.map(a=>parse(a.json));
@@ -196,7 +200,7 @@ function createQueryEngine({dbPath,root=path.resolve(__dirname,'..'),publicDir=p
     return {dataset:{meta,customers:row?[parse(row.json)]:[],days:row?all('SELECT json FROM days WHERE customer_id=? ORDER BY date',[row.id]).map(r=>parse(r.json)):[]}};
   }
   const {createScreeningQueries}=require('./voice-query-screening.cjs');
-  const {screening,source:screeningSource,map:screeningMap}=createScreeningQueries({db,all,one,base,dates,areas,sourceMeta,rounded,text,pageOf});
+  const {screening,source:screeningSource,map:screeningMap,customerQoeTimeline}=createScreeningQueries({db,all,one,base,dates,areas,sourceMeta,rounded,text,pageOf});
   function query(args){
     if(!args||typeof args!=='object'||Array.isArray(args))fail('Invalid query');if(args.sourceRevision!=null&&args.sourceRevision!==revision){const e=new Error('Source revision mismatch; reload the dataset.');e.status=409;throw e;}
     if(args.page!=null&&(!Number.isInteger(args.page)||args.page<0))fail('Invalid page');
@@ -204,8 +208,20 @@ function createQueryEngine({dbPath,root=path.resolve(__dirname,'..'),publicDir=p
     let result;const op=args.op;
     if(op==='meta'){const {baseStations:_baseStations,callMeta:_callMeta,...lightMeta}=meta;result={schemaVersion:'voice-query-meta-v1',dataset:{meta:lightMeta,customers:[],days:[]},regionNames:Object.fromEntries(Object.entries(areas).map(([id,area])=>[id,area[0]])),totalCalls:audit.calls,totalCustomers:audit.customers};}
     else if(op==='customer')result=customer(args);
+    else if(op==='call-observations'){
+      if(args.sourceRevision!==revision || !dates.includes(args.callDate))fail('Original call date and revision required');
+      const callId=text(args.callId,'callId');
+      const row=one('SELECT customer_id,raw_id FROM calls WHERE id=? AND date=?',[callId,args.callDate]);
+      if(!row)fail('Original call not found for this date');
+      const detail=readCallObservations(row.customer_id,args.callDate,row.raw_id);
+      result={callId,callDate:args.callDate,samples:(detail?.radioSeries??[]).filter(s=>s.timestamp).map(s=>({
+        timestamp:s.timestamp,pot:s.pot??null,earfcn:s.frequency,technology:s.radioTechnology,
+      }))};
+    }
     else {const s=scopeOf(args.scope);if(op==='summary')result=summary(s);else if(op==='calls')result=callPage(s,args);else if(op==='map')result=map(s,args);else if(op==='map-stations')result=mapStations(s,args);else if(op==='customers')result=customers(s,args);else if(op==='screening')result=screening(s,args);else if(op==='screening-map'){
       result=screeningMap(s,args);
+    }else if(op==='customer-qoe-timeline'){
+      result=customerQoeTimeline(s,args);
     }else if(op==='routes'){
       const customerIds=ids(args.customerIds,'customerIds',10)??[];if(args.day!=null&&args.day!=='all'&&!dates.includes(args.day))fail('Invalid route day');const source=screeningSource(s,{customerIds}),helper=load(path.resolve(__dirname,'../lib/analyst/customer-screening-route.ts'));
       result={routes:customerIds.map(id=>helper.buildCustomerRoute(source,id,s.dateStart,s.dateEnd,s.from,s.to,args.day??'all')).filter(Boolean)};

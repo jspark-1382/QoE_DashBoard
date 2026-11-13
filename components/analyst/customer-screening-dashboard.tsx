@@ -2,10 +2,14 @@
 
 import {lazy,Suspense,useDeferredValue,useEffect,useMemo,useRef,useState} from 'react';
 import {useVisibleMap} from '../../lib/analyst/use-visible-map';
-import {Activity,AlertTriangle,CalendarDays,ChevronRight,Clock3,Layers3,MapPinned,
+import {Activity,AlertTriangle,CalendarDays,ChevronRight,Clock3,Layers3,MapPinned,Maximize2,Minimize2,
   PhoneCall,Repeat2,RotateCcw,Search,ShieldAlert,Target,Users} from 'lucide-react';
 import {QualityTopNav} from './quality-top-nav';
 import {CustomerScreeningPreview} from './customer-screening-preview';
+import {CustomerQoeTimelinePanel} from './customer-qoe-timeline';
+import type {CustomerQoeCall} from '../../lib/analyst/customer-qoe-timeline';
+import {customerQoeMapFocus} from '../../lib/analyst/customer-qoe-map-focus';
+import {MapPanelFrame} from './map-panel-frame';
 const CustomerScreeningMap=lazy(()=>import('./customer-screening-map').then(module=>({default:module.CustomerScreeningMap})));
 import {number,percent,type CustomerGroup,type ScreeningResult,type ScreeningRow} from '../../lib/analyst/customer-screening';
 import {metricLabel,type ScreeningMapMetric,type ScreeningMapView} from '../../lib/analyst/customer-screening-map';
@@ -14,6 +18,7 @@ import {screeningQueryRequest,screeningRouteIds,screeningTopRoutes,
   type ScreeningRankMode as RankMode,type ScreeningCustomerFilter as CustomerFilter} from '../../lib/analyst/screening-query';
 import {voiceQuery} from '../../lib/analyst/server-query';
 import styles from './customer-screening.module.css';
+import mapFrameStyles from './customer-screening-map-frame.module.css';
 
 const GROUPS:{id:CustomerGroup;label:string;color:string}[]=[
   {id:'concentrated',label:'저품질 집중',color:'#e84d64'},
@@ -108,10 +113,12 @@ function RankingTable({rows,selected,onPick,sortMode,setSortMode,onAll}:{rows:Sc
 }
 export function CustomerScreeningDashboard(){
   const [data,setData]=useState<ScreeningQueryResult|null>(null);
+  const [resolvedRequestKey,setResolvedRequestKey]=useState('');
   const source=data?.source;
   const sourceRevision=useRef('');
   const [page,setPage]=useState(0);
   const [mapEnabled,setMapEnabled]=useState(false);
+  const [mapOpenRequest,setMapOpenRequest]=useState(0);
   const [mapData,setMapData]=useState<ScreeningMapQueryResult|null>(null);
   const mapDataScope=useRef('');
   const [routeData,setRouteData]=useState<ScreeningRoutesResult|null>(null);
@@ -127,6 +134,7 @@ export function CustomerScreeningDashboard(){
   const [selectedAreaId,setSelectedAreaId]=useState(''),[selectedCellId,setSelectedCellId]=useState('');
   const [selectedId,setSelectedId]=useState(''),[showAll,setShowAll]=useState(false);
   const [routeDay,setRouteDay]=useState('all');
+  const [timelineSelection,setTimelineSelection]=useState<{key:string;call:CustomerQoeCall}|null>(null);
   const listDialog=useRef<HTMLDialogElement>(null);
   useEffect(()=>{
     if(showAll&&!listDialog.current?.open)listDialog.current?.showModal();
@@ -138,14 +146,15 @@ export function CustomerScreeningDashboard(){
   const request=useMemo(()=>screeningQueryRequest(scope,{query:deferredQuery,filter,sort:sortMode,page,
     selectedId,areaId:selectedAreaId,cellId:selectedCellId}),
     [scope,deferredQuery,filter,sortMode,page,selectedId,selectedAreaId,selectedCellId]);
+  const requestKey=JSON.stringify(request);
   useEffect(()=>{
     const controller=new AbortController();
     queueMicrotask(()=>{if(!controller.signal.aborted){setQueryLoading(true);setLoadError(null);}});
     voiceQuery<ScreeningQueryResult>('screening',{...request,sourceRevision:sourceRevision.current||undefined},controller.signal).then(value=>{
-      if(!controller.signal.aborted){sourceRevision.current=value.sourceRevision;setData(value);setQueryLoading(false);}
+      if(!controller.signal.aborted){sourceRevision.current=value.sourceRevision;setData(value);setResolvedRequestKey(requestKey);setQueryLoading(false);}
     }).catch(error=>{if(!controller.signal.aborted){setLoadError(error instanceof Error?error.message:String(error));setQueryLoading(false);}});
     return()=>controller.abort();
-  },[request]);
+  },[request,requestKey]);
   const report=data?.report;
   const mapTrigger=useVisibleMap<HTMLDivElement>(!!report&&!queryLoading&&!mapEnabled,setMapEnabled);
   const ranking=data?.topRows??[];
@@ -153,7 +162,10 @@ export function CustomerScreeningDashboard(){
   const topCustomers=mapData?.topCustomers??{total:0,unlocated:0,points:[]};
   const geography=mapData?.geography;
   const selected=data?.selected??null;
-  const comparable=data?.comparable??[];
+  const timelineKey=JSON.stringify([data?.sourceRevision,selected?.id,scope,selectedAreaId,selectedCellId]);
+  const timelinePending=queryLoading||resolvedRequestKey!==requestKey;
+  const focusedCall=!timelinePending&&timelineSelection?.key===timelineKey
+    &&(routeDay==='all'||timelineSelection.call.date===routeDay)?timelineSelection.call:null;
   useEffect(()=>{
     if(!mapEnabled)return;
     const controller=new AbortController();
@@ -167,7 +179,7 @@ export function CustomerScreeningDashboard(){
       .catch(error=>{if(!controller.signal.aborted)setMapError(error instanceof Error?error.message:String(error));});
     return()=>controller.abort();
   },[mapEnabled,scope,deferredQuery,filter,sortMode]);
-  const routeIds=JSON.stringify(screeningRouteIds(mapEnabled,mapView,selectedId,ranking));
+  const routeIds=JSON.stringify(screeningRouteIds(mapEnabled&&!timelinePending,mapView,selected?.id??'',ranking));
   useEffect(()=>{
     const controller=new AbortController();
     queueMicrotask(()=>{if(!controller.signal.aborted)setRouteData(null);});
@@ -178,17 +190,22 @@ export function CustomerScreeningDashboard(){
     return()=>controller.abort();
   },[routeIds,scope,mapView,routeDay]);
   const topCustomerRoutes=screeningTopRoutes(ranking,routeData?.routes??[]);
-  const route=routeData?.routes.find(item=>item.customerId===selectedId)??null;
+  const route=routeData?.routes.find(item=>item.customerId===selected?.id)??null;
   const pickCustomer=(id:string)=>{
+    setTimelineSelection(null);
     setSelectedId(id);setMapView('route');setMapEnabled(true);setRouteDay('all');
     setSelectedAreaId('');setSelectedCellId('');setShowAll(false);setQuery('');
   };
   const selectedRegion=data?.selectedRegion??'';
-  const clearMapSelection=()=>{setSelectedAreaId('');setSelectedCellId('');setSelectedId('');};
+  const clearMapSelection=()=>{setSelectedAreaId('');setSelectedCellId('');setSelectedId('');setTimelineSelection(null);};
+  const selectTimelineCall=(call:CustomerQoeCall|null)=>{
+    setTimelineSelection(call?{key:timelineKey,call}:null);
+    if(call&&customerQoeMapFocus(call)){setMapView('route');setMapEnabled(true);setRouteDay('all');}
+  };
   const showRows=ranking.slice(0,10);
   const reset=()=>{if(!source)return;setStart(source.dates[0]);setEnd(source.dates.at(-1)!);setFrom('00:00');setTo('23:59');
     setFilter('all');setQuery('');setSortMode('poor');setMapView('top10');setMapMetric('customers');
-    setSelectedAreaId('');setSelectedCellId('');setSelectedId('');setShowAll(false);setRouteDay('all');setPage(0);setMapEnabled(false);};
+    setSelectedAreaId('');setSelectedCellId('');setSelectedId('');setTimelineSelection(null);setShowAll(false);setRouteDay('all');setPage(0);setMapEnabled(false);};
   return <div className={styles.shell}>
     <QualityTopNav active="customer-screening" date={end} sourceLabel={(end||'2026-10-30').replaceAll('-','.')+' · MDT (Voice)'}/>
     <main className={styles.main}>
@@ -208,7 +225,7 @@ export function CustomerScreeningDashboard(){
         <span>~</span>
         <label className={styles.field} aria-label="종료 시간"><input aria-label="종료 시간" type="time" value={to} onChange={e=>{setPage(0);setTo(e.target.value);}}/></label>
         <label className={styles.field}>고객 조건
-          <select aria-label="고객 선별 조건" value={filter} onChange={e=>{setPage(0);setFilter(e.target.value as CustomerFilter);setShowAll(false);}}>
+          <select aria-label="고객현황 조건" value={filter} onChange={e=>{setPage(0);setFilter(e.target.value as CustomerFilter);setShowAll(false);}}>
             <option value="all">전체 고객</option><option value="affected">저품질 경험</option>
             <option value="repeat">반복 불량 (2일+)</option><option value="concentrated">저품질 집중</option><option value="drop">Drop 다발</option>
           </select>
@@ -272,16 +289,20 @@ export function CustomerScreeningDashboard(){
           </section>
         </div>
         <div className={styles.investigationGrid}>
-          <section className={styles.panel}>
-            <Heading icon={MapPinned} actions={<div className={styles.mapControls}>
-              {([['top10','저품질 고객 TOP 10'],['dong','행정동별 고객'],['cell','기지국·셀별'],['gnss','GPS 실측']] as const).map(([view,label])=>
+          <MapPanelFrame label="문제 고객 분석 지도" className={styles.panel+' '+mapFrameStyles.panel}
+            openRequest={mapOpenRequest}>{({expanded,close})=><>
+            <div className={mapFrameStyles.heading}>
+              <h2 className={mapFrameStyles.title}><MapPinned size={15} aria-hidden="true"/>문제 고객 분석 지도</h2>
+              <div className={styles.mapControls+' '+mapFrameStyles.controls} aria-label="고객 지도 표시 설정">
+              {([['top10','TOP 10','저품질 고객 TOP 10'],['dong','행정동','행정동별 고객'],['cell','기지국·셀','기지국·셀별 고객'],['gnss','GPS 실측','GPS 실측']] as const).map(([view,text,label])=>
                 <button key={view} type="button" className={styles.tabButton+' '+(mapView===view?styles.active:'')}
-                  aria-pressed={mapView===view}
-                  onClick={()=>{setMapView(view);setMapEnabled(true);clearMapSelection();}}>{label}</button>)}
-              {selectedId&&<button type="button" aria-label="선택 고객 위치흐름" className={styles.tabButton+' '+(mapView==='route'?styles.active:'')}
+                  aria-label={label} title={label} aria-pressed={mapView===view}
+                  onClick={()=>{setMapView(view);setMapEnabled(true);clearMapSelection();}}>{text}</button>)}
+               {(selectedId||mapView==='route'&&selected)&&<button type="button" aria-label="선택 고객 위치흐름" className={styles.tabButton+' '+(mapView==='route'?styles.active:'')}
+                title="선택 고객 위치흐름" aria-pressed={mapView==='route'}
                 onClick={()=>{setMapView('route');setMapEnabled(true);}}>고객 경로</button>}
               {mapView==='route'?<select aria-label="고객 위치흐름 날짜" className={styles.mapMetricSelect}
-                value={routeDay} onChange={e=>setRouteDay(e.target.value)}>
+                 value={routeDay} onChange={e=>{setRouteDay(e.target.value);setTimelineSelection(null);}}>
                 <option value="all">전체 날짜</option>
                 {source?.dates.filter(d=>d>=start&&d<=end).map(d=><option key={d} value={d}>{d.slice(5)}</option>)}
               </select>:mapView!=='top10'&&<select aria-label="고객 지도 집계 지표" className={styles.mapMetricSelect} value={mapMetric}
@@ -289,7 +310,15 @@ export function CustomerScreeningDashboard(){
                 {([['customers','저품질 고객 수'],['repeat','반복 불량 고객'],['poorCalls','저품질 통화 수'],['drops','Drop 수']] as const)
                   .map(([key,label])=><option key={key} value={key}>{label}</option>)}
               </select>}
-            </div>}>문제 고객 분석 지도</Heading>
+              </div>
+              <button type="button" className={mapFrameStyles.expandButton}
+                aria-expanded={expanded} aria-label={expanded?'전체 화면 닫기':'전체 지도'}
+                onClick={()=>{if(expanded)close();else{setMapEnabled(true);setMapOpenRequest(value=>value+1);}}}>
+                {expanded?<Minimize2 size={13} aria-hidden="true"/>:<Maximize2 size={13} aria-hidden="true"/>}
+                {expanded?'전체 화면 닫기':'전체 지도'}
+              </button>
+            </div>
+            <div className={mapFrameStyles.surface} data-map-surface>
             {!mapEnabled?<div ref={mapTrigger} className={styles.mapPlaceholder}>
               <MapPinned size={30}/><strong>문제 고객 위치와 경로</strong>
               <output>선택 기간의 지도를 자동으로 불러오는 중입니다…</output>
@@ -298,10 +327,11 @@ export function CustomerScreeningDashboard(){
             {mapEnabled&&geography&&source&&<Suspense fallback={<output className={styles.mapPlaceholder}>지도를 준비하는 중…</output>}><CustomerScreeningMap geography={geography} mode={mapView} metric={mapMetric}
               topCustomers={topCustomers}
               topCustomerRoutes={topCustomerRoutes}
-              sourceRevision={source.sourceRevision} selectedAreaId={selectedAreaId} selectedCellId={selectedCellId} customerRoute={route}
-              onSelectArea={area=>{setSelectedAreaId(area);setSelectedCellId('');setSelectedId('');}}
-              onSelectCell={cell=>{setSelectedCellId(cell);setSelectedAreaId('');setSelectedId('');}}
+               sourceRevision={source.sourceRevision} selectedAreaId={selectedAreaId} selectedCellId={selectedCellId} customerRoute={route} focusedCall={focusedCall}
+               onSelectArea={area=>{setSelectedAreaId(area);setSelectedCellId('');setSelectedId('');setTimelineSelection(null);}}
+               onSelectCell={cell=>{setSelectedCellId(cell);setSelectedAreaId('');setSelectedId('');setTimelineSelection(null);}}
               onSelectCustomer={pickCustomer}/></Suspense>}
+            </div>
             <div className={styles.scatterNote}>
               {!mapEnabled?'요약 표시 후 지도 영역이 보이면 자동으로 조회합니다.':!geography?'지도 집계를 조회하는 중…':mapView==='top10'?`상단 TOP 10과 동일한 고객 · 위치 표시 ${topCustomers.points.length}명 / ${topCustomers.total}명 · 최대 확대 시 전체 고객 통화 위치 흐름 자동 표시 · 위치 미확보 ${topCustomers.unlocated}명`:
                mapView==='route'?route?
@@ -312,26 +342,12 @@ export function CustomerScreeningDashboard(){
                 mapView==='cell'?'BYE Cell별 '+metricLabel(mapMetric)+' · 지도 좌표는 기지국 참고 위치':
                 'GPS 실측 저품질 관측 '+(geography?.gnssPoorCalls??0)+'건 · 실측 약 200m 격자 · GPS 미확보 통화 제외'}
             </div>
-          </section>
+          </>}</MapPanelFrame>
           <div className={styles.insightStack}>
-            <section className={styles.panel}>
-              <Heading icon={Users} actions={selectedRegion?<button className={styles.tabButton} type="button"
-                onClick={clearMapSelection}>선택 해제 ×</button>:undefined}>
-                {selectedRegion?'선택 고객 비교 · '+selectedRegion:'선택 고객 비교 (주요 후보 4명)'}
-              </Heading>
-              <div className={styles.compareGrid}>
-                {comparable.map((row,i)=><button type="button" key={row.id} className={styles.compareCard}
-                  aria-pressed={row.id===selected?.id} onClick={()=>pickCustomer(row.id)}>
-                  <div className={styles.compareHead}>{i+1}. {row.number}</div>
-                  <div className={styles.compareLine}><span>전체 통화</span><b>{row.total}건</b></div>
-                  <div className={styles.compareLine}><span>저품질 통화</span><b className={styles.red}>{row.poor}건</b></div>
-                  <div className={styles.compareLine}><span>저품질 비율</span><b>{percent(row.poor,row.eligible)}</b></div>
-                  <div className={styles.compareLine}><span>발생 일수</span><b>{row.repeatedDays}일</b></div>
-                  <div className={styles.compareLine}><span>주요 행정동</span><b>{row.mainArea}</b></div>
-                  <div className={styles.compareLine}><span>BYE Cell</span><b>{row.mainCell||'—'}</b></div>
-                </button>)}
-              </div>
-            </section>
+            <CustomerQoeTimelinePanel customer={selected} dates={source!.dates} scope={scope}
+              sourceRevision={data!.sourceRevision} areaId={selectedAreaId} cellId={selectedCellId}
+              selectedRegion={selectedRegion} onClearRegion={clearMapSelection}
+              onSelectCall={selectTimelineCall} pending={timelinePending}/>
             <section className={styles.panel}>
               <Heading icon={Activity}>{selectedRegion?selectedRegion+' · 선택 고객 상세':'선택 고객 상세 미리보기'}</Heading>
               {selected?<CustomerScreeningPreview row={selected} key={[selected.id,start,end,from,to,data!.sourceRevision].join('|')} dates={source!.dates} scope={scope} sourceRevision={data!.sourceRevision}/>:<div className={styles.empty}>선택된 고객이 없습니다.</div>}

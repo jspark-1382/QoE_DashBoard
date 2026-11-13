@@ -27,17 +27,27 @@ const errorForStatus=status=>{
  if(status===400||status===422)return analysisError('QWEN_REQUEST_REJECTED','Qwen 서버가 모델 또는 요청 옵션을 거절했습니다. 모델명·JSON 모드·추가 옵션을 확인해 주세요.');
  return analysisError('QWEN_UPSTREAM_ERROR','Qwen 서버가 정상 응답을 반환하지 않았습니다. 서버 상태를 확인해 주세요.',503);
 };
-async function request(config,route,{signal,body,timeoutMs=config.timeoutMs}={}){
+async function request(config,route,{signal,body,timeoutMs=config.timeoutMs,onRequest,onRawResponse}={}){
  requireConfigured(config);
  const controller=new AbortController();let timedOut=false;
  const abort=()=>controller.abort();if(signal?.aborted)controller.abort();else signal?.addEventListener('abort',abort,{once:true});
  const timer=setTimeout(()=>{timedOut=true;controller.abort();},timeoutMs);timer.unref?.();
  try{
-  const response=await fetch(config.baseUrl+route,{method:body?'POST':'GET',headers:{Accept:'application/json',...(body?{'Content-Type':'application/json'}:{}),...(config.apiKey?{Authorization:'Bearer '+config.apiKey}:{})},body:body?JSON.stringify(body):undefined,signal:controller.signal,redirect:'error'});
-  if(!response.ok){await response.body?.cancel();throw errorForStatus(response.status);}
+  const serializedBody=body?JSON.stringify(body):undefined;
+  if(serializedBody!==undefined)onRequest?.(JSON.parse(serializedBody));
+  const response=await fetch(config.baseUrl+route,{method:body?'POST':'GET',headers:{Accept:'application/json',...(body?{'Content-Type':'application/json'}:{}),...(config.apiKey?{Authorization:'Bearer '+config.apiKey}:{})},body:serializedBody,signal:controller.signal,redirect:'error'});
+  if(!response.ok){
+   if(typeof onRawResponse==='function'&&response.body){
+    const chunks=[];let bytes=0,truncated=false;
+    for await(const chunk of response.body){const remaining=256*1024-bytes;if(chunk.length>remaining){chunks.push(chunk.subarray(0,remaining));truncated=true;break;}chunks.push(chunk);bytes+=chunk.length;}
+    onRawResponse(Buffer.concat(chunks).toString('utf8')+(truncated?'[TRUNCATED ERROR RESPONSE]':''));
+   }else await response.body?.cancel();
+   throw errorForStatus(response.status);
+  }
   const length=Number(response.headers.get('content-length'));if(length>2*1024*1024){await response.body?.cancel();throw analysisError('QWEN_RESPONSE_TOO_LARGE','Qwen 응답이 허용 크기를 초과했습니다. 출력 토큰 수를 줄여 주세요.');}
   const chunks=[];let bytes=0;for await(const chunk of response.body){bytes+=chunk.length;if(bytes>2*1024*1024){controller.abort();throw analysisError('QWEN_RESPONSE_TOO_LARGE','Qwen 응답이 허용 크기를 초과했습니다. 출력 토큰 수를 줄여 주세요.');}chunks.push(chunk);}
-  try{return JSON.parse(Buffer.concat(chunks).toString('utf8'));}catch{throw analysisError('QWEN_INVALID_JSON','Qwen 서버 응답이 유효한 JSON이 아닙니다. OpenAI 호환 API 경로를 확인해 주세요.');}
+  const rawResponse=Buffer.concat(chunks).toString('utf8');onRawResponse?.(rawResponse);
+  try{return JSON.parse(rawResponse);}catch{throw analysisError('QWEN_INVALID_JSON','Qwen 서버 응답이 유효한 JSON이 아닙니다. OpenAI 호환 API 경로를 확인해 주세요.');}
  }catch(error){
   if(typeof error.code==='string'&&error.code.startsWith('QWEN_'))throw error;
   if(timedOut)throw analysisError('QWEN_TIMEOUT','Qwen 응답 제한 시간이 지났습니다. 서버 상태를 확인하거나 QWEN_TIMEOUT_MS를 조정해 주세요.',504);
@@ -110,4 +120,4 @@ async function checkConnection(config,signal){
  if(!response.data.some(entry=>entry?.id===config.model))throw analysisError('QWEN_MODEL_NOT_FOUND','QWEN_MODEL과 정확히 일치하는 서빙 모델이 없습니다. 서버의 모델 이름을 확인해 주세요.');
  return {ok:true,model:config.model,message:'지정한 모델이 서버 목록에서 확인되었습니다. 실제 분석 응답은 분석 실행으로 확인합니다.'};
 }
-module.exports={analyzeWithQwen,checkConnection,validateReport};
+module.exports={analyzeWithQwen,checkConnection,validateReport,request,numericTokens};

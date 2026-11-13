@@ -56,7 +56,7 @@ function layout(){
   totalCallColumn:[...table?.querySelectorAll('thead th')||[]].some(th=>th.textContent.includes('총 통화 건수')),
   mapLeftOfComparison:mapPanel?.getBoundingClientRect().right<=comparePanel?.getBoundingClientRect().left,
   compareAboveDetail:comparePanel?.getBoundingClientRect().bottom<=detailPanel?.getBoundingClientRect().top,
-  map:box(document.querySelector('[aria-label="고객 선별 행정동 경계 및 무선 위치근거 지도"]')),
+  map:box(document.querySelector('[aria-label="고객현황 행정동 경계 및 무선 위치근거 지도"]')),
   compactMix:!!document.querySelector('[class*="customerProgress"]')&&!!document.querySelector('[class*="customerSegmentCards"]'),
   segmentCards:document.querySelector('[class*="customerSegmentCards"]')?.children.length??0,
   oldDonut:!!document.querySelector('[class*="donutCenter"]'),

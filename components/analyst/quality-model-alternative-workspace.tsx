@@ -10,6 +10,10 @@ import {
 } from '../../lib/analyst/quality-model-alternatives';
 import {candidateAdministrativeDong} from '../../lib/analyst/quality-two-candidate-view-model';
 import {ImprovementCandidateMap} from './improvement-candidate-map';
+import {CandidateTopTenMap} from './candidate-top-ten-map';
+import {CandidateTopTenCoverage,CandidateTopTenMembers} from './candidate-top-ten-members';
+import {candidateTopTenMembers,includeCandidateTopTenLocations,summarizeCandidateTopTenCoverage,type CandidateTopTenMatch,type CandidateTopTenState} from '../../lib/analyst/candidate-top-ten';
+import {useCandidateTopTenLocations} from './use-candidate-top-ten-locations';
 import type {CandidateRoughPoint} from '../../lib/analyst/quality-candidate-rough-points';
 import {matchCandidateRoughPoints} from '../../lib/analyst/quality-candidate-rough-membership';
 import {selectCandidateStationSites} from '../../lib/analyst/station-map-presentation';
@@ -23,12 +27,15 @@ import {CandidateVisibilityToggle} from './candidate-visibility-toggle';
 import type {MdtGridMode} from '../../lib/analyst/mdt-25m-grid';
 import {coreMinDays,isCandidateShown,type CandidateDisplayMode} from '../../lib/analyst/quality-candidate-visibility';
 import {CandidateMdtRsrpChart} from './candidate-mdt-rsrp-chart';
+import {candidateAnalysisTarget,isCurrentCandidateAnalysisJob} from '../../lib/analyst/candidate-ai-analysis';
+import {CandidateAiDialog,CandidateAiSummary,candidateAiButtonLabel,useCandidateAiAnalysis} from './candidate-ai-analysis';
 import styles from './quality-model-alternative.module.css';
 
 interface Props{
  scope:QualityCandidateScope;overview:AnalystOverview;modelId:AlternativeModelId;analysisMode:'all'|'evaluation';locationSource?:'strict'|'mixed';mdtGridMode:MdtGridMode;displayMode:CandidateDisplayMode;onDisplayModeChange:(mode:CandidateDisplayMode)=>void;guideOpenRequest:number;mapControls?:(expanded:boolean)=>ReactNode;initiallyExpanded?:boolean;onFullscreenChange?:(value:boolean)=>void;
  onInvestigate?:(selection:{candidateId:string;callIds:string[];customerIds:string[]})=>void;
  baselineCount:number;
+ topTen:CandidateTopTenState;
  roughPoints:CandidateRoughPoint[];
  roughStatus:'loading'|'ready'|'error';
  roughError:string|null;
@@ -106,7 +113,13 @@ function ModelMethodPanel({modelId,report,actual,actualIndex,view}:{modelId:Alte
   <small>기존 DBSCAN 데이터·원본 자료는 보존됩니다. 모델 교체 시 지도와 후보 목록만 변경됩니다.</small>
  </aside>;
 }
-export function QualityModelAlternativeWorkspace({scope,overview,modelId,analysisMode,locationSource='strict',mdtGridMode,displayMode,onDisplayModeChange,guideOpenRequest,mapControls,initiallyExpanded,onFullscreenChange,onInvestigate,baselineCount,roughPoints,roughStatus,roughError,stationLayer}:Props){
+export function QualityModelAlternativeWorkspace({scope,overview,modelId,analysisMode,locationSource='strict',mdtGridMode,displayMode,onDisplayModeChange,guideOpenRequest,mapControls,initiallyExpanded,onFullscreenChange,onInvestigate,baselineCount,topTen:rankingTopTen,roughPoints,roughStatus,roughError,stationLayer}:Props){
+ const ai=useCandidateAiAnalysis();
+ const topTenMode=displayMode==='top10';
+ const topTenLocations=useCandidateTopTenLocations(scope,topTenMode&&rankingTopTen.status!=='error');
+ const topTen:CandidateTopTenState={...rankingTopTen,
+  status:rankingTopTen.status==='ready'?(topTenLocations.status==='ready'?'ready':topTenLocations.status==='error'?'error':topTenMode?'loading':'idle'):rankingTopTen.status,
+  error:rankingTopTen.error??topTenLocations.error};
  const key=JSON.stringify([scope,locationSource,analysisMode]);
  const [state,setState]=useState<{key:string;value:AlternativeModelReport|null;error:string|null}>({key:'',value:null,error:null});
  const [chosenId,setChosenId]=useState<string|null>(null);
@@ -126,7 +139,34 @@ export function QualityModelAlternativeWorkspace({scope,overview,modelId,analysi
  const model=report?.models[modelId]??null;
  const allCandidates=useMemo(()=>model?.candidates??[],[model]);
  const minimumDays=coreMinDays(scope.dateStart,scope.dateEnd);
- const candidates=useMemo(()=>allCandidates.filter(c=>isCandidateShown(c.poorCalls,c.poorCustomers,c.days,minimumDays,displayMode)),[allCandidates,minimumDays,displayMode]);
+ const coreCount=useMemo(()=>allCandidates.filter(c=>isCandidateShown(c.poorCalls,c.poorCustomers,c.days,minimumDays,'core')).length,[allCandidates,minimumDays]);
+ const topTenMatches=useMemo<CandidateTopTenMatch[]>(()=>topTen.status==='ready'&&topTenLocations.value?allCandidates.map((c,index)=>{
+  const members=candidateTopTenMembers(c.members,topTen.customers);
+  // The same presentation mapper supplies the circle drawn by ImprovementCandidateMap.
+  const circle=mappedCandidate(c,index,modelId,report?.validationDates??[]).location;
+  return {candidateId:c.id,customers:circle?includeCandidateTopTenLocations(members,topTen.customers,topTenLocations.value!.points,circle):members};
+ }):[],[allCandidates,topTen.status,topTen.customers,topTenLocations.value,modelId,report?.validationDates]);
+ const topTenMembersByCandidate=useMemo(()=>new Map(topTenMatches.map(match=>[match.candidateId,match.customers])),[topTenMatches]);
+ const topTenCandidates=useMemo(()=>allCandidates.filter(c=>(topTenMembersByCandidate.get(c.id)?.length??0)>0),[allCandidates,topTenMembersByCandidate]);
+ const topTenCoverage=useMemo(()=>summarizeCandidateTopTenCoverage(topTen.customers,topTenMatches),[topTen.customers,topTenMatches]);
+ const topTenCount=topTen.status==='ready'?topTenCandidates.length:undefined;
+ const unmatchedTopTen=useMemo(()=>topTenMode&&topTen.status==='ready'&&topTenCandidates.length>0&&topTenCoverage.unmatched.length>0?{scope,customers:topTenCoverage.unmatched}:undefined,[topTenMode,topTen.status,topTenCandidates.length,scope,topTenCoverage.unmatched]);
+ const candidates=useMemo(()=>topTenMode?topTenCandidates:allCandidates.filter(c=>isCandidateShown(c.poorCalls,c.poorCustomers,c.days,minimumDays,displayMode)),[allCandidates,minimumDays,displayMode,topTenMode,topTenCandidates]);
+ const showTopTenMap=topTenMode&&topTen.status==='ready'&&candidates.length===0;
+ const showCandidateMap=!topTenMode||(topTen.status==='ready'&&candidates.length>0);
+ const topTenMapHint=unmatchedTopTen?'후보 '+topTenCandidates.length+'곳 · 포함 고객 '+topTenCoverage.included.length+'명 · 미포함 '+topTenCoverage.unmatched.length+'명은 원래 TOP 순위 버블로 함께 표시합니다.':null;
+ const candidateCountLabel=topTenMode&&topTen.status!=='ready'?(topTen.status==='error'?'미확인':'확인 중'):candidates.length+'곳';
+ const emptyMessage=topTenMode
+  ?topTen.status==='error'?(topTen.error??'고객현황 TOP10을 확인하지 못했습니다.')
+   :topTen.status!=='ready'?'고객현황 TOP10과 후보 구성 통화·원 안 위치를 확인하는 중입니다.'
+   :'고객현황 TOP10 고객이 포함된 후보가 없어 TOP10 고객 위치를 지도에 표시합니다.'
+  :displayMode==='core'?'핵심 표시 조건을 충족한 후보가 없습니다. 전체 후보를 선택하면 원래 후보가 표시됩니다.'
+   :'현재 모델의 독립 고객 3명·2일 이상 조건을 충족한 후보가 없습니다.';
+ const dialogTarget=ai.dialogTarget,closeAiDialog=ai.close;
+ const visibleDialogTarget=dialogTarget&&(!topTenMode||candidates.some(c=>c.id===dialogTarget.candidateId))?dialogTarget:null;
+ const dialogPoint=visibleDialogTarget ? candidates.find(c=>c.id===visibleDialogTarget.candidateId) : undefined;
+ const dialogLocality=dialogPoint ? candidateAdministrativeDong(overview,dialogPoint.lat,dialogPoint.lon) ?? undefined : undefined;
+ useEffect(()=>{if(topTenMode&&dialogTarget&&!visibleDialogTarget)closeAiDialog();},[topTenMode,dialogTarget,visibleDialogTarget,closeAiDialog]);
  const active=candidates.find(c=>c.id===chosenId)??candidates[0]??null;
  const activeIndex=active?candidates.findIndex(c=>c.id===active.id):-1;
  const mapCandidates=useMemo(()=>candidates.map((c,i)=>mappedCandidate(c,i,modelId,report?.validationDates??[])),[candidates,modelId,report?.validationDates]);
@@ -150,12 +190,20 @@ export function QualityModelAlternativeWorkspace({scope,overview,modelId,analysi
  const legend=<div className={styles.railLegend} aria-label="대안 모델 지도 범례">
   <span><i className={styles.railSelectedDot}/> 선택 지역</span>
   <span><i className={styles.railOtherDot}/> 다른 후보</span>
+  {topTenMapHint&&<span aria-label="TOP10 후보와 고객 지도 안내">{topTenMapHint}</span>}
 
   <span><i style={{background:'#d32f2f'}}/>≤ −105 dBm</span><span><i style={{background:'#138b62'}}/>{'> −105 dBm'}</span>
   {!usingMixed&&<span><i className={styles.railRadioDot}/> 검토 통과 삼각 측량</span>}
   <span title={usingMixed?'선택한 모델 후보의 실제 구성 통화 중 MDT RSRP 근사 좌표 · 정확도 검증 전':'선택 후보 안에 있는 참고 추정 중심'}><i className={styles.railRoughDot}/> MDT 근사 {roughStatus==='ready'?(usingMixed?'· 후보 구성 '+n(active?.roughCalls??0)+'건':'· 선택 '+n(selectedInsideRough)+'건'):'확인 중'}</span>
  </div>;
  if(!report)return <section className={styles.state} role={error?'alert':undefined} aria-label="대안 모델 자료 상태">{error??'실제 원본 기반 대안 모델 결과를 불러오는 중입니다…'}</section>;
+ const targetFor=(id:string)=>candidateAnalysisTarget(report,id,analysisMode,modelId);
+ const activeAiTarget=active?targetFor(active.id):null;
+ const activeAiEntry=activeAiTarget?ai.entry(activeAiTarget):undefined;
+ const previousAiEntry=activeAiTarget?ai.previous(activeAiTarget):undefined;
+ const aiTitle=(id:string)=>'후보 지역 '+(Math.max(0,candidates.findIndex(c=>c.id===id))+1);
+ const analyze=(id:string)=>{const target=targetFor(id),entry=ai.entry(target);setChosenId(id);setDetailTab('summary');ai.open(target,aiTitle(id));if(!isCurrentCandidateAnalysisJob(entry?.job)&&!entry?.pending)ai.start(target);};
+ const aiSummary=activeAiTarget?<CandidateAiSummary entry={activeAiEntry??previousAiEntry} stale={ai.changed(activeAiTarget)} onOpen={()=>ai.open((activeAiEntry??previousAiEntry)?.target??activeAiTarget,aiTitle(activeAiTarget.candidateId))} onStart={()=>analyze(activeAiTarget.candidateId)} onCancel={()=>ai.cancel(activeAiTarget)}/>:null;
  const subset=model?.status==='exploratory-located-only';
  const validationCount=candidates.filter(c=>c.validationStatus==='reobserved').length;
  const investigationItems=candidates.map((c,i)=>{
@@ -166,6 +214,7 @@ export function QualityModelAlternativeWorkspace({scope,overview,modelId,analysi
    rangeReview:c.rangeReviewRequired,maxPairDistanceM:c.maxPairDistanceM,rank:c.rank,
    gnssCalls:c.gnssCalls,radioCalls:usingMixed?(c.roughCalls??0):Math.max(0,c.poorCalls-c.gnssCalls),radioLabel:usingMixed?'MDT RSRP 근사 (미검증)':'검토 통과 삼각 측량',
    validationNewCustomers:c.validationNewCustomers,
+   topTenCustomers:topTenMembersByCandidate.get(c.id),
    basis:metricValue(c,modelId),
    warning:subset?'위치 확보 통화 표본의 탐색 결과이며 전체 망 불량률이나 확정된 위험 우선순위가 아닙니다.':undefined
   };
@@ -187,13 +236,13 @@ export function QualityModelAlternativeWorkspace({scope,overview,modelId,analysi
   </div>
   {subset&&<p className={styles.alert}><AlertTriangle size={16}/> {report.selectionBiasWarning} 이 결과를 기존 DBSCAN과 동일한 확정 위험 순위로 해석하거나 실제 위험률로 비교하지 마세요.</p>}
   <div className={styles.metrics} aria-label="선택 모델 후보 통계">
-   <div><span><MapPinned size={15}/> 개선 후보</span><strong>{candidates.length}곳</strong><small>{usingMixed?'동일 GPS·MDT 입력 DBSCAN '+baselineCount+'곳 · 모델별 상위 20곳 표시':'DBSCAN '+baselineCount+'곳 · 위치 입력 기준 확인 필요'}</small></div>
+   <div><span><MapPinned size={15}/> 개선 후보</span><strong>{candidateCountLabel}</strong><small>{usingMixed?'동일 GPS·MDT 입력 DBSCAN '+baselineCount+'곳 · 모델별 상위 20곳 표시':'DBSCAN '+baselineCount+'곳 · 위치 입력 기준 확인 필요'}</small></div>
    <div><span><Users size={15}/> {analysisMode==='all'?'전체 기간':'발견기간'} 저품질 경험 통화</span><strong>{model?.discoveryLocatedPoorCalls??model?.discoveryApprovedPoorCalls??0}건</strong><small>{usingMixed?'GPS '+(report.inputCounts?.gpsPoor??0)+'건 · MDT 근사 '+(report.inputCounts?.roughPoor??0)+'건 (위치 검증 전)':'위치 승인된 고유 CDR 통화만 사용'}</small></div>
-   <div><span><Layers size={15}/> {analysisMode==='all'?'범위 재검토 지역':'후속 평가일 새 고객 재관측'}</span><strong>{analysisMode==='all'?candidates.filter(c=>c.rangeReviewRequired).length:validationCount}곳</strong><small>{analysisMode==='all'?'별도 평가일 없이 전체 기간 사용':'후속 평가일의 독립 고객 관측 · 무선 원인 확정 아님'}</small></div>
+   <div><span><Layers size={15}/> {analysisMode==='all'?'범위 재검토 지역':'후속 평가일 새 고객 재관측'}</span><strong>{topTenMode&&topTen.status!=='ready'?(topTen.status==='error'?'미확인':'확인 중'):(analysisMode==='all'?candidates.filter(c=>c.rangeReviewRequired).length:validationCount)+'곳'}</strong><small>{analysisMode==='all'?'별도 평가일 없이 전체 기간 사용':'후속 평가일의 독립 고객 관측 · 무선 원인 확정 아님'}</small></div>
   </div>
   <div className={styles.layout}>
    <div className={styles.left}>
-    <MapPanelFrame className={styles.mapFrame} label="대안 모델 개선 후보 영역" suspended={simulatorOpen} initiallyExpanded={initiallyExpanded} onExpandedChange={onFullscreenChange}>
+    <MapPanelFrame className={styles.mapFrame} label="대안 모델 개선 후보 영역" suspended={simulatorOpen||!!visibleDialogTarget} initiallyExpanded={initiallyExpanded} onExpandedChange={onFullscreenChange}>
      {({expanded,toggleButton,close})=><>
       <header className={styles.mapHead}>
        <div className={styles.mapTitleBlock}><h3><MapPinned size={18}/> 개선 후보</h3><p>후보 선택 → 오른쪽 상세·원본 통화 연동</p></div>
@@ -210,22 +259,22 @@ export function QualityModelAlternativeWorkspace({scope,overview,modelId,analysi
            </div>
            <p>후보를 선택하면 해당 지역의 근거가 함께 바뀝니다.</p>
           </div>
-          {legend}
+          {showCandidateMap&&legend}
          </div>
          <QualityInvestigationRail
-          candidates={investigationItems} totalCount={allCandidates.length} minimumDays={minimumDays} displayMode={displayMode} onDisplayModeChange={onDisplayModeChange} selectedId={active?.id??null} onSelect={select}
+          candidates={investigationItems} totalCount={allCandidates.length} coreCount={coreCount} topTenCount={topTenCount} topTenStatus={topTen.status} topTenCustomers={topTen.customers} topTenMatches={topTenMatches} minimumDays={minimumDays} displayMode={displayMode} onDisplayModeChange={onDisplayModeChange} selectedId={active?.id??null} onSelect={select} emptyMessage={emptyMessage}
           onCalls={()=>{setDetailTab('calls');close();}} analysisMode={analysisMode}
-          modelName={option?.name??modelId}
+          modelName={option?.name??modelId} onAnalyze={analyze} aiLabel={id=>candidateAiButtonLabel(ai.entry(targetFor(id)))} aiSummary={aiSummary}
           rsrpChart={active?<CandidateMdtRsrpChart compact callIds={active.members.map(p=>p.callId)} sourceRevision={report.sourceRevision}/>:null}
-          guidance={subset?'표본 편향: 지도 후보는 탐색용이며 위험률·RF 원인 확정이 아닙니다.':'선정 지역은 실제 QoE 저하 순간 좌표나 RF 원인 확정 장소가 아닙니다.'}
+          guidance={showTopTenMap?'고객현황과 같은 TOP10 고객의 대표 위치입니다.':topTenMapHint??(subset?'표본 편향: 지도 후보는 탐색용이며 위험률·RF 원인 확정이 아닙니다.':'선정 지역은 실제 QoE 저하 순간 좌표나 RF 원인 확정 장소가 아닙니다.')}
          />
         </aside>}
        <div className={styles.mapView}>
-        {!expanded&&legend}
-        <StationLayerControls layer={stationLayer} shown={stationSites.length} related={linkedStationCount}/>
-        <ImprovementCandidateMap key={modelId} mdtGridMode={mdtGridMode} candidates={mapCandidates} selectedId={active?.id??''} onSelect={select}
-         sourceRevision={overview.sourceRevision} observationPoints={points} roughPoints={selectedRough} stationSites={stationSites} roughUsedForCandidate={usingMixed} presentation="proposal2" fullscreenEnhanced={expanded}
-         hint={roughError?'MDT 근사 원본 자료 오류: '+roughError:'선택 모델의 GPS·MDT 구성 통화와 관련 기지국만 표시 · 근사 좌표는 검증 전 · 원은 정확도 반경이 아닙니다.'}/>
+        {!expanded&&showCandidateMap&&legend}
+        {showCandidateMap&&<StationLayerControls layer={stationLayer} shown={stationSites.length} related={linkedStationCount}/>}
+        {showTopTenMap?<CandidateTopTenMap scope={scope} customers={topTen.customers}/>:showCandidateMap?<ImprovementCandidateMap key={modelId} mdtGridMode={mdtGridMode} candidates={mapCandidates} selectedId={active?.id??''} onSelect={select}
+         sourceRevision={overview.sourceRevision} observationPoints={points} roughPoints={selectedRough} stationSites={stationSites} roughUsedForCandidate={usingMixed} presentation="proposal2" fullscreenEnhanced={expanded} unmatchedTopTen={unmatchedTopTen}
+         hint={topTenMapHint?topTenMapHint+(roughError?' · MDT 근사 원본 자료 오류: '+roughError:''):roughError?'MDT 근사 원본 자료 오류: '+roughError:'선택 모델의 GPS·MDT 구성 통화와 관련 기지국만 표시 · 근사 좌표는 검증 전 · 원은 정확도 반경이 아닙니다.'}/>:<output className={styles.state} role={topTen.status==='error'?'alert':'status'}>{emptyMessage}</output>}
        </div>
       </div>
      </>}
@@ -237,15 +286,22 @@ export function QualityModelAlternativeWorkspace({scope,overview,modelId,analysi
    </div>
    <aside className={styles.right} data-detail-tab={detailTab} aria-label="모델별 후보 및 선정 근거">
     <section className={styles.list} aria-label="선택 모델 개선 후보 목록">
-     <header><div className={styles.listFilterLine}><h3>후보 지역 목록 <span>{candidates.length}곳</span></h3><CandidateVisibilityToggle mode={displayMode} coreCount={displayMode==='core'?candidates.length:allCandidates.filter(c=>c.poorCalls>=6&&c.poorCustomers>=3&&c.days>=minimumDays).length} totalCount={allCandidates.length} minimumDays={minimumDays} onChange={onDisplayModeChange}/></div><p>핵심: 6통화·{minimumDays}일 이상(고객 3명). 전체 선택 시 숨긴 후보 표시.</p></header>
+     <header><div className={styles.listFilterLine}><h3>후보 지역 목록 <span>{candidateCountLabel}</span></h3><CandidateVisibilityToggle mode={displayMode} coreCount={coreCount} topTenCount={topTenCount} topTenStatus={topTen.status} totalCount={allCandidates.length} minimumDays={minimumDays} onChange={onDisplayModeChange}/></div><p>{topTenMode?'TOP10 고객의 구성 통화가 있거나 대표 위치가 후보 원 안이면 포함합니다.':'핵심: 6통화·'+minimumDays+'일 이상(고객 3명). 전체 선택 시 숨긴 후보 표시.'}</p>
+      {topTenMode&&topTen.status==='ready'&&<CandidateTopTenCoverage customers={topTen.customers} matches={topTenMatches}/>}
+     </header>
      <div className={styles.rows}>
-      {candidates.map((c,i)=><button type="button" key={c.id} className={styles.item} aria-pressed={active?.id===c.id} onClick={()=>select(c.id)}>
+      {candidates.map((c,i)=><div key={c.id} className={styles.aiRow}>
+       <button type="button" className={styles.item} aria-pressed={active?.id===c.id} onClick={()=>select(c.id)}>
         <span className={styles.num}>{i+1}</span>
         <span className={styles.itemBody}><strong>후보 지역 {i+1}{candidateAdministrativeDong(overview,c.lat,c.lon)?' · '+candidateAdministrativeDong(overview,c.lat,c.lon):''}</strong>
-         <small>고객 {c.poorCustomers}명 · 저QoE {c.poorCalls}건 · {c.days}일{usingMixed?' · GPS '+c.gnssCalls+' / MDT 근사 '+(c.roughCalls??0):''}</small></span>
-        <ChevronRight size={14}/>
-       </button>)}
-      {!candidates.length&&<p className={styles.noCandidates}>{displayMode==='core'?'핵심 표시 조건을 충족한 후보가 없습니다. 전체 후보를 선택하면 원래 후보가 표시됩니다.':'현재 모델의 독립 고객 3명·2일 이상 조건을 충족한 후보가 없습니다.'}</p>}
+         <small>고객 {c.poorCustomers}명 · 저QoE {c.poorCalls}건 · {c.days}일{usingMixed?' · GPS '+c.gnssCalls+' / MDT 근사 '+(c.roughCalls??0):''}</small>
+         {topTenMode&&topTen.status==='ready'&&<CandidateTopTenMembers customers={topTenMembersByCandidate.get(c.id)??[]}/>}
+         {c.rangeReviewRequired&&<span className={styles.aiRangeReview}>범위 검토 필요</span>}
+        </span><ChevronRight size={14}/>
+       </button>
+       <button type="button" className={styles.aiButton} aria-label={'후보 지역 '+(i+1)+' AI 분석'} onClick={()=>analyze(c.id)}>{candidateAiButtonLabel(ai.entry(targetFor(c.id)))}</button>
+      </div>)}
+      {!candidates.length&&<p className={styles.noCandidates} role={topTenMode&&topTen.status==='error'?'alert':'status'}>{emptyMessage}</p>}
      </div>
     </section>
     {active&&<section className={styles.detail} aria-label="선택 모델 후보 상세 근거">
@@ -260,7 +316,9 @@ export function QualityModelAlternativeWorkspace({scope,overview,modelId,analysi
       <div><span>관측 날짜</span><strong>{active.days}일</strong></div><div><span>{analysisMode==='all'?'후속 평가':'신규 고객 재관측'}</span><strong>{analysisMode==='all'?'미실시':active.validationNewCustomers+'명'}</strong></div>
       <div><span>표시 반경</span><strong>{active.radiusM}m</strong></div><div><span>범위 검토</span><strong>{active.rangeReviewRequired?'필요':'불필요'}</strong></div>
      </div>}
-     {detailTab==='summary'&&<p className={styles.detailNote}>{method.meaning}</p>}
+     {detailTab==='summary'&&<><p className={styles.detailNote}>현재 모델의 위치·고객·날짜 조건을 충족한 조사 후보입니다. 범위와 원인은 별도 확인이 필요합니다.</p>
+      {topTenMode&&topTen.status==='ready'&&<CandidateTopTenMembers customers={topTenMembersByCandidate.get(active.id)??[]}/>}
+      {aiSummary}</>}
      {detailTab==='summary'&&<CandidateMdtRsrpChart callIds={active.members.map(p=>p.callId)} sourceRevision={report.sourceRevision}/>}
      {(detailTab==='summary'||detailTab==='rf')&&modelId==='spatial_scan'&&<p className={styles.riskDetail}>위치확보 표본 내 탐색창: 저QoE {active.metric.locatedPoorInWindow}건 / 나머지 QoE {active.metric.locatedNormalInWindow}건 · 조건부 순열 p={active.metric.conditionalPermutationP}. 망 전체 불량률이나 재현 가능한 유의확률로 확정하지 않습니다.</p>}
      {(detailTab==='summary'||detailTab==='rf')&&modelId==='bayesian'&&<p className={styles.riskDetail}>위치확보 표본 사후평균 {((active.metric.posteriorMean??0)*100).toFixed(1)}% · 95% 신용구간 {((active.metric.credibleLow??0)*100).toFixed(1)}~{((active.metric.credibleHigh??0)*100).toFixed(1)}%. 실제 망 불량률의 신용구간이 아닙니다.</p>}
@@ -277,6 +335,7 @@ export function QualityModelAlternativeWorkspace({scope,overview,modelId,analysi
     </section>}
    </aside>
   </div>
+  {visibleDialogTarget&&<CandidateAiDialog key={JSON.stringify(visibleDialogTarget)} target={visibleDialogTarget} title={ai.dialogTitle} locality={dialogLocality} entry={ai.entry(visibleDialogTarget)} onClose={ai.close} onStart={()=>ai.rerun(visibleDialogTarget)} onCancel={()=>ai.cancel(visibleDialogTarget)} onSelectSaved={id=>ai.selectSaved(visibleDialogTarget,id)} onSendPrompt={draft=>ai.sendPrompt(visibleDialogTarget,draft)}/>}
   {simulatorOpen&&<QualitySimulatorDialog title={(option?.name??modelId)+' · 후보 산정 시뮬레이터'}
    onClose={()=>setSimulatorOpen(false)}
    explanation={<ModelMethodPanel modelId={modelId} report={report} actual={active} actualIndex={activeIndex} view="explanation"/>}

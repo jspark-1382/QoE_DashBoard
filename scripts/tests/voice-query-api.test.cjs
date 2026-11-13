@@ -31,7 +31,14 @@ before(()=>{
   fs.writeFileSync(path.join(publicDir,'voice-1030.json'),JSON.stringify(dataset));
   fs.writeFileSync(path.join(publicDir,'analyst-overview','MDT','2026-10-29.json'),JSON.stringify(previous));
   fs.mkdirSync(path.join(publicDir,'voice-1030-data'));
-  fs.writeFileSync(path.join(publicDir,'voice-1030-data','a.json'),JSON.stringify({...dataset.days[0],calls:[{id:'low',start:'10:00:00',end:'10:01:00',matchStatus:'MATCHED',hasMdt:true,rsrp:-91,sinr:9,rtp:{txPacketLoss:.75,txJitter:17,rxPacketLoss:.5,rxJitter:11}}],samples:[]}));
+  const sample = (time, locationSource, gnssMetricId) => {
+    const row = new Array(22).fill(null);
+    row[1]=time; row[2]=37; row[3]=127; row[8]='LTE'; row[19]='low';
+    row[21]={timestamp:'2026-10-30T'+time+'+09:00',locationSource,gnssMetricId,frequency:3743};
+    return row;
+  };
+  const samples=[sample('10:00:01','gnss','38509_77756'),sample('10:00:02','estimated','38509_77756'),sample('10:01:01','gnss','123_456')];
+  fs.writeFileSync(path.join(publicDir,'voice-1030-data','a.json'),JSON.stringify({...dataset.days[0],calls:[{id:'low',start:'10:00:00',end:'10:01:00',matchStatus:'MATCHED',hasMdt:true,rsrp:-91,sinr:9,rtp:{txPacketLoss:.75,txJitter:17,rxPacketLoss:.5,rxJitter:11}}],samples}));
   const run=spawnSync('python',['-B','scripts/build_voice_query_db.py','--public-dir',publicDir,'--out-dir',path.join(fixture,'outputs','voice-query-data')],{cwd:path.resolve(__dirname,'../..'),encoding:'utf8'});
   assert.equal(run.status,0,'read model builder succeeds: '+run.stderr);
   const index=JSON.parse(fs.readFileSync(path.join(publicDir,'voice-query-index.json'),'utf8'));
@@ -39,6 +46,16 @@ before(()=>{
 });
 after(()=>{engine?.close();if(fixture)fs.rmSync(fixture,{recursive:true,force:true});});
 const scope={dateStart:'2026-10-30',dateEnd:'2026-10-30',from:'00:00',to:'23:59'};
+test('original call location exposes only GNSS POTs within the selected call and revision',()=>{
+  const args={op:'call-observations',sourceRevision:revision,callId:'a:low',callDate:'2026-10-30'};
+  const actual=engine.query(args);
+  assert.deepEqual(actual.samples,[
+    {timestamp:'2026-10-30T10:00:01+09:00',pot:'38509_77756',earfcn:3743,technology:'LTE'},
+    {timestamp:'2026-10-30T10:00:02+09:00',pot:null,earfcn:3743,technology:'LTE'},
+  ]);
+  assert.throws(()=>engine.query({...args,callDate:'2026-10-29'}));
+  assert.throws(()=>engine.query({...args,sourceRevision:'stale'}));
+});
 test('summary matches original grade/hourly/analytics semantics including negative QoE and ambiguous chronology',()=>{
   const summary=engine.query({op:'summary',scope});
   const effective=load(path.resolve('lib/analyst/derived-qoe.ts')).effectiveCallQoe;

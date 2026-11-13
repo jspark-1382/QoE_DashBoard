@@ -221,6 +221,7 @@ def normalize(row):
             'mdt': {'timestamp': stamp.isoformat(timespec='milliseconds'),
                     'baseStationId': clean(fields.get('mdt_equip_cd')), 'cellId': clean(fields.get('mdt_cell_id')),
                     'frequency': numeric(fields.get('dlearfcn')), 'streamId': customer_id,
+                    'triggerEvent': clean(fields.get('trigr_ev')),
                     'phr': numeric(fields.get('phr')), 'neighbors': neighbors,
                     'phase': clean(fields.get('mdt_div')), 'sequence': numeric(fields.get('mdt_num')),
                     'gnssUtmkx': numeric(fields.get('gnss_utmkx')), 'gnssUtmky': numeric(fields.get('gnss_utmky')),

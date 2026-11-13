@@ -43,7 +43,7 @@ function createVoiceQueryHandler({root,publicDir=path.join(root,'public'),worker
     const chunks=[];let bytes=0;for await(const chunk of req){bytes+=chunk.length;if(bytes>512*1024)throw httpError('Query request is too large.',413);chunks.push(chunk);}return Buffer.concat(chunks).toString('utf8');
   }
   async function execute(query,res){
-    const channel=['screening','screening-map','routes'].includes(query.op)?'screening':'interactive';
+    const channel=['screening','screening-map','routes','customer-qoe-timeline'].includes(query.op)?'screening':'interactive';
     const controller=new AbortController(),cancel=()=>controller.abort();
     res.once('close',cancel);
     try{

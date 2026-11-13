@@ -37,6 +37,87 @@ def query_ready(public, revision, root=ROOT):
         return False
 
 
+def grid_builder():
+    import importlib.util
+    spec = importlib.util.spec_from_file_location('mdt_grid_targeted', ROOT/'scripts/build-mdt-25m-grid.py')
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def targeted_commands(public):
+    return [
+        ('mdt-grid', [sys.executable, '-B', 'scripts/build-mdt-25m-grid.py',
+                      '--out', str(public/'quality-improvement/mdt-grid-25m-v1.json'),
+                      '--analysis-out', str(public/'quality-improvement/mdt-grid-analysis-v1.json')]),
+        ('candidate-termination', [sys.executable, '-B', 'scripts/build_candidate_termination.py',
+                                   '--root', str(ROOT), '--public-dir', str(public),
+                                   '--out', str(public/'quality-improvement/candidate-termination-v1.json')]),
+    ]
+
+
+def grid_ready(public):
+    try:
+        full = read(public/'quality-improvement/mdt-grid-analysis-v1.json')
+        display = read(public/'quality-improvement/mdt-grid-25m-v1.json')
+        return (full.get('schemaVersion') == 'mdt-25m-rsrp-grid-v1'
+                and full.get('analysisSchemaVersion') == 'mdt-grid-analysis-v1'
+                and full.get('inputSignature') == grid_builder().input_signature()
+                and display.get('inputSignature') == full['inputSignature']
+                and display.get('analysisSource') == 'quality-improvement/mdt-grid-analysis-v1.json'
+                and display.get('gridCells') == full.get('gridCells') == len(full['records']) == len(display['records'])
+                and {c['pot'] for c in full['records']} == {c['pot'] for c in display['records']}
+                and all(c.get('analysis') for c in full['records'])
+                and all('analysis' not in c for c in display['records'])
+                and full.get('sourceDates') == display.get('sourceDates')
+                and sum(s['sourceRows'] for s in full['sources']) == full['sourceRows']
+                and all(s['acceptedRows'] + s['duplicateRows'] == s['sourceRows'] for s in full['sources']))
+    except (OSError, KeyError, TypeError, ValueError):
+        return False
+
+
+def termination_ready(public, revision):
+    try:
+        from build_candidate_termination import collect_public_targets, field_presence
+        from build_voice_1030 import TERMINATION_COLUMNS
+        data = read(public/'quality-improvement/candidate-termination-v1.json')
+        if data.get('schemaVersion') != 'qoe-candidate-termination-v1' or data.get('sourceRevision') != revision:
+            return False
+        targets, coverage = collect_public_targets(public, revision)
+        records, saved = data['records'], data['coverage']
+        return (set(records) == set(targets) and saved['sourceArtifacts'] == coverage['sourceArtifacts']
+                and saved['targetCalls'] == saved['coveredCalls'] == len(records)
+                and saved['missingCalls'] == saved['ambiguousCalls'] == 0
+                and all(set(row) == set(TERMINATION_COLUMNS) and
+                        all(v is None or isinstance(v, str) for v in row.values()) for row in records.values())
+                and saved['fieldAvailable'] == {
+                    key: sum(field_presence(row[key]) for row in records.values()) for key in TERMINATION_COLUMNS})
+    except (OSError, KeyError, TypeError, ValueError):
+        return False
+
+
+def refresh_targeted(public, revision, runner=None):
+    # Grid bytes have an independent signature. A changed background XLSX never
+    # invalidates the 1.49M-call voice publication or its source identity.
+    runner = runner or (lambda args: subprocess.run(args, cwd=ROOT, check=True))
+    commands = dict(targeted_commands(public))
+    if not grid_ready(public):
+        runner(commands['mdt-grid'])
+    if not termination_ready(public, revision):
+        runner(commands['candidate-termination'])
+
+
+def validate_targeted(public, revision):
+    if not grid_ready(public):
+        raise ValueError('Targeted MDT grid display/analysis is missing or stale')
+    if not termination_ready(public, revision):
+        raise ValueError('Candidate termination coverage is missing or stale')
+    grid = read(public/'quality-improvement/mdt-grid-analysis-v1.json')
+    termination = read(public/'quality-improvement/candidate-termination-v1.json')
+    return {'gridCells': grid['gridCells'], 'gridSourceRows': grid['sourceRows'],
+            'terminationCalls': len(termination['records'])}
+
+
 def inputs_signature():
     from build_voice_1030 import discover_sources
     cdr, mdt = discover_sources(ROOT/'data/MDT_New')
@@ -151,6 +232,8 @@ def build(work, skip_source=False, resume=False):
                                 '--root-dir', str(ROOT)], cwd=ROOT, check=True)
                 if not query_ready(ROOT/'public', saved['revision']):
                     raise ValueError('Voice query store does not match the published source')
+                refresh_targeted(ROOT/'public', saved['revision'])
+                validate_targeted(ROOT/'public', saved['revision'])
                 print(json.dumps({'phase': 'already-current', **saved}, ensure_ascii=False), flush=True)
                 return
     public = work/'public'
@@ -189,6 +272,7 @@ def build(work, skip_source=False, resume=False):
                          '--public-dir', str(public), '--out-dir', str(ROOT/'outputs/voice-query-data'),
                          '--root-dir', str(ROOT)]),
     ]
+    commands.extend(targeted_commands(public))
     for name, args in commands:
         if name in done:
             continue
@@ -196,6 +280,7 @@ def build(work, skip_source=False, resume=False):
         done.add(name)
         checkpoint.write_text(json.dumps({'revision': revision, 'done': sorted(done)}), encoding='utf-8')
     summary = validate(public)
+    summary['targetedData'] = validate_targeted(public, revision)
     if not query_ready(public, revision):
         raise ValueError('Voice query store is missing or stale; publication was not changed')
     print(json.dumps({'phase': 'validated', **summary}, ensure_ascii=False), flush=True)

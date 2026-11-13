@@ -302,10 +302,12 @@
 }
 .mapWrap :global(.customer-screen-dong-label::before){display:none}
 .mapWrap :global(.customer-screen-site-label){
-  background:transparent;border:0;box-shadow:none;
-  color:#fff;font-size:10px;font-weight:900;
-  text-shadow:0 1px 2px #6d303e;pointer-events:none;
+  background:transparent;border:0;box-shadow:none;padding:0;
+  color:#102f49;font-size:11px;font-weight:900;
+  text-shadow:0 1px 1px #ffffffb0;pointer-events:none;
 }
+.mapWrap :global(.customer-screen-site-label-light){color:#fff;text-shadow:0 1px 2px #571f35}
+.mapWrap :global(.customer-screen-metric-point){filter:drop-shadow(0 0 1.5px #fff) drop-shadow(0 1px 1px #18394a70)}
 .mapWrap :global(.customer-screen-site-label::before){display:none}
 @media(max-width:1100px){
   .investigationGrid .mapControls{flex-wrap:wrap}
@@ -331,6 +333,14 @@
 .routeGpsDot,.routeSiteDot{display:inline-block;flex:none;width:10px;height:10px;border-radius:50%;border:1.5px solid white}
 .routeGpsDot{background:#16ab91}
 .routeSiteDot{background:#f3a443;margin-left:8px}
+.routePoorRing,.routeEndpointRing,.routeNormalRing{display:inline-block;flex:none;width:12px;height:12px;border-radius:50%;background:#dce8ed;border:2px solid #de3f57}
+.routeEndpointRing{border-color:#164f78}
+.routeNormalRing{border-color:#fff;box-shadow:0 0 0 1px #b9cbd8}
+.mapWrap :global(.customer-route-count){
+  border:0;background:transparent;color:#12324b;font-size:11px;font-weight:850;
+  box-shadow:none;padding:0;pointer-events:none;white-space:nowrap;text-shadow:0 1px 1px #ffffffa0;
+}
+.mapWrap :global(.customer-route-count::before){display:none}
 .mapWrap :global(.customer-route-index){
   border:0;background:#fffefbf0;color:#204366;font-size:9px;font-weight:850;
   box-shadow:0 1px 2px #16395a35;border-radius:4px;padding:0px 3px;
@@ -338,6 +348,16 @@
 }
 .mapWrap :global(.customer-route-index::before){display:none}
 .mapWrap :global(.customer-route-point){cursor:pointer}
+.routeLocationPopup{display:flex;flex-direction:column;gap:7px;color:#234967;font-size:12px;line-height:1.45;max-height:300px;overflow-y:auto;overscroll-behavior:contain}
+.routeLocationPopup table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.routeLocationPopup th,.routeLocationPopup td{padding:5px 7px;border-bottom:1px solid #dce7ef;text-align:left}
+.routeLocationPopup th{background:#eef5fb;font-size:11px}
+.routeLocationPopup td:last-child,.routeLocationPopup th:last-child{text-align:right;white-space:nowrap}
+.routeLocationPopup td:first-child{overflow-wrap:anywhere}
+.routeLocationPopup details{border-top:1px solid #dce7ef;padding-top:6px}
+.routeLocationPopup summary{cursor:pointer;font-weight:750;font-size:11px}
+.routeLocationPopup details>div{margin-top:7px;font-size:11px}
+.routeLocationPopup small{color:#6d8195;font-size:10px}
 .customerListModal{
   position:fixed;inset:0;z-index:2200;
   background:#09223885;display:flex;align-items:center;justify-content:center;padding:22px;

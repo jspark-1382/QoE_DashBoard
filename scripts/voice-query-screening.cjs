@@ -5,7 +5,7 @@ const {load}=require('./analyst-ts-loader.cjs');
 const placeholders=values=>values.map(()=>'?').join(',');
 const fail=message=>{const error=new Error(message);error.status=400;throw error;};
 function createScreeningQueries({db,all,one,base,dates,areas,sourceMeta,rounded,text,pageOf}){
-  let screeningKey=null,scopeSequence=0,cellSites=null;
+  let screeningKey=null,scopeSequence=0,cellSites=null,timelineClockSql=null;
   const scopeCache=new Map(),enrichmentCache=new Map(),geographyCache=new Map();
   const MAX_SCOPES=2,MAX_ENRICHMENTS=512,MAX_GEOGRAPHIES=2;
   const hasDefaultRows=!!one("SELECT name FROM sqlite_master WHERE type='table' AND name='screen_default_rows'");
@@ -49,6 +49,11 @@ function createScreeningQueries({db,all,one,base,dates,areas,sourceMeta,rounded,
     const cacheKey=JSON.stringify([base(s),areaId??'',cellId??'',row.id]);
     const previous=enrichmentCache.get(cacheKey);
     if(previous){remember(enrichmentCache,cacheKey,previous,MAX_ENRICHMENTS);return includeBad?previous:{...previous,badCalls:[]};}
+    const totals=base(s);totals.where.push('c.customer_id=?');totals.args.push(row.id);if(areaId){totals.where.push('c.screen_area=?');totals.args.push(areaId);}if(cellId){totals.where.push('c.cell=?');totals.args.push(cellId);}
+    // Count all scoped source facts, including QoE-unavailable calls. Persisted
+    // screen_default_rows contain customer aggregates, never daily projections.
+    const totalByDate=new Map(all(`SELECT c.date,COUNT(*) AS total FROM facts c INDEXED BY facts_customer_date WHERE ${totals.where.join(' AND ')} GROUP BY c.date`,totals.args).map(day=>[day.date,day.total]));
+    const dailyTotal=dates.map(date=>totalByDate.get(date)??0);
     const b=base(s);b.where.push('c.customer_id=? AND ROUND(c.qoe,6)<3');b.args.push(row.id);if(areaId){b.where.push("COALESCE(NULLIF(c.area,''),l.area,'')=?");b.args.push(areaId);}if(cellId){b.where.push('c.cell=?');b.args.push(cellId);}
     const bad=all(`SELECT c.date,c.start_second AS second,ROUND(c.qoe,6) AS qoe,c.is_drop AS dropCall,COALESCE(NULLIF(c.area,''),l.area,'') AS area,c.cell,l.lat,l.lon,COALESCE(l.evidence,'') AS evidence,c.raw_id AS rawCallId FROM calls c LEFT JOIN locations l ON l.call_id=c.id AND l.kind='original' WHERE ${b.where.join(' AND ')} ORDER BY c.date,c.rowid`,b.args);
     // Stable ties follow the original published call order, as the browser helper.
@@ -56,7 +61,7 @@ function createScreeningQueries({db,all,one,base,dates,areas,sourceMeta,rounded,
     const mainAreaId=counts('area'),mainCell=counts('cell');bad.sort((a,b)=>b.date.localeCompare(a.date)||b.second-a.second);
     const dailyPoor=dates.map(date=>bad.filter(c=>c.date===date).length),latest=bad[0];
     const query=new URLSearchParams({source:'MDT',view:'contract',date:latest?.date??s.dateEnd,customer:row.id});if(latest?.rawCallId)query.set('call',latest.rawCallId);
-    const full={id:row.id,number:row.number,total:row.total,eligible:row.eligible,poor:row.poor,poorRate:row.poorRate,drop:row.dropCount,dropRate:row.dropRate,mean:row.mean,repeatedDays:row.repeatedDays,sameAreaDays:row.sameAreaDays,latestDate:latest?.date??'',mainArea:areas[mainAreaId]?.[0]??(mainAreaId?'행정동 미확인':'위치 근거 없음'),mainAreaId,mainCell,group:row.concentrated?'concentrated':row.repeatedDays>=2?'repeat':row.dropHeavy?'drop':row.poor?'temporary':'good',badCalls:bad.map(c=>({date:c.date,second:c.second,qoe:c.qoe,drop:Boolean(c.dropCall),area:c.area,cell:c.cell,lat:c.lat==null?null:Math.round(c.lat*1e6)/1e6,lon:c.lon==null?null:Math.round(c.lon*1e6)/1e6,evidence:c.evidence,rawCallId:c.rawCallId})),dailyPoor,href:'/?'+query};
+    const full={id:row.id,number:row.number,total:row.total,eligible:row.eligible,poor:row.poor,poorRate:row.poorRate,drop:row.dropCount,dropRate:row.dropRate,mean:row.mean,repeatedDays:row.repeatedDays,sameAreaDays:row.sameAreaDays,latestDate:latest?.date??'',mainArea:areas[mainAreaId]?.[0]??(mainAreaId?'행정동 미확인':'위치 근거 없음'),mainAreaId,mainCell,group:row.concentrated?'concentrated':row.repeatedDays>=2?'repeat':row.dropHeavy?'drop':row.poor?'temporary':'good',badCalls:bad.map(c=>({date:c.date,second:c.second,qoe:c.qoe,drop:Boolean(c.dropCall),area:c.area,cell:c.cell,lat:c.lat==null?null:Math.round(c.lat*1e6)/1e6,lon:c.lon==null?null:Math.round(c.lon*1e6)/1e6,evidence:c.evidence,rawCallId:c.rawCallId})),dailyTotal,dailyPoor,href:'/?'+query};
     remember(enrichmentCache,cacheKey,full,MAX_ENRICHMENTS);
     return includeBad?full:{...full,badCalls:[]};
   }
@@ -108,6 +113,31 @@ function createScreeningQueries({db,all,one,base,dates,areas,sourceMeta,rounded,
     const topHelper=load(path.resolve(__dirname,'../lib/analyst/customer-screening-top-ten.ts'));
     return {geography:cached.geography,topCustomers:topHelper.buildTopCustomerMap(topRows),source:{...sourceMeta,cellSites:cached.cellSites}};
   }
-  return {screening,source:screeningSource,map:screeningMap};
+  function customerQoeTimeline(s,args){
+    const customerId=text(args.customerId,'customerId');if(!customerId.trim())fail('Invalid customerId');
+    const areaId=args.areaId==null?'':text(args.areaId,'areaId'),cellId=args.cellId==null?'':text(args.cellId,'cellId');
+    // A selected customer owns this population. Scope customer IDs must neither
+    // broaden it nor accidentally remove it; all date/time/region filters apply.
+    const b=base(s,'c',false);b.where.push('c.customer_id=?');b.args.push(customerId);
+    if(areaId){b.where.push('c.screen_area=?');b.args.push(areaId);}if(cellId){b.where.push('c.cell=?');b.args.push(cellId);}
+    // Published start_second may omit milliseconds retained in source_clock.
+    // Use that precision only within the same indexed second; scope membership
+    // remains unchanged. Older fixtures safely retain the indexed clock.
+    timelineClockSql??=all('PRAGMA table_info(facts)').some(row=>row.name==='source_clock')
+      ?'CASE WHEN c.source_clock>=0 AND c.source_clock<86400 AND CAST(c.source_clock AS INTEGER)=CAST(c.start_second AS INTEGER) THEN c.source_clock ELSE c.start_second END'
+      :'c.start_second';
+    const rows=all(`SELECT c.id,c.raw_id,c.date,c.start_second,${timelineClockSql} AS timeline_second,c.qoe,c.is_drop,c.cell,
+      COALESCE(json_extract(d.json,'$.start'),'') AS start,l.lat,l.lon,l.evidence
+      FROM facts c INDEXED BY facts_customer_date JOIN calls d ON d.id=c.id
+      LEFT JOIN locations l ON l.call_id=c.id AND l.kind='original'
+      WHERE ${b.where.join(' AND ')} ORDER BY c.date,c.start_second,timeline_second,c.id`,b.args);
+    return {customerId,calls:rows.map(row=>({
+      id:row.id,rawCallId:row.raw_id,date:row.date,start:row.start,startSecond:row.timeline_second,
+      qoe:row.qoe,drop:Boolean(row.is_drop),cell:row.cell??'',
+      location:(row.evidence==='gnss'||row.evidence==='bye-cell')&&Number.isFinite(row.lat)&&Number.isFinite(row.lon)&&Math.abs(row.lat)<=90&&Math.abs(row.lon)<=180&&(row.lat!==0||row.lon!==0)
+        ?{lat:row.lat,lon:row.lon,evidence:row.evidence}:null,
+    }))};
+  }
+  return {screening,source:screeningSource,map:screeningMap,customerQoeTimeline};
 }
 module.exports={createScreeningQueries};

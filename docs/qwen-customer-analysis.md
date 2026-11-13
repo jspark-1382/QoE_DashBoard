@@ -38,6 +38,7 @@ QWEN_MAX_TOKENS=4096
 QWEN_TEMPERATURE=0.2
 QWEN_JSON_MODE=false
 QWEN_EXTRA_BODY_JSON={}
+QWEN_CANDIDATE_EXTRA_BODY_JSON={}
 ```
 
 실제 사용할 서버 주소·모델·인증 옵션은 프로젝트의 .env에 입력합니다. 현재 적용 여부는 화면의 설정 확인과 연결 확인으로 확인할 수 있습니다.
@@ -58,7 +59,8 @@ QWEN 설정에 VITE_ 접두사를 붙이지 않습니다. API 키와 서버 URL�
 | QWEN_MAX_TOKENS | 최대 출력 토큰, 128~32768 | 4096 |
 | QWEN_TEMPERATURE | 생성 온도, 0~2 | 0.2 |
 | QWEN_JSON_MODE | response_format: json_object 사용 여부 | false |
-| QWEN_EXTRA_BODY_JSON | 서빙 엔진별 추가 요청 옵션 | {} |
+| QWEN_EXTRA_BODY_JSON | 고객·후보 분석의 공통 추가 요청 옵션 | {} |
+| QWEN_CANDIDATE_EXTRA_BODY_JSON | 후보 분석 요청에만 적용하는 추가 옵션 | {} |
 
 QWEN_JSON_MODE는 해당 서빙 엔진이 지원할 때만 true로 바꿉니다.
 기본 상태에서도 최종 답변을 JSON으로 요청하고 서버에서 구조를 검증합니다.
@@ -164,3 +166,19 @@ UI만 변경한 경우 원본 자료 전체를 다시 생성할 필요는 없습
 2026-11-12에는 사용자가 입력한 실제 .env 설정으로 qwen3.8-flash-next의 고객 전체 분석과 선택 통화 1건 분석을 검증했습니다. 최종 실행은 각각 약 58.0초·50.8초에 완료됐고, 근거 이동·확대·대상 유지·결과 표시를 확인했습니다.
 이번 검증 중 백분율 근거 누락과 빼기식을 음수로 오인하는 문제를 수정했으며, 분석 자동 테스트 35개가 통과했습니다.
 상세 결과와 실제 화면 기록은 outputs/qwen-analysis-dev/live-verification-20261112.md에 있습니다. 원인 가설과 셀 편중에 관한 자연어 해석은 추가 근거와 함께 검토해야 합니다.
+
+### 후보 분석 전용 옵션
+
+`QWEN_CANDIDATE_EXTRA_BODY_JSON`은 개선 후보 분석에만 적용합니다. 미설정 또는 `{}`이면 기존 요청 옵션을 유지합니다. 공통 `QWEN_EXTRA_BODY_JSON` 위에 후보 옵션을 최상위 키 단위로 덮어쓰며, 고객·통화 분석 요청에는 후보 옵션을 적용하지 않습니다.
+
+`chat_template_kwargs`도 객체 전체를 교체합니다. 예를 들어 공통 옵션에 `enable_thinking: true, thinking_budget: 512`가 있어도 후보 옵션을 `{"chat_template_kwargs":{"enable_thinking":false}}`로 지정하면 후보 요청에는 `enable_thinking: false`만 전달되고 전역 `thinking_budget`은 상속되지 않습니다. 후보 요청에 필요한 중첩 설정은 같은 객체에 명시합니다.
+
+SGLang 또는 vLLM에서 사용하는 모델의 chat template이 해당 스위치를 지원하면 다음처럼 후보의 구조화 리포트만 non-thinking으로 요청할 수 있습니다. 실제 엔진·모델 지원을 확인하고 사용합니다.
+
+```dotenv
+QWEN_CANDIDATE_EXTRA_BODY_JSON={"chat_template_kwargs":{"enable_thinking":false}}
+```
+
+이 옵션은 출력 토큰 한도를 변경하지 않습니다. 실제 전송값은 후보 팝업 상단 **AI 입력·응답 확인 → 전송 옵션·사본 식별값**에서 확인합니다. 모델에 보낸 최종 옵션을 작업 재사용 키에도 포함하므로, 유효 옵션이 바뀐 새 분석 요청은 이전 설정의 완료 결과를 재사용하지 않습니다. 이미 열린 결과는 재분석을 눌러 새 요청을 생성합니다.
+
+공통·후보 옵션은 같은 허용 키 검증을 사용합니다. `messages`, `model`, `stream`, `max_tokens`, 주소·인증 항목 등 보호 필드는 추가 옵션으로 바꿀 수 없습니다. 설정 우선순위는 다른 QWEN 항목과 같습니다.

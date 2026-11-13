@@ -57,9 +57,11 @@ function loadQwenConfig(root,processValues=process.env){
   timeoutMs:numeric(env,'QWEN_TIMEOUT_MS',180000,1000,600000,true),
   maxTokens:numeric(env,'QWEN_MAX_TOKENS',4096,128,32768,true),
   temperature:numeric(env,'QWEN_TEMPERATURE',0.2,0,2),
-  jsonMode:json==='true',extraBody:extrasFrom(env.QWEN_EXTRA_BODY_JSON)};
+  jsonMode:json==='true',extraBody:extrasFrom(env.QWEN_EXTRA_BODY_JSON),candidateExtraBody:extrasFrom(env.QWEN_CANDIDATE_EXTRA_BODY_JSON)};
  config.missing=[...(!baseUrl?['QWEN_BASE_URL']:[]),...(!model?['QWEN_MODEL']:[])];return config;
 }
+/** Candidate overrides replace whole top-level option values; global settings stay untouched. */
+function candidateRequestExtras(config){return {...config.extraBody,...config.candidateExtraBody};}
 function publicConfig(config){return {configured:config.missing.length===0,model:config.model,missing:[...config.missing]};}
 function requireConfigured(config){if(config.missing.length)throw analysisError('QWEN_NOT_CONFIGURED','프로젝트 .env에 QWEN_BASE_URL과 QWEN_MODEL을 입력해 주세요.',503);}
-module.exports={loadQwenConfig,publicConfig,requireConfigured,analysisError};
+module.exports={loadQwenConfig,candidateRequestExtras,publicConfig,requireConfigured,analysisError};

@@ -22,7 +22,7 @@ export interface ScreeningRow {
   id:string;number:string;total:number;eligible:number;poor:number;poorRate:number;
   drop:number;dropRate:number;mean:number|null;repeatedDays:number;sameAreaDays:number;
   latestDate:string;mainArea:string;mainAreaId:string;mainCell:string;group:CustomerGroup;
-  badCalls:PoorCall[];dailyPoor:number[];href:string;
+  badCalls:PoorCall[];dailyTotal:number[];dailyPoor:number[];href:string;
 }
 export interface ScreeningResult {
   rows:ScreeningRow[];total:number;affected:number;repeat:number;concentrated:number;
@@ -48,13 +48,13 @@ export function aggregateScreening(data:ScreeningSource,start:string,end:string,
     let total=0,customerEligible=0,customerPoor=0,customerDrop=0,sum=0;
     const badCalls:PoorCall[]=[],badDays=new Set<string>(),areaDays=new Map<string,Set<string>>(),
       areaCounts=new Map<string,number>(),cellCounts=new Map<string,number>();
-    const dailyPoor=Array.from({length:data.dates.length},()=>0);
+    const dailyTotal=Array.from({length:data.dates.length},()=>0),dailyPoor=Array.from({length:data.dates.length},()=>0);
     for(const [day,second,qoe,isDrop,area,cell,lat,lon,evidence,rawCallId] of customer.calls){
       if(day<startIndex||day>endIndex||second<first||second>=last+60)continue;
       if(scope?.areaId&&area!==scope.areaId)continue;
       if(scope?.cellId&&cell!==scope.cellId)continue;
       if(scope?.gnssOnly&&evidence!=='gnss')continue;
-      total++; if(isDrop)customerDrop++;
+      total++;dailyTotal[day]++; if(isDrop)customerDrop++;
       if(qoe!==null&&Number.isFinite(qoe)){customerEligible++;sum+=qoe;}
       if(qoe!==null && Number.isFinite(qoe) && qoe<t.poor){
         customerPoor++;const date=data.dates[day];badDays.add(date);dailyPoor[day]++;
@@ -85,7 +85,7 @@ export function aggregateScreening(data:ScreeningSource,start:string,end:string,
     rows.push({id:customer.id,number:customer.number,total,eligible:customerEligible,poor:customerPoor,poorRate,
       drop:customerDrop,dropRate,mean:customerEligible?sum/customerEligible:null,repeatedDays:badDays.size,
       sameAreaDays,mainArea:data.areas[mainAreaId]?.[0]??(mainAreaId?'행정동 미확인':'위치 근거 없음'),
-      mainAreaId,mainCell,latestDate:latest?.date??'',group,badCalls,dailyPoor,
+      mainAreaId,mainCell,latestDate:latest?.date??'',group,badCalls,dailyTotal,dailyPoor,
       href:'/?'+query.toString()});
     calls+=total;eligible+=customerEligible;poor+=customerPoor;drop+=customerDrop;
   }

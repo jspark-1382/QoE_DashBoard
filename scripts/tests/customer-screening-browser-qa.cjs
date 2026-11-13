@@ -31,7 +31,7 @@ function inspect(){
  const ranks=[...document.querySelectorAll('table tbody tr')];
  const nav=document.querySelector('nav[aria-label="품질 분석 탭"]');
  const navLabels=[...(nav?.querySelectorAll('a')||[])].map(a=>a.textContent.trim());
- const map=document.querySelector('[aria-label="고객 선별 행정동 경계 및 무선 위치근거 지도"]');
+ const map=document.querySelector('[aria-label="고객현황 행정동 경계 및 무선 위치근거 지도"]');
  return {
   customerTab:navLabels.at(-1),
   originalTabs:navLabels.slice(0,7),
@@ -56,7 +56,7 @@ const inspectJs='('+inspect.toString()+')()';
  ws.addEventListener('message',ev=>{const o=JSON.parse(ev.data.toString()),p=pending.get(o.id);if(p){pending.delete(o.id);clearTimeout(p.timer);o.error?p.reject(Error(JSON.stringify(o.error))):p.resolve(o.result);}});
  await cdp('Runtime.enable');
  let checked=0; const initial=await until(async()=>{const x=await evalJs(inspectJs);checked++;if(checked===1||checked%12===0)console.log('SCREENING_DIAG',JSON.stringify(x));return x.all&&x.poor&&x.status&&x.mapMarkers>0?x:null;},'customer screening loaded',20000);
- assert.equal(initial.customerTab,'고객 선별');assert.equal(initial.navCount,8);
+ assert.equal(initial.customerTab,'고객현황');assert.equal(initial.navCount,8);
  assert(initial.rows===10&&initial.low&&initial.selected);
  assert(initial.link.includes('/qoe/?source=MDT&view=contract'));
  console.log('SCREENING_INITIAL',JSON.stringify(initial));
@@ -72,7 +72,7 @@ const inspectJs='('+inspect.toString()+')()';
  const chooseMode=async(label)=>evalJs('(function(){const b=[...document.querySelectorAll("button")].find(x=>x.textContent.trim()==='+JSON.stringify(label)+');if(!b)return false;b.click();return true})()');
  const clickArea=await evalJs('(function(){const ps=[...document.querySelectorAll(".leaflet-overlay-pane path.leaflet-interactive")];const x=ps.find(p=>["#b72f50","#e66b64","#eda36f"].includes((p.getAttribute("fill")||"").toLowerCase()));if(!x)return false;x.dispatchEvent(new MouseEvent("click",{bubbles:true,cancelable:true}));return true})()');
  assert(clickArea,'Click a colored real administrative district');
- const district=await until(async()=>{const x=await evalJs('document.body.innerText');return x.includes("선택 고객 비교 ·")?x:null;},'district selection scopes comparison',17000);
+ const district=await until(async()=>{const x=await evalJs('document.body.innerText');return x.includes("선택 고객 통화 품질 추이")&&x.includes("지역 선택 해제")?x:null;},'district selection scopes customer timeline',17000);
  assert(district.includes('선택 해제'));
  const mapMetric=await evalJs('(function(){const s=document.querySelector("select[aria-label=\\"고객 지도 집계 지표\\"]");s.value="drops";s.dispatchEvent(new Event("change",{bubbles:true}));return s.value})()');
  assert.equal(mapMetric,'drops');
@@ -89,7 +89,7 @@ const inspectJs='('+inspect.toString()+')()';
  const changed=await evalJs('(function(){const b=[...document.querySelectorAll("button")].find(x=>x.textContent.trim()==="Drop 기준");if(!b)return false;b.click();return true})()');
  assert(changed);
  await until(async()=>{const x=await evalJs(inspectJs);return x.topCustomer!==initial.topCustomer?x:null;},'Drop ranking sort');
- const filter=await evalJs('(function(){const s=document.querySelector("select[aria-label=\\"고객 선별 조건\\"]");s.value="repeat";s.dispatchEvent(new Event("change",{bubbles:true}));return s.value})()');
+ const filter=await evalJs('(function(){const s=document.querySelector("select[aria-label=\\"고객현황 조건\\"]");s.value="repeat";s.dispatchEvent(new Event("change",{bubbles:true}));return s.value})()');
  assert.equal(filter,'repeat');
  await until(async()=>{const x=await evalJs(inspectJs);return x.rows>0&&x.rows<=10&&x.status?x:null;},'filter');
 
