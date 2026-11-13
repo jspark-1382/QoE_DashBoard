@@ -1,5 +1,5 @@
-.toggle{display:inline-flex;align-items:center;gap:5px;flex-wrap:wrap;min-width:0;border:0;padding:0;margin:0}
-.toggle button{border:1px solid #cbdde8;border-radius:7px;background:#f5f9fc;color:#52768a;font-weight:800;font-size:10px;padding:5px 9px;cursor:pointer;white-space:nowrap;line-height:1.3}
-.toggle button[aria-pressed="true"]{background:#ddf6ee;color:#147e6b;border-color:#55bca9}
+.toggle{display:inline-flex;align-items:center;gap:3px;flex-wrap:wrap;min-width:0;border:1px solid #dae5ea;border-radius:8px;padding:2px;margin:0;background:#f3f6f8}
+.toggle button{border:1px solid transparent;border-radius:5px;background:transparent;color:#486277;font-weight:700;font-size:12px;min-height:32px;padding:4px 8px;cursor:pointer;white-space:nowrap;line-height:1.35}
+.toggle button[aria-pressed="true"]{background:white;color:#086d5e;border-color:#82bdb1;box-shadow:0 1px 2px #183a4812}
 .toggle button:hover{border-color:#58aaab}
 .toggle button:focus-visible{outline:3px solid #2caf9e;outline-offset:1px}
