@@ -52,7 +52,7 @@ export function normalizeDay(
   detail: SourceDay,
   source: AnalystSource,
 ): AnalystDay {
-  const contractId = getContractId(
+  const contractId = detail.sourceContractId ?? getContractId(
       dataset.customers.find((c) => c.id === detail.customerId),
       detail,
     ),

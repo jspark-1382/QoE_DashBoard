@@ -1,5 +1,5 @@
 'use client';
-import { useEffect,useRef,useState } from 'react';
+import { useEffect,useMemo,useRef,useState } from 'react';
 import type {Map as LeafletMap,LayerGroup,Canvas as LeafletCanvas} from 'leaflet';
 import {callEvidenceUrl,type ImprovementCandidate} from '../../lib/analyst/improvement-candidates';
 import {withQoeBasePath} from './document-link';
@@ -8,7 +8,11 @@ import {gpsBand,gpsBandLabel,gpsMarkerSvg,type GpsRfRecord,type GpsRfSidecar} fr
 import type {CandidateRoughMatch} from '../../lib/analyst/quality-candidate-rough-membership';
 import {candidateCircleDistanceM} from '../../lib/analyst/quality-candidate-rough-membership';
 import {stationTowerSvg,type StationSiteMarker} from '../../lib/analyst/station-map-presentation';
-import {grid25mCorners,grid25mRsrpColor,inVisibleCandidate25m,isValidMdt25mGrid,MDT_RSRP_LEGEND,selectMdtGridMetric,type Mdt25mGrid,type MdtGridMode} from '../../lib/analyst/mdt-25m-grid';
+import {grid25mCorners,grid25mRsrpColor,inVisibleCandidate25m,isValidMdt25mGrid,MDT_RSRP_LEGEND,selectMdtGridMetric,type Mdt25mGrid,type MdtGridMode,type MdtCandidateCircle} from '../../lib/analyst/mdt-25m-grid';
+import {candidateResource} from '../../lib/analyst/candidate-resource-cache';
+import type {CandidateTopTenCustomer} from '../../lib/analyst/candidate-top-ten';
+import type {QualityCandidateScope} from '../../lib/analyst/quality-improvement-candidates';
+import {CandidateTopTenOverlay} from './candidate-top-ten-overlay';
 import 'leaflet/dist/leaflet.css';
 import styles from './improvement-candidate-map.module.css';
 
@@ -26,10 +30,11 @@ interface Props {
   presentation?:'legacy'|'proposal2';
   fullscreenEnhanced?:boolean;
   mdtGridMode?:MdtGridMode;
+  unmatchedTopTen?:{scope:QualityCandidateScope;customers:readonly CandidateTopTenCustomer[]};
 }
 const TILE_NOTICE='배경지도 불러오기 실패 · 후보 좌표는 계속 표시됩니다.';
 
-export function ImprovementCandidateMap({candidates,selectedId,onSelect,sourceRevision,observationPoints=[],roughPoints=[],stationSites=[],roughUsedForCandidate=false,hint,presentation='legacy',fullscreenEnhanced=false,mdtGridMode='hidden'}:Props){
+export function ImprovementCandidateMap({candidates,selectedId,onSelect,sourceRevision,observationPoints=[],roughPoints=[],stationSites=[],roughUsedForCandidate=false,hint,presentation='legacy',fullscreenEnhanced=false,mdtGridMode='hidden',unmatchedTopTen}:Props){
   const host=useRef<HTMLDivElement|null>(null);
   const live=useRef<LeafletMap|null>(null);
   const layer=useRef<LayerGroup|null>(null);
@@ -39,18 +44,32 @@ export function ImprovementCandidateMap({candidates,selectedId,onSelect,sourceRe
   const [map,setMap]=useState<LeafletMap|null>(null);
   const [notice,setNotice]=useState<string|null>(null);
   const fitOnce=useRef(false);
+  const unmatchedOverlayActive=!!unmatchedTopTen?.customers.length;
   const [rfRecords,setRfRecords]=useState<Record<string,GpsRfRecord>>({});
   const [gridSource,setGridSource]=useState<Mdt25mGrid|null>(null);
   const [gridError,setGridError]=useState<string|null>(null);
   const [gridStats,setGridStats]=useState<{key:string;drawn:number;missing:number}|null>(null);
   const gridRenderKey=mdtGridMode+'|'+candidates.map(candidate=>candidate.id).join('|');
+  // Detail/selection updates enrich candidate objects without moving circles.
+  // Avoid rebuilding every 25 m polygon when only those non-spatial fields change.
+  const gridAreaKey=JSON.stringify(candidates.flatMap(candidate=>{
+    const loc=candidate.location;
+    return loc&&Number.isFinite(loc.lat)&&Number.isFinite(loc.lon)&&typeof loc.radiusM==='number'&&loc.radiusM>0
+      ?[{lat:loc.lat,lon:loc.lon,radiusM:loc.radiusM}]:[];
+  }));
+  const gridAreas=useMemo(()=>JSON.parse(gridAreaKey) as MdtCandidateCircle[],[gridAreaKey]);
   const visibleGridStats=gridStats?.key===gridRenderKey?gridStats:null;
   useEffect(()=>{
     if(!sourceRevision){setRfRecords({});return;}
     const controller=new AbortController();
-    void fetch('/qoe/quality-improvement/gps-marker-rf-v1.json',{signal:controller.signal,cache:'no-cache'})
-      .then(response=>{if(!response.ok)throw new Error('GPS RF evidence unavailable');return response.json() as Promise<GpsRfSidecar>;})
-      .then(data=>{if(!controller.signal.aborted)setRfRecords(data.schemaVersion==='qoe-gps-marker-rf-v1'&&data.sourceRevision===sourceRevision?data.records:{});})
+    void candidateResource('gps-marker-rf|'+sourceRevision,async signal=>{
+      const response=await fetch('/qoe/quality-improvement/gps-marker-rf-v1.json',{signal,cache:'no-cache'});
+      if(!response.ok)throw new Error('GPS RF evidence unavailable');
+      const data=await response.json() as GpsRfSidecar;
+      if(data.schemaVersion!=='qoe-gps-marker-rf-v1'||data.sourceRevision!==sourceRevision)throw new Error('GPS RF source revision mismatch');
+      return data;
+    },controller.signal)
+      .then(data=>{if(!controller.signal.aborted)setRfRecords(data.records);})
       .catch(()=>{if(!controller.signal.aborted)setRfRecords({});});
     return()=>controller.abort();
   },[sourceRevision]);
@@ -60,17 +79,17 @@ export function ImprovementCandidateMap({candidates,selectedId,onSelect,sourceRe
     if(mdtGridMode==='hidden'||gridSource)return;
     const controller=new AbortController();
     setGridError(null);
-    void fetch('/qoe/quality-improvement/mdt-grid-25m-v1.json',{signal:controller.signal,cache:'no-cache'})
-      .then(response=>{if(!response.ok)throw new Error('25m MDT dataset unavailable');return response.json() as Promise<unknown>;})
-      .then(data=>{
-        if(!controller.signal.aborted){
-          if(!isValidMdt25mGrid(data))throw new Error('25m MDT grid schema mismatch');
-          setGridSource(data);
-        }
-      })
+    void candidateResource('mdt-grid-25m|'+(sourceRevision??''),async signal=>{
+      const response=await fetch('/qoe/quality-improvement/mdt-grid-25m-v1.json',{signal,cache:'no-cache'});
+      if(!response.ok)throw new Error('25m MDT dataset unavailable');
+      const data:unknown=await response.json();
+      if(!isValidMdt25mGrid(data))throw new Error('25m MDT grid schema mismatch');
+      return data;
+    },controller.signal)
+      .then(data=>{if(!controller.signal.aborted)setGridSource(data);})
       .catch(()=>{if(!controller.signal.aborted)setGridError('25m MDT 격자 파일을 읽을 수 없습니다.');});
     return()=>controller.abort();
-  },[mdtGridMode,gridSource]);
+  },[mdtGridMode,gridSource,sourceRevision]);
 
   useEffect(()=>{
     let current=true;
@@ -125,14 +144,19 @@ export function ImprovementCandidateMap({candidates,selectedId,onSelect,sourceRe
       const pane=map.getPane('qoe-mdt-25m')??map.createPane('qoe-mdt-25m');
       // Below other Leaflet overlays (400) and markers (600); above the basemap.
       pane.style.zIndex='340';
-      const canvas=gridRenderer.current??L.canvas({pane:'qoe-mdt-25m',padding:0.2});
-      gridRenderer.current=canvas;
+      let canvas=gridRenderer.current;
+      if(!canvas){
+        canvas=L.canvas({pane:'qoe-mdt-25m',padding:0.2});
+        // Leaflet can lose a queued frame ID when a synchronous redraw runs first.
+        // That orphan frame must not draw after a model/filter removes this map.
+        const renderer=canvas as LeafletCanvas&{_redraw:()=>void};
+        const draw=renderer._redraw.bind(renderer);
+        renderer._redraw=()=>{if(map.hasLayer(renderer))draw();};
+        gridRenderer.current=canvas;
+      }
       const group=L.layerGroup().addTo(map);
       gridLayer.current=group;
-      const areas=candidates
-        .map(candidate=>candidate.location)
-        .filter((loc):loc is NonNullable<typeof loc>=>!!loc&&Number.isFinite(loc.lat)&&Number.isFinite(loc.lon)&&typeof loc.radiusM==='number'&&loc.radiusM>0)
-        .map(loc=>({lat:loc.lat,lon:loc.lon,radiusM:loc.radiusM!}));
+      const areas=gridAreas;
       let drawn=0;
       let missing=0;
       for(const cell of gridSource.records){
@@ -167,7 +191,7 @@ export function ImprovementCandidateMap({candidates,selectedId,onSelect,sourceRe
       gridLayer.current?.remove();
       gridLayer.current=null;
     };
-  },[map,mdtGridMode,gridSource,candidates,gridRenderKey]);
+  },[map,mdtGridMode,gridSource,gridAreas,gridRenderKey]);
 
   useEffect(()=>{
     if(!map)return;
@@ -286,12 +310,13 @@ export function ImprovementCandidateMap({candidates,selectedId,onSelect,sourceRe
         coords.push(p);
         const active=candidate.id===selectedId;
         if(candidate.kind==='spatial' && loc.radiusM!=null){
-          L.circle(p,{
+          const circle=L.circle(p,{
             radius:loc.radiusM,color:fullscreenEnhanced?(active?'#d8414c':'#9caeb8'):presentation==='proposal2'?(active?'#c98520':'#91a6b3'):active?'#c4474e':'#d37c74',
             dashArray:fullscreenEnhanced&&active?'7 5':'6 5',weight:active?2.5:1.6,
             fillColor:fullscreenEnhanced?'#f06c75':presentation==='proposal2'?'#efbf65':'#e87b78',fillOpacity:active?0.16:0.075,
             interactive:false,
           }).addTo(next);
+          circle.getElement()?.setAttribute('data-candidate-circle-id',candidate.id);
         }
         const marker=L.circleMarker(p,{
           radius:active?12:9,weight:active?3:2,
@@ -402,12 +427,12 @@ export function ImprovementCandidateMap({candidates,selectedId,onSelect,sourceRe
         dot.bindPopup(popup);
         dot.bindTooltip(point.date.slice(5)+' · GPS'+(rf?.rsrpDbm==null?' · RSRP 미확보':' · RSRP '+rf.rsrpDbm+' dBm'));
       }
-      if(!fitOnce.current&&coords.length){
+      if(!unmatchedOverlayActive&&!fitOnce.current&&coords.length){
         fitOnce.current=true;
         // Establish the initial view immediately so a mode switch cannot leave
         // a deferred zoom transition targeting an already removed map.
         map.fitBounds(L.latLngBounds(coords),{padding:[38,38],maxZoom:14,animate:false});
-      }else{
+      }else if(!unmatchedOverlayActive){
         const chosen=candidates.find(x=>x.id===selectedId);
         const focus=chosen?.location??chosen?.relatedGnss?.[0];
         if(focus)
@@ -415,9 +440,11 @@ export function ImprovementCandidateMap({candidates,selectedId,onSelect,sourceRe
       }
     }).catch(()=>{if(current)setNotice('지도 후보 표시 실패');});
     return()=>{current=false;};
-  },[candidates,map,selectedId,observationPoints,roughPoints,stationSites,roughUsedForCandidate,presentation,fullscreenEnhanced,rfRecords]);
+  },[candidates,map,selectedId,observationPoints,roughPoints,stationSites,roughUsedForCandidate,presentation,fullscreenEnhanced,rfRecords,unmatchedOverlayActive]);
   return <div className={[styles.container,fullscreenEnhanced?styles.referenceMap:''].filter(Boolean).join(' ')} aria-label="개선 후보 지도">
     <div className={styles.map} ref={host}/>
+    {unmatchedTopTen&&unmatchedOverlayActive&&<CandidateTopTenOverlay map={map} scope={unmatchedTopTen.scope}
+      customers={unmatchedTopTen.customers} candidates={candidates} expectedSourceRevision={sourceRevision}/>}
     {notice&&<output className={styles.notice}>{notice}</output>}
     {mdtGridMode!=='hidden'&&<>
       <div className={styles.gridNote} role="status" aria-label="25m MDT 격자 상태">{gridError??(gridSource&&visibleGridStats?`MDT 25m · ${mdtGridMode==='top1'?'Top1 최다 측정 주파수':mdtGridMode} · 11/03 자료 · ${visibleGridStats.drawn.toLocaleString('ko-KR')}격자${visibleGridStats.missing?' · 미수집 '+visibleGridStats.missing.toLocaleString('ko-KR')+'격자':''}`:'MDT 25m 격자 계산 중')}</div>

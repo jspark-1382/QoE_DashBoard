@@ -1,10 +1,13 @@
+// Historical source assertions use the preserved original cohort; current sources have a separate census test.
+const {historicalRead,historicalJson,skipHistoricalSource}=require('./published-fixture.cjs');
+if(skipHistoricalSource(__filename))return;
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const {load}=require('../analyst-ts-loader.cjs');
 const {classifySipReason11,sipReasonLabel}=load('lib/analyst/sip-reason.ts');
 const {validateImprovementReport}=load('lib/analyst/improvement-candidates.ts');
-const read=p=>JSON.parse(fs.readFileSync(p,'utf8'));
+const read=p=>JSON.parse(historicalRead(p,'utf8'));
 const report=read('public/improvement-candidates/2026-10-26_2026-10-30.json');
 const byDate=new Map(report.analysisDates.map(day=>[
   day,new Map(read('public/analyst-overview/MDT/'+day+'.json').calls.map(x=>[x.id,x])),
@@ -51,13 +54,13 @@ test('related GNSS sample counts are full per-call point sets, not a single medo
  assert.deepEqual(report.candidates.map(c=>c.relatedGnss.length),[21,32,43,10,2]);
  const labels=report.candidates.filter(c=>c.kind==='spatial').map(c=>c.label);
  assert(labels.every(x=>x.startsWith('MOS 저하고객 중복 위치 ')), 'raw candidate JSON retains original labels');
- const display=fs.readFileSync('components/analyst/improvement-candidates.tsx','utf8');
+ const display=historicalRead('components/analyst/improvement-candidates.tsx','utf8');
  assert(display.includes('displayQualityLabel(candidate.label)'), 'UI must normalize the original label without changing evidence');
 });
 test('inline full map opens selected call analysis directly, retaining SIP and GNSS changes',()=>{
- const ui=fs.readFileSync('components/analyst/quality-proposal-four.tsx','utf8');
- const candidate=fs.readFileSync('components/analyst/improvement-candidates.tsx','utf8');
- const map=fs.readFileSync('components/analyst/improvement-candidate-map.tsx','utf8');
+ const ui=historicalRead('components/analyst/quality-proposal-four.tsx','utf8')+'\n'+historicalRead('components/analyst/quality-summary-panels.tsx','utf8');
+ const candidate=historicalRead('components/analyst/improvement-candidates.tsx','utf8');
+ const map=historicalRead('components/analyst/improvement-candidate-map.tsx','utf8');
  assert(ui.includes('className={styles.geography}'));
  assert(ui.includes('className={styles.mapHost}'));
  assert(ui.includes('id="qoe-call-analysis-dialog"'));

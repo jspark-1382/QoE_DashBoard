@@ -1,3 +1,6 @@
+// Numerical source regressions retain the original two-workbook cohort.
+const {historicalRead,historicalJson,skipHistoricalSource}=require('./published-fixture.cjs');
+if(skipHistoricalSource(__filename))return;
 /* eslint-disable @typescript-eslint/no-require-imports */
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
@@ -9,16 +12,16 @@ const {overlayThreeSiteRough}=load('lib/analyst/three-site-rough.ts');
 const {buildImprovedView}=load('lib/analyst/improved-overview.ts');
 const {buildQualityScopeObservationPoints}=load('lib/analyst/quality-improvement-candidates.ts');
 const dates=[26,27,28,29,30].map(n=>'2026-10-'+n);
-const overview=combineDateOverviews(dates.map(d=>require('../../public/analyst-overview/MDT/'+d+'.json')));
-const partitions=dates.map(d=>require('../../public/three-site-rough/'+d+'.json'));
-const index=require('../../public/quality-improvement/index.json');
+const overview=combineDateOverviews(dates.map(d=>historicalJson('../../public/analyst-overview/MDT/'+d+'.json')));
+const partitions=dates.map(d=>historicalJson('../../public/three-site-rough/'+d+'.json'));
+const index=historicalJson('../../public/quality-improvement/index.json');
 const scope={sourceRevision:overview.sourceRevision,dateStart:dates[0],dateEnd:dates.at(-1),
   from:'00:00',to:'23:59',policy:'strict-3-site-v1'};
 const evidence={revision:index.sourceRevision,policy:'strict-3-site-v1',
-  censusComplete:true,records:index.evidence.flatMap(e=>require('../../public/quality-improvement/'+e.path).records)};
-const baselineEntry=require('../../public/quality-improvement-full/index.json').entries.find(
+  censusComplete:true,records:index.evidence.flatMap(e=>historicalJson('../../public/quality-improvement/'+e.path).records)};
+const baselineEntry=historicalJson('../../public/quality-improvement-full/index.json').entries.find(
   e=>e.scope.dateStart===scope.dateStart&&e.scope.dateEnd===scope.dateEnd);
-const baseline=require('../../public/quality-improvement-full/'+baselineEntry.path);
+const baseline=historicalJson('../../public/quality-improvement-full/'+baselineEntry.path);
 
 test('existing overview and new candidate reference layer share exactly 106 low-QoE rough points',()=>{
  const points=buildCandidateRoughPoints(overview,scope,partitions);
@@ -47,7 +50,7 @@ test('GPS strict-approval evidence is separate and candidate counts cannot chang
 });
 test('time and date scope filter the approximate layer identically to the overview',()=>{
  const dayScope={...scope,dateStart:'2026-10-30',dateEnd:'2026-10-30'};
- const day=JSON.parse(fs.readFileSync('public/analyst-overview/MDT/2026-10-30.json','utf8'));
+ const day=JSON.parse(historicalRead('public/analyst-overview/MDT/2026-10-30.json','utf8'));
  const only=buildCandidateRoughPoints(day,dayScope,[partitions.at(-1)]);
  assert.equal(only.length,23);
  const hourScope={...scope,from:'10:00',to:'10:59'};
@@ -81,10 +84,10 @@ test('browser loader fetches only scoped, verified source partitions',async()=>{
  }finally{global.fetch=oldFetch;}
 });
 test('map overlays hollow orange reference diamonds with source details, never modifying algorithms',()=>{
- const panel=fs.readFileSync('components/analyst/quality-improvement-candidate-panel.tsx','utf8');
- const map=fs.readFileSync('components/analyst/improvement-candidate-map.tsx','utf8');
- const dbscan=fs.readFileSync('components/analyst/quality-two-candidate-workspace.tsx','utf8');
- const alt=fs.readFileSync('components/analyst/quality-model-alternative-workspace.tsx','utf8');
+ const panel=historicalRead('components/analyst/quality-improvement-candidate-panel.tsx','utf8');
+ const map=historicalRead('components/analyst/improvement-candidate-map.tsx','utf8');
+ const dbscan=historicalRead('components/analyst/quality-two-candidate-workspace.tsx','utf8');
+ const alt=historicalRead('components/analyst/quality-model-alternative-workspace.tsx','utf8');
  assert(panel.includes('loadCandidateRoughPoints(overview,scope,controller.signal)'));
  assert(panel.includes('roughPoints={roughPoints}'));
  assert(dbscan.includes('roughPoints={selectedRough}'));
@@ -99,5 +102,5 @@ test('map overlays hollow orange reference diamonds with source details, never m
  assert(map.includes('이 MDT RSRP 가중중심 근사는 선택 알고리즘의 개선 후보 구성에 사용됐습니다.'));
  assert(map.includes('roughSearchRadiusM'));
  assert(map.includes('원본 통화 상세'));
- assert(!fs.readFileSync('scripts/voice_improvement_1.py','utf8').includes('quality-candidate-rough-points'));
+ assert(!historicalRead('scripts/voice_improvement_1.py','utf8').includes('quality-candidate-rough-points'));
 });

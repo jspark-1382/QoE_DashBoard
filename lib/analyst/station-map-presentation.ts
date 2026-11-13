@@ -19,7 +19,7 @@ export interface StationSiteMarker{
   source:'inventory'|'mdt';
   cells:Array<{ruId:string;cellId:string;pci:number|null;rsrpDbm:number|null;related:boolean}>;
 }
-export const DEFAULT_STATION_OPTIONS:StationDisplayOptions={range:'inside',rat:'LTE',highlightRelated:true};
+export const DEFAULT_STATION_OPTIONS:StationDisplayOptions={range:'off',rat:'LTE',highlightRelated:true};
 /** Static, identifiable tower glyph used by every map; no handset marker shape reuse. */
 export function stationTowerSvg(state:'standard'|'selected'|'linked'|'nearby'='standard',size=24):string{
   const stroke=state==='linked'?'#b45309':state==='selected'?'#2563eb':state==='nearby'?'#8798a7':'#456b87';

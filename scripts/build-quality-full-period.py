@@ -6,14 +6,16 @@ are imported from scripts/voice_improvement_1.py rather than reimplemented.
 """
 from __future__ import annotations
 import json
+import os
 from pathlib import Path
 from datetime import date,timedelta
 from voice_improvement_1 import _candidates
 
 ROOT=Path(__file__).resolve().parents[1]
-PUBLISHED=ROOT/"public"/"quality-improvement"
-OUT=ROOT/"public"/"quality-improvement-full"
-OVERVIEW=ROOT/"public"/"analyst-overview"/"MDT"
+PUBLIC=Path(os.environ.get('QOE_PUBLIC_DIR', ROOT/'public'))
+PUBLISHED=PUBLIC/"quality-improvement"
+OUT=PUBLIC/"quality-improvement-full"
+OVERVIEW=PUBLIC/"analyst-overview"/"MDT"
 REVISION_INDEX=json.loads((PUBLISHED/"index.json").read_text(encoding="utf8"))
 REVISION=REVISION_INDEX["sourceRevision"]
 POLICY={"epsM":100,"minSamples":2,"minPoorCustomers":3,"minPoorDates":2,

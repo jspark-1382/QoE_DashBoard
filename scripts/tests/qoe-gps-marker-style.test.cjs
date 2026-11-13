@@ -1,3 +1,6 @@
+// Numerical source regressions retain the original two-workbook cohort.
+const {historicalRead,historicalJson,skipHistoricalSource}=require('./published-fixture.cjs');
+if(skipHistoricalSource(__filename))return;
 /* eslint-disable @typescript-eslint/no-require-imports */
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
@@ -6,16 +9,16 @@ const path=require('node:path');
 const vm=require('node:vm');
 const ts=require('typescript');
 const stylePath=path.resolve('components/analyst/gps-marker-style.tsx');
-const compiled=ts.transpileModule(fs.readFileSync(stylePath,'utf8'),{
+const compiled=ts.transpileModule(historicalRead(stylePath,'utf8'),{
   compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,esModuleInterop:true}
 }).outputText;
 const mod={exports:{}};
 vm.runInThisContext('(function(require,module,exports){'+compiled+'\n})',{filename:stylePath})(require,mod,mod.exports);
 const {gpsBand,gpsBandLabel,gpsRsrpColor,gpsMarkerSvg,GPS_BANDS}=mod.exports;
-const report=JSON.parse(fs.readFileSync('public/quality-improvement/gps-marker-rf-v1.json','utf8'));
+const report=JSON.parse(historicalRead('public/quality-improvement/gps-marker-rf-v1.json','utf8'));
 
 test('exact RF evidence is auditable, source-versioned and independent of source files',()=>{
- const index=require('../../public/quality-improvement/index.json');
+ const index=historicalJson('../../public/quality-improvement/index.json');
  assert.equal(report.schemaVersion,'qoe-gps-marker-rf-v1');
  assert.equal(report.sourceRevision,index.sourceRevision);
  assert.equal(report.scope,'approved-low-qoe-gnss');
@@ -53,9 +56,12 @@ test('all GPS marker shapes are circular across bands and the -105 dBm boundary 
 });
 
 test('map uses RF sidecar only when source revision matches and keeps candidate circles separate',()=>{
- const ui=fs.readFileSync('components/analyst/improvement-candidate-map.tsx','utf8');
- const outer=fs.readFileSync('components/analyst/quality-two-candidate-workspace.tsx','utf8');
- assert(ui.includes("data.sourceRevision===sourceRevision"));
+ const ui=historicalRead('components/analyst/improvement-candidate-map.tsx','utf8');
+ const outer=historicalRead('components/analyst/quality-two-candidate-workspace.tsx','utf8');
+ assert.match(ui,/if\(data\.schemaVersion!=='qoe-gps-marker-rf-v1'\|\|data\.sourceRevision!==sourceRevision\)throw new Error/,
+  'a stale RF revision must be rejected before its record map is cached');
+ assert(ui.includes("candidateResource('gps-marker-rf|'+sourceRevision"),
+  'RF cache entries must be isolated by the selected source revision');
  assert(ui.includes("gps-marker-rf-v1.json"));
  assert(ui.includes("gpsMarkerSvg(band,rf?.rsrpDbm)"));
  assert(ui.includes("withQoeBasePath(callEvidenceUrl("));

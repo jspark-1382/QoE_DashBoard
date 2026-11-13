@@ -1,3 +1,6 @@
+// Historical source assertions use the preserved original cohort; current sources have a separate census test.
+const {historicalRead,historicalJson,skipHistoricalSource}=require('./published-fixture.cjs');
+if(skipHistoricalSource(__filename))return;
 /* eslint-disable @typescript-eslint/no-require-imports -- Uses the shared CJS test loader. */
 /* Conservative publication policy: never confuse solver candidates with handset locations. */
 const test=require('node:test');
@@ -44,10 +47,10 @@ test('reject saturated distances, unvalidated uncertainty, 2 sites, geometry, st
  }
 });
 test('2026-10-30 reported call #29 keeps CDR MOS, withholds all 48 low-quality modeled handset coordinates',()=>{
- const manifest=JSON.parse(fs.readFileSync('public/voice-1030.json','utf8'));
+ const manifest=JSON.parse(historicalRead('public/voice-1030.json','utf8'));
  const entry=manifest.days.find(d=>d.date==='2026-10-30'&&d.customerId==='mdt-54f36ba5c24410cc2b256068');
  assert(entry);
- const raw=JSON.parse(fs.readFileSync('public/'+entry.dataPath,'utf8'));
+ const raw=JSON.parse(historicalRead('public/'+entry.dataPath,'utf8'));
  const normalized=normalizeDay(manifest,raw,'MDT');
  const call=normalized.calls.find(c=>c.start==='21:37:36');
  assert(call);
@@ -71,7 +74,7 @@ test('2026-10-30 reported call #29 keeps CDR MOS, withholds all 48 low-quality m
  assert.equal(row.lon,null);
  const bye=raw.baseStations.filter(station=>station.cellId===call.endCellId);
  assert.equal(bye.length,1,'a local MDT record may contain only one RU candidate');
- const overview=JSON.parse(fs.readFileSync('public/analyst-overview/MDT/2026-10-30.json','utf8'));
+ const overview=JSON.parse(historicalRead('public/analyst-overview/MDT/2026-10-30.json','utf8'));
  const reference=overview.callLocations.find(p=>p.callId===entry.customerId+':'+call.id);
  assert(reference,'the authorized MDT-first policy can expose a separate registered tower reference');
  assert.equal(reference.evidence,'bye-cell','rejected radio coordinates never become a handset position');
@@ -88,10 +91,10 @@ test('2026-10-30 reported call #29 keeps CDR MOS, withholds all 48 low-quality m
  assert.equal(reference.modelUncertaintyM,null);
 });
 test('GNSS observed location always takes precedence over rejected radio candidate',()=>{
- const manifest=JSON.parse(fs.readFileSync('public/voice-1030.json','utf8'));
+ const manifest=JSON.parse(historicalRead('public/voice-1030.json','utf8'));
  const dayEntry=manifest.days.find(d=>d.sampleCount>0&&d.gnssSampleCount>0);
  assert(dayEntry,'at least one date has GNSS observations');
- const raw=JSON.parse(fs.readFileSync('public/'+dayEntry.dataPath,'utf8'));
+ const raw=JSON.parse(historicalRead('public/'+dayEntry.dataPath,'utf8'));
  const out=normalizeDay(manifest,raw,'MDT');
  const gnss=out.samples.find(s=>s.locationSource==='gnss');
  assert(gnss);

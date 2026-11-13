@@ -1,9 +1,12 @@
+// Historical source assertions use the preserved original cohort; current sources have a separate census test.
+const {historicalRead,historicalJson,skipHistoricalSource}=require('./published-fixture.cjs');
+if(skipHistoricalSource(__filename))return;
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const {load}=require('../analyst-ts-loader.cjs');
 const {overlayThreeSiteRough}=load('lib/analyst/three-site-rough.ts');
-const manifest=JSON.parse(fs.readFileSync('public/voice-1030.json','utf8'));
+const manifest=JSON.parse(historicalRead('public/voice-1030.json','utf8'));
 const source='2026-10-30';
 const customer='mdt-524f3c774fc43ddfd7e85d18';
 const callid='call-b95550aca3de88ed98cfe568';
@@ -11,7 +14,7 @@ const completeId=customer+':'+callid;
 test('screenshot call has same-call rough search zone, while original GNSS and CDR are untouched',()=>{
  const sourceEntry=manifest.days.find(d=>d.date===source&&d.customerId===customer);
  assert(sourceEntry,'expected customer source entry');
- const detail=JSON.parse(fs.readFileSync('public/'+sourceEntry.dataPath,'utf8'));
+ const detail=JSON.parse(historicalRead('public/'+sourceEntry.dataPath,'utf8'));
  const call=detail.calls.find(c=>c.id===callid);
  assert(call);assert.equal(call.start,'12:52:34');
  assert.equal(call.end,'12:53:15');
@@ -19,8 +22,8 @@ test('screenshot call has same-call rough search zone, while original GNSS and C
  const samples=detail.samples.filter(row=>row[19]===callid);
  assert.equal(samples.length,25);
  assert.equal(samples.filter(row=>(row[21]||{}).locationSource==='gnss').length,0);
- const original=JSON.parse(fs.readFileSync('public/analyst-overview/MDT/'+source+'.json','utf8'));
- const rough=JSON.parse(fs.readFileSync('public/three-site-rough/'+source+'.json','utf8'));
+ const original=JSON.parse(historicalRead('public/analyst-overview/MDT/'+source+'.json','utf8'));
+ const rough=JSON.parse(historicalRead('public/three-site-rough/'+source+'.json','utf8'));
  const candidate=rough.points.find(p=>p.callId===completeId);
  assert(candidate,'the precise selected call must be in the three-site data');
  assert.equal(candidate.usedSiteCount,3);
@@ -40,10 +43,11 @@ test('screenshot call has same-call rough search zone, while original GNSS and C
  assert.deepEqual(after.calls,original.calls);
 });
 test('existing contract UI reads the same validated sidecar and collapses long warnings',()=>{
- const dashboard=fs.readFileSync('components/analyst/analyst-dashboard.tsx','utf8');
- const workspace=fs.readFileSync('components/analyst/contract-workspace.tsx','utf8');
- const observation=fs.readFileSync('components/analyst/observation-details.tsx','utf8');
- assert(dashboard.includes("overlayThreeSiteRough(overview.data,rough.data??null,true)"));
+ const dashboard=historicalRead('components/analyst/analyst-dashboard.tsx','utf8');
+ const workspace=historicalRead('components/analyst/contract-workspace.tsx','utf8');
+ const observation=historicalRead('components/analyst/observation-details.tsx','utf8');
+ assert(dashboard.includes("voiceQuery<ContractCallPage>('calls'"));
+ assert(dashboard.includes('callLocation.data?.roughLocations?.find'));
  assert(dashboard.includes("point.positionQuality==='three-site-rough'"));
  assert(workspace.includes('callLocations={estimates&&roughLocation?[roughLocation]:[]}'));
  assert(workspace.includes('삼각 측량 대략 위치'));

@@ -4,6 +4,7 @@ import vinext from 'vinext';
 import { defineConfig, type Plugin } from 'vite';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
+import { createRequire } from 'node:module';
 import hostingConfig from './.openai/hosting.json';
 
 const SITE_CREATOR_PLACEHOLDER_DATABASE_ID =
@@ -38,6 +39,23 @@ const localBindingConfig = {
 
 export default defineConfig(async ({ mode }) => {
   const localPreview = mode === 'local-preview';
+  const voiceQueryDev: Plugin = {
+    name: 'qoe:voice-query-dev',
+    configureServer(server) {
+      const require = createRequire(resolve(process.cwd(), 'package.json'));
+      const { createVoiceQueryHandler } = require('./scripts/voice-query-api.cjs');
+      const { createQwenAnalysisHandler } = require('./scripts/qwen-analysis-api.cjs');
+      const handler = createVoiceQueryHandler({ root: process.cwd() });
+      const analysis = createQwenAnalysisHandler({ root: process.cwd() });
+      server.middlewares.use((req, res, next) => {
+        void analysis(req, res).then((handled: boolean) => {
+          if (handled) return;
+          return handler(req, res).then((voiceHandled: boolean) => { if (!voiceHandled) next(); });
+        }).catch(next);
+      });
+      server.httpServer?.once('close', () => { void Promise.all([handler.close(), analysis.close()]); });
+    },
+  };
   const localPreviewBuild: Plugin = {
     name: 'qoe:local-preview-build',
     writeBundle(options) {
@@ -83,6 +101,7 @@ export default defineConfig(async ({ mode }) => {
       },
     },
     plugins: [
+      voiceQueryDev,
       vinext(),
       sites(),
       cloudflare({

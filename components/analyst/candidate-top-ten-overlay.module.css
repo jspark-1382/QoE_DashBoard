@@ -1,0 +1,14 @@
+.status{position:absolute;z-index:520;left:8px;top:42px;display:flex;flex-direction:column;gap:3px;max-width:calc(100% - 200px);padding:7px 9px;border:1px solid #e5c4cf;border-radius:7px;background:#fff9fbea;color:#784f60;font-size:10px;line-height:1.45;pointer-events:none}
+.status strong{color:#a32d52;font-size:11px}
+.status small{font-size:9px;color:#866a78}
+.status[data-unmatched-top-status="error"]{border-color:#e3b5a9;background:#fff5efed;color:#974d3b}
+.bubbleIcon{background:transparent;border:0}
+.bubble{width:100%;height:100%;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;border:2px solid #fff;border-radius:50%;color:#fff;background:radial-gradient(circle at 30% 22%,#f28b9b,#dc3658 75%);box-shadow:0 2px 10px #9d264b60;line-height:1.15;cursor:pointer}
+.bubble b{font-size:14px;font-weight:850}
+.bubble small{font-size:9px;font-weight:750}
+.popup{display:flex;flex-direction:column;gap:7px;color:#4f526e;font-size:11px;line-height:1.5}
+.popup p{margin:0;overflow-wrap:anywhere}
+.popup strong{color:#a32d52}
+.popup small{font-size:10px;color:#798595}
+.tooltip{width:max-content;max-width:min(280px,calc(100vw - 48px));white-space:normal;word-break:keep-all;overflow-wrap:break-word;font-family:inherit;font-size:11px;line-height:1.5;padding:7px 10px;border:1px solid #dfbfcc;border-radius:7px;color:#7e3852;box-shadow:0 2px 9px #16395b24}
+@media(max-width:700px){.status{max-width:calc(100% - 165px);padding:5px 7px;font-size:9px;gap:2px}.status strong{font-size:10px}.status small{font-size:8px}}

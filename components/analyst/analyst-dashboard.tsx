@@ -21,11 +21,12 @@ import {
   selectionQuery,
   type AnalystSelection,
 } from '../../lib/analyst/selection';
-import type { AnalystSource, SourceCustomer } from '../../lib/analyst/types';
+import type { AnalystSource, SourceCustomer, OverviewCallLocation } from '../../lib/analyst/types';
+import {voiceQuery,type VoiceCustomerDataset,type VoiceCallPage} from '../../lib/analyst/server-query';
+import type {QualityCustomerRow} from '../../lib/analyst/quality-customer-picker';
 import { ContractPicker } from './contract-picker';
 import { ContractWorkspace } from './contract-workspace';
 import { adjustDateRange, combineDateOverviews, datesInRange, dateOfCall } from '../../lib/analyst/date-range';
-import { overlayThreeSiteRough, type ThreeSiteRoughDataset } from '../../lib/analyst/three-site-rough';
 import { QualityOverview, type OverviewFilters } from './quality-overview';
 import styles from './analyst-shell.module.css';
 import { QualityTopNav } from './quality-top-nav';
@@ -89,6 +90,7 @@ function urlFor(selection: AnalystSelection, filters: OverviewFilters) {
   if (filters.experienceGroup) p.set('experience', filters.experienceGroup);
   return `?${p}`;
 }
+interface ContractCallPage extends VoiceCallPage {roughLocations?:OverviewCallLocation[]}
 interface Resource<T> {
   key: string;
   data?: T;
@@ -166,6 +168,8 @@ export function AnalystDashboard() {
     [highlight, setHighlight] = useState(-1),
     [message, setMessage] = useState(''),
     [settingsOpen, setSettingsOpen] = useState(false);
+  const [searchPage,setSearchPage]=useState(0);
+  const serverContract=selection.source==='MDT'&&selection.view==='contract';
   useEffect(() => {
     const read = () => {
       setCompareRevision(new URLSearchParams(window.location.search).get('compareRevision')??'');
@@ -179,16 +183,23 @@ export function AnalystDashboard() {
     return () => window.removeEventListener('popstate', read);
   }, []);
   const manifestLoader = useCallback(
-    (signal: AbortSignal) => loadDataset(selection.source, signal),
-    [selection.source],
+    async (signal: AbortSignal) => serverContract
+      ? (await voiceQuery<VoiceCustomerDataset>('customer',{customerId:selection.customerId||undefined},signal)).dataset
+      : loadDataset(selection.source, signal),
+    [selection.source,selection.customerId,serverContract],
   );
   const manifest = useResource(
-      ready ? `manifest/${selection.source}` : null,
+      ready ? serverContract?`customer-catalog/${selection.customerId}`:`manifest/${selection.source}` : null,
       manifestLoader,
     ),
     dataset = manifest.data;
   const datasetIndex=useMemo(()=>dataset?indexDataset(dataset):null,[dataset]);
-  const resolved = useMemo(()=>dataset?resolveSelection(selection,dataset):selection,[dataset,selection]);
+  const resolved = useMemo(()=>{
+    if(!dataset)return selection;
+    const chosen=serverContract&&!selection.customerId?dataset.customers[0]?.id:selection.customerId;
+    const next=resolveSelection(chosen?{...selection,customerId:chosen}:selection,dataset);
+    return serverContract&&next.view!=='contract'?{...next,view:'contract' as const,customerId:selection.customerId}:next;
+  },[dataset,selection,serverContract]);
   const revision = dataset?.meta.revision ?? 'inline';
   const entry = datasetIndex?.daysByCustomer.get(resolved.customerId)?.get(resolved.date);
   const detailKey =
@@ -206,7 +217,7 @@ export function AnalystDashboard() {
   const overviewDates=useMemo(()=>resolved.view==='overview'?selectedDates:[resolved.date],[resolved.view,selectedDates,resolved.date]);
   const dateKey=overviewDates.join('|');
   const overviewKey =
-    dataset && (resolved.view === 'overview' || (resolved.view === 'contract' && resolved.source === 'MDT')) && resolved.date
+    dataset && resolved.view === 'overview' && resolved.date
       ? `overview-analytics-v1/${resolved.source}/${revision}/${dateKey}/overview`
       : null;
   const overviewLoader = useCallback(
@@ -216,18 +227,6 @@ export function AnalystDashboard() {
     [dataset,resolved.source,overviewDates],
   );
   const overview = useResource(overviewKey, overviewLoader);
-  const roughKey=dataset && resolved.view==='contract' && resolved.source==='MDT' && resolved.date
-    ? 'three-site-rough-v1/'+revision+'/'+resolved.date : null;
-  const roughLoader=useCallback(async (signal:AbortSignal):Promise<ThreeSiteRoughDataset>=>{
-    const response=await fetch('/qoe/three-site-rough/'+resolved.date+'.json',{signal,cache:'no-cache'});
-    if(!response.ok)throw new Error('삼각 측량 조사 권역 데이터를 불러오지 못했습니다.');
-    const value=await response.json() as ThreeSiteRoughDataset;
-    if(value.sourceRevision!==revision || value.date!==resolved.date ||
-       value.schemaVersion!=='coarse-three-site-v1')
-      throw new Error('삼각 측량 조사 권역 데이터 버전이 일치하지 않습니다.');
-    return value;
-  },[revision,resolved.date]);
-  const rough=useResource(roughKey,roughLoader);
   const periodKey=dataset&&resolved.view==='contract'&&resolved.customerId&&selectedDates.length>1
     ? 'contract-period-v1/'+resolved.source+'/'+revision+'/'+resolved.customerId+'/'+selectedDates.join('|')
     : null;
@@ -239,13 +238,17 @@ export function AnalystDashboard() {
     return Promise.all(entries.map(entry=>loadDay(dataset!,entry,resolved.source,signal)));
   },[dataset,datasetIndex,resolved.customerId,resolved.source,selectedDates]);
   const period=useResource(periodKey,periodLoader);
-  const roughOverview=useMemo(
-    ()=>overview.data?overlayThreeSiteRough(overview.data,rough.data??null,true):null,
-    [overview.data,rough.data],
-  );
   const day = detail.data;
-  const activeCall =
-    day?.calls.find((c) => c.id === resolved.callId) ?? day?.calls[0] ?? null;
+  const activeCall = day?.calls.find((c) => c.id === resolved.callId) ?? day?.calls[0] ?? null;
+  const callLocationKey=serverContract&&day&&activeCall
+    ? `selected-location/${revision}/${day.date}/${day.customerId}/${activeCall.id}`:null;
+  const callLocationLoader=useCallback((signal:AbortSignal)=>{
+    if(!activeCall)throw new Error('선택한 통화가 없습니다.');
+    return voiceQuery<ContractCallPage>('calls',{
+    sourceRevision:revision,scope:{dateStart:resolved.date,dateEnd:resolved.date,from:'00:00',to:'23:59',customerIds:[resolved.customerId]},
+    allCalls:true,callId:activeCall.id,page:0,pageSize:25,
+  },signal);},[revision,resolved.date,resolved.customerId,activeCall]);
+  const callLocation=useResource(callLocationKey,callLocationLoader);
   const activeSample =
     day && activeCall
       ? (day.samples.find(
@@ -285,23 +288,34 @@ export function AnalystDashboard() {
     );
   };
   const deferred = useDeferredValue(query.trim().toLowerCase());
+  const searchStart=dataset?.meta.dates[0]??rangeStart,searchEnd=dataset?.meta.dates.at(-1)??rangeEnd;
+  const searchLoader=useCallback((signal:AbortSignal)=>voiceQuery<{rows:QualityCustomerRow[];total:number;page:number;pages:number}>('customers',{
+    sourceRevision:revision,scope:{dateStart:searchStart,dateEnd:searchEnd,from:'00:00',to:'23:59'},
+    query:deferred,filter:'all',page:searchPage,pageSize:25,
+  },signal),[revision,searchStart,searchEnd,deferred,searchPage]);
+  const remoteSearch=useResource(serverContract&&dataset&&searchOpen
+    ? `customer-search/${revision}/${searchStart}/${searchEnd}/${deferred}/${searchPage}`:null,searchLoader);
   const results = useMemo(() => {
+    if(serverContract)return (remoteSearch.data?.rows??[]).map(row=>({id:row.customerId,sourceContractId:row.sourceContractId??undefined,
+      displayName:row.sourceContractId?'계약 '+row.sourceContractId:'서비스번호 미확인',maskedPhone:'',
+      dates:[row.latestDate],sampleCount:0,callCount:row.totalCalls} satisfies SourceCustomer));
     if (!dataset || !deferred) return [];
-    return dataset.customers
-      .filter((c) =>
-        [getContractId(c), c.displayName, c.maskedPhone].some((v) =>
-          v?.toLowerCase().includes(deferred),
-        ),
-      )
-      .sort(
-        (a, b) =>
-          Number(getContractId(b)?.toLowerCase() === deferred) -
-          Number(getContractId(a)?.toLowerCase() === deferred),
-      )
-      .slice(0, 40);
-  }, [dataset, deferred]);
+    return dataset.customers.filter(c=>[getContractId(c),c.displayName,c.maskedPhone]
+      .some(value=>value?.toLowerCase().includes(deferred)))
+      .sort((a,b)=>Number(getContractId(b)?.toLowerCase()===deferred)-Number(getContractId(a)?.toLowerCase()===deferred))
+      .slice(0,40);
+  },[dataset,deferred,serverContract,remoteSearch.data]);
   const customer = datasetIndex?.customersById.get(resolved.customerId);
-  const choose = (chosen: SourceCustomer) => {
+  const choose = async (requested: SourceCustomer) => {
+    let chosen=requested;
+    if(serverContract){
+      try{
+        const response=await voiceQuery<VoiceCustomerDataset>('customer',{customerId:requested.id,sourceRevision:revision});
+        const actual=response.dataset.customers.find(row=>row.id===requested.id);
+        if(!actual)throw new Error('선택한 고객의 자료가 없습니다.');
+        chosen=actual;
+      }catch(error){setMessage(error instanceof Error?error.message:String(error));return;}
+    }
     const inside=selectedDates.filter(date=>chosen.dates.includes(date));
     const chosenDate=inside.includes(resolved.date)?resolved.date:inside[0]??chosen.dates[0]??resolved.date;
     // A customer outside the selected interval starts a new one-day interval;
@@ -317,19 +331,20 @@ export function AnalystDashboard() {
       sampleIndex: null,
     });
     setQuery(getContractId(chosen) ?? chosen.displayName);
+    setSearchPage(0);
     setSearchOpen(false);
     setMessage('');
   };
   const submit = () => {
     if (!searchOpen && customer) {
-      choose(customer);
+      void choose(customer);
       return;
     }
     const exact = results.find(
       (c) => getContractId(c)?.toLowerCase() === query.trim().toLowerCase(),
     );
-    if (exact) choose(exact);
-    else if (results.length === 1) choose(results[0]);
+    if (exact) void choose(exact);
+    else if (results.length === 1) void choose(results[0]);
     else {
       setSearchOpen(true);
       setMessage('검색 결과에서 조사할 고객을 선택하세요.');
@@ -338,7 +353,7 @@ export function AnalystDashboard() {
   const threshold = dataset?.meta.poorQoeThreshold ?? 3.0;
   const toolbar = (
     <div className={styles.toolbar}>
-      {dataset && (
+      {serverContract?<button type="button" aria-expanded={searchOpen} onClick={()=>{setQuery('');setSearchPage(0);setSearchOpen(true);}}>고객 목록 / 고객 선택</button>:dataset && (
         <ContractPicker
           dataset={dataset}
           source={resolved.source}
@@ -380,6 +395,7 @@ export function AnalystDashboard() {
             }}
             onChange={(e) => {
               setQuery(e.target.value);
+              setSearchPage(0);
               setHighlight(-1);
               setSearchOpen(true);
               setMessage('');
@@ -398,7 +414,7 @@ export function AnalystDashboard() {
               if (e.key === 'Enter') {
                 e.preventDefault();
                 if (searchOpen && results[highlight])
-                  choose(results[highlight]);
+                  void choose(results[highlight]);
                 else submit();
               }
             }}
@@ -422,7 +438,7 @@ export function AnalystDashboard() {
             </button>
           )}
         </div>
-        {searchOpen && deferred && (
+        {searchOpen && (serverContract||deferred) && (
           <div className={styles.results}>
             <div
               id="contract-results"
@@ -440,13 +456,19 @@ export function AnalystDashboard() {
                 >
                   <strong>{getContractId(c) ?? c.displayName}</strong>
                   <span>
-                    {c.displayName.replace(/^계약\s+/, '고객 ')} · {c.sampleCount.toLocaleString()}개 관측
+                    {serverContract?`${(c.callCount??0).toLocaleString()}건 통화 · ${c.dates[0]}`:`${c.displayName.replace(/^계약\s+/, '고객 ')} · ${c.sampleCount.toLocaleString()}개 관측`}
                   </span>
                 </button>
               ))}
-              {!results.length && <p>일치하는 고객이 없습니다.</p>}
+              {serverContract&&remoteSearch.loading?<p role="status">전체 고객을 검색하는 중…</p>:
+                serverContract&&remoteSearch.error?<p role="alert">{remoteSearch.error}</p>:
+                !results.length&&<p>일치하는 고객이 없습니다.</p>}
             </div>
-            <p>최대 40건 표시 · 결과를 선택해야 분석 대상이 바뀝니다.</p>
+            {serverContract?<div className={styles.searchPager}>
+              <button type="button" disabled={remoteSearch.loading||!remoteSearch.data?.page} onClick={()=>setSearchPage(p=>Math.max(0,p-1))}>이전</button>
+              <span>{(remoteSearch.data?.total??0).toLocaleString()}명 · {remoteSearch.data?.pages?`${remoteSearch.data.page+1}/${remoteSearch.data.pages} 페이지`:'0 페이지'} · 25명씩</span>
+              <button type="button" disabled={remoteSearch.loading||!remoteSearch.data||remoteSearch.data.page+1>=remoteSearch.data.pages} onClick={()=>setSearchPage(p=>p+1)}>다음</button>
+            </div>:<p>최대 40건 표시 · 결과를 선택해야 분석 대상이 바뀝니다.</p>}
             <button onClick={() => setSearchOpen(false)}>검색 결과 닫기</button>
           </div>
         )}
@@ -639,8 +661,8 @@ export function AnalystDashboard() {
               ) : day ? (
                 <ContractWorkspace
                   day={day}
-                  byeLocation={overview.data?.callLocations?.find(point=>point.callId===day.customerId+':'+(activeCall?.id??''))}
-                  roughLocation={roughOverview?.callLocations?.find(point=>point.callId===day.customerId+':'+(activeCall?.id??'')&&point.positionQuality==='three-site-rough')}
+                  byeLocation={callLocation.data?.locations.find(point=>point.callId===day.customerId+':'+(activeCall?.id??''))??overview.data?.callLocations?.find(point=>point.callId===day.customerId+':'+(activeCall?.id??''))}
+                  roughLocation={callLocation.data?.roughLocations?.find(point=>point.callId===day.customerId+':'+(activeCall?.id??'')&&point.positionQuality==='three-site-rough')}
                   periodDays={period.data}
                   periodRange={selectedDates.length>1?{start:rangeStart,end:rangeEnd}:undefined}
                   onSelectPeriodDate={date=>navigate({...resolved,date,callId:null,sampleIndex:null})}

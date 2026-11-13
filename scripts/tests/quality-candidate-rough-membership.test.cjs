@@ -1,3 +1,6 @@
+// Numerical source regressions retain the original two-workbook cohort.
+const {historicalRead,historicalJson,skipHistoricalSource}=require('./published-fixture.cjs');
+if(skipHistoricalSource(__filename))return;
 /* eslint-disable @typescript-eslint/no-require-imports */
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
@@ -8,14 +11,14 @@ const {buildCandidateRoughPoints}=load('lib/analyst/quality-candidate-rough-poin
 const {matchCandidateRoughPoints,candidateCircleDistanceM}=load('lib/analyst/quality-candidate-rough-membership.ts');
 const {buildQualityPresentationCandidates}=load('lib/analyst/quality-candidate-presentation.ts');
 const dates=[26,27,28,29,30].map(i=>'2026-10-'+i);
-const ov=combineDateOverviews(dates.map(d=>require('../../public/analyst-overview/MDT/'+d+'.json')));
-const parts=dates.map(d=>require('../../public/three-site-rough/'+d+'.json'));
+const ov=combineDateOverviews(dates.map(d=>historicalJson('../../public/analyst-overview/MDT/'+d+'.json')));
+const parts=dates.map(d=>historicalJson('../../public/three-site-rough/'+d+'.json'));
 const scope={dateStart:dates[0],dateEnd:dates.at(-1),from:'00:00',to:'23:59',sourceRevision:ov.sourceRevision,policy:'strict-3-site-v1'};
 const raw=buildCandidateRoughPoints(ov,scope,parts);
-const index=require('../../public/quality-improvement-full/index.json');
+const index=historicalJson('../../public/quality-improvement-full/index.json');
 const entry=index.entries.find(e=>e.scope.dateStart===scope.dateStart&&e.scope.dateEnd===scope.dateEnd);
 assert(entry);
-const summary=require('../../public/quality-improvement-full/'+entry.path);
+const summary=historicalJson('../../public/quality-improvement-full/'+entry.path);
 const candidates=buildQualityPresentationCandidates(summary,null);
 const matched=matchCandidateRoughPoints(candidates,raw);
 
@@ -66,9 +69,9 @@ test('overlapping candidate circles do not double count an approximate call',()=
  assert.deepEqual(result[0].matchingCandidateIds,['a','b']);
 });
 test('DBSCAN and alternate map UI use membership-filtered references, not all 106',()=>{
- const db=fs.readFileSync('components/analyst/quality-two-candidate-workspace.tsx','utf8');
- const alt=fs.readFileSync('components/analyst/quality-model-alternative-workspace.tsx','utf8');
- const map=fs.readFileSync('components/analyst/improvement-candidate-map.tsx','utf8');
+ const db=historicalRead('components/analyst/quality-two-candidate-workspace.tsx','utf8');
+ const alt=historicalRead('components/analyst/quality-model-alternative-workspace.tsx','utf8');
+ const map=historicalRead('components/analyst/improvement-candidate-map.tsx','utf8');
  for(const text of [db,alt]){
   assert(text.includes('matchCandidateRoughPoints('));
   assert(text.includes('roughPoints={selectedRough}'));

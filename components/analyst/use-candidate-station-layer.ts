@@ -13,15 +13,14 @@ export interface StationLayerState {
 /** Catalogs are fetched only when the optional map layer is enabled. */
 export function useCandidateStationLayer():StationLayerState{
   const [options,setOptions]=useState<StationDisplayOptions>(DEFAULT_STATION_OPTIONS);
-  const [,setUpdates]=useState(0);
+  const [catalogSnapshot,setCatalogSnapshot]=useState(()=>new Map(CACHE));
   const [error,setError]=useState<string|null>(null);
   const required=useMemo(()=>options.range==='off'?[]:
     (options.rat==='all'?['LTE','NR']:[options.rat]) as StationTechnology[],[options.range,options.rat]);
-  const signature=required.join(',');
   useEffect(()=>{
-    if(!required.length){setError(null);return;}
+    if(!required.length){queueMicrotask(()=>setError(null));return;}
     const needed=required.filter(tech=>!CACHE.has(tech));
-    if(!needed.length){setError(null);return;}
+    if(!needed.length){queueMicrotask(()=>{setCatalogSnapshot(new Map(CACHE));setError(null);});return;}
     const controller=new AbortController();
     void Promise.all(needed.map(async tech=>{
       const url=tech==='LTE'?'/qoe/station-catalog.json':'/qoe/nr-station-catalog.json';
@@ -34,13 +33,14 @@ export function useCandidateStationLayer():StationLayerState{
     })).then(results=>{
       if(controller.signal.aborted)return;
       for(const {tech,data} of results)CACHE.set(tech,data);
-      setError(null);setUpdates(n=>n+1);
+      setError(null);setCatalogSnapshot(new Map(CACHE));
     }).catch(err=>{
       if(!controller.signal.aborted)setError(err instanceof Error?err.message:'기지국 인벤토리 불러오기 실패');
     });
     return()=>controller.abort();
-  },[signature]);
-  const catalogs=required.flatMap(tech=>CACHE.has(tech)?[CACHE.get(tech)!]:[]);
+  },[required]);
+  // Keep catalog identities stable when unrelated candidate/detail state changes.
+  const catalogs=useMemo(()=>required.flatMap(tech=>catalogSnapshot.has(tech)?[catalogSnapshot.get(tech)!]:[]),[required,catalogSnapshot]);
   const status=options.range==='off'?'off':error?'error':catalogs.length!==required.length?'loading':'ready';
   return {options,setOptions,catalogs,status,error};
 }

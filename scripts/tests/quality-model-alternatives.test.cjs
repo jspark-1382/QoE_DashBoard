@@ -1,6 +1,9 @@
+// Numerical source regressions retain the original two-workbook cohort.
+const {historicalRead,historicalJson,skipHistoricalSource}=require('./published-fixture.cjs');
+if(skipHistoricalSource(__filename))return;
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),path=require('node:path');
 const base=path.resolve(__dirname,'../..');
-const read=p=>JSON.parse(fs.readFileSync(path.join(base,p),'utf8'));
+const read=p=>JSON.parse(historicalRead(path.join(base,p),'utf8'));
 const index=read('public/quality-improvement/index.json');
 const alternativeIndex=read('public/quality-models/index.json');
 const models=['hdbscan','st_dbscan','adaptive_kde','spatial_scan','bayesian'];
@@ -63,9 +66,9 @@ test('5-day holdout comparison retains baseline and computes real distinct candi
  assert(report.models.bayesian.candidates.every(c=>c.metric.credibleLow<=c.metric.posteriorMean&&c.metric.credibleHigh>=c.metric.posteriorMean));
 });
 test('source code only exposes risk models as experimental conditional observed-sample results',()=>{
- const ui=fs.readFileSync(path.join(base,'components/analyst/quality-model-alternative-workspace.tsx'),'utf8');
- const selector=fs.readFileSync(path.join(base,'components/analyst/quality-improvement-candidate-panel.tsx'),'utf8');
- const loader=fs.readFileSync(path.join(base,'lib/analyst/quality-model-alternatives.ts'),'utf8');
+ const ui=historicalRead(path.join(base,'components/analyst/quality-model-alternative-workspace.tsx'),'utf8');
+ const selector=historicalRead(path.join(base,'components/analyst/quality-improvement-candidate-panel.tsx'),'utf8');
+ const loader=historicalRead(path.join(base,'lib/analyst/quality-model-alternatives.ts'),'utf8');
  assert(selector.includes('개선 후보 산정 모델 선택'));
  assert(selector.includes("selectedModel==='dbscan'"));
  assert(selector.includes('<QualityModelAlternativeWorkspace'));

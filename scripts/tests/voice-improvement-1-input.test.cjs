@@ -1,3 +1,5 @@
+// Historical source assertions use the preserved original cohort; current sources have a separate census test.
+const {historicalRead,historicalJson}=require('./published-fixture.cjs');
 /* eslint-disable @typescript-eslint/no-require-imports */
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs'),os=require('node:os'),path=require('node:path');
 const builderPath=path.resolve(__dirname,'../build-voice-improvement-1-input.cjs');
@@ -28,7 +30,7 @@ test('hasMdt alone is unknown, ambiguous matching cannot enter D',()=>{
 });
 test('daily time window includes seconds through the end of its final minute like legacy overview',()=>{
   const f=fixture();try{
-    const detail=JSON.parse(fs.readFileSync(path.join(f.publicDir,'detail.json'))),overview=JSON.parse(fs.readFileSync(path.join(f.publicDir,'analyst-overview/MDT/2026-10-26.json')));
+    const detail=JSON.parse(historicalRead(path.join(f.publicDir,'detail.json'))),overview=JSON.parse(historicalRead(path.join(f.publicDir,'analyst-overview/MDT/2026-10-26.json')));
     detail.calls[0].start='12:00:59';overview.calls[0].startSecond=43259;
     f.put('detail.json',detail);f.put('analyst-overview/MDT/2026-10-26.json',overview);
     assert.equal(require(builderPath).buildInput({publicDir:f.publicDir,outDir:f.outDir,from:'12:00',to:'12:00'}).coverage.N,1);
@@ -36,9 +38,9 @@ test('daily time window includes seconds through the end of its final minute lik
 });
 test('wrong source revision, missing detail, inconsistent MOS and unsafe output fail closed',()=>{
   for(const scenario of ['revision','missing','mos','unsafe']){const f=fixture();try{
-    if(scenario==='revision'){const o=JSON.parse(fs.readFileSync(path.join(f.publicDir,'analyst-overview/MDT/2026-10-26.json')));o.sourceRevision='other';f.put('analyst-overview/MDT/2026-10-26.json',o);}
+    if(scenario==='revision'){const o=JSON.parse(historicalRead(path.join(f.publicDir,'analyst-overview/MDT/2026-10-26.json')));o.sourceRevision='other';f.put('analyst-overview/MDT/2026-10-26.json',o);}
     if(scenario==='missing')fs.unlinkSync(path.join(f.publicDir,'detail.json'));
-    if(scenario==='mos'){const d=JSON.parse(fs.readFileSync(path.join(f.publicDir,'detail.json')));d.calls[0].mosV5Original=4;f.put('detail.json',d);}
+    if(scenario==='mos'){const d=JSON.parse(historicalRead(path.join(f.publicDir,'detail.json')));d.calls[0].mosV5Original=4;f.put('detail.json',d);}
     assert.throws(()=>require(builderPath).buildInput({publicDir:f.publicDir,outDir:scenario==='unsafe'?f.publicDir:f.outDir}),/revision|ENOENT|MOS|output/i);
   }finally{fs.rmSync(f.dir,{recursive:true,force:true});}}
 });

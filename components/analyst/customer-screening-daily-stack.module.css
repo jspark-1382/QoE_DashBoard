@@ -1,0 +1,14 @@
+.totals{display:flex;align-items:center;gap:10px;font-variant-numeric:tabular-nums}
+.totals>span:first-child b{color:#2876bd}
+.totals>span:last-child b{color:#d64357}
+.legend{display:flex;align-items:center;flex-wrap:wrap;gap:5px 11px;color:#71829a;font-size:10px;line-height:1.4}
+.legend>span{display:inline-flex;align-items:center;gap:4px;white-space:nowrap}
+.legend i{display:inline-block;width:8px;height:8px;border-radius:2px}
+.other{background:#3d8fe1}
+.poor{background:#ee5262}
+.chart{margin:auto 0 0;display:flex;flex-direction:column;min-width:0}
+.chart svg{display:block;width:100%;height:auto;min-height:120px;max-height:205px;overflow:visible;font-variant-numeric:tabular-nums}
+.axis{fill:#71829a;font-size:14px}
+.countLabel{fill:#315a7b;font-size:15px;font-weight:700}
+.date{fill:#75869a;font-size:14px}
+.chart figcaption{margin:0;font-size:10px;color:#72869f;line-height:1.45}

@@ -1,10 +1,13 @@
+// Historical source assertions use the preserved original cohort; current sources have a separate census test.
+const {historicalRead,historicalJson,skipHistoricalSource}=require('./published-fixture.cjs');
+if(skipHistoricalSource(__filename))return;
 /* Multi-day UI date scoping regression, run with refreshed source manifest. */
 const test=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const root=path.resolve(__dirname,'../..');
-const read=p=>fs.readFileSync(path.join(root,p),'utf8');
+const read=p=>historicalRead(path.join(root,p),'utf8');
 const dates=['2026-10-26','2026-10-27','2026-10-28','2026-10-29','2026-10-30'];
 
 test('five-day source is fully queryable without reusing another day, default latest',()=>{

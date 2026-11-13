@@ -1,6 +1,7 @@
 import type {AnalystOverview} from './types';
 import type {SpatialCandidate,EvidenceCall,EvidenceDecision} from './voice-improvement-1/types';
 import type {QualityEvidenceIndex} from './quality-improvement-adapter';
+import {candidateResource} from './candidate-resource-cache';
 export type {QualityEvidenceIndex} from './quality-improvement-adapter';
 export interface QualityCandidateScope {sourceRevision:string;dateStart:string;dateEnd:string;from:string;to:string;policy:string}
 export interface QualityCandidateCard {id:string;label:string;poorCustomerCount:number;poorCallCount:number;poorDateCount:number;gnssCallCount?:number;roughCallCount?:number;medoid:{lat:number;lon:number;kind?:'gnss'|'reviewed-radio'|'rough'};displayRadiusM:number;rangeReviewRequired:boolean;rank:number|null;validationStatus:string;validationNewCustomers:number;detailPath:string}
@@ -28,8 +29,19 @@ async function read<T>(path:string,signal?:AbortSignal,base=BASE):Promise<T>{
  if(!response.ok)throw new QualityCandidateError(response.status===404?'not-generated':'unavailable',response.status===404?'현재 조건의 후보 자료가 아직 생성되지 않았습니다.':'후보 자료를 불러오지 못했습니다.');
  return response.json() as Promise<T>;
 }
-async function loadIndex(scope:QualityCandidateScope,signal?:AbortSignal,mode:'all'|'evaluation'='evaluation',source:'strict'|'mixed'='strict'){const base=source==='mixed'?(mode==='all'?MIXED_FULL:MIXED_EVAL):mode==='all'?'/qoe/quality-improvement-full/':BASE;const index=await read<Index>('index.json',signal,base);if(index.schemaVersion!=='quality-improvement-index-v1')throw new QualityCandidateError('invalid-data','후보 자료 형식이 다릅니다.');if(index.sourceRevision!==scope.sourceRevision)throw new QualityCandidateError('revision-mismatch','후보 자료의 원본 버전이 현재 통화 자료와 다릅니다.');return index;}
-export async function loadQualityCandidateSummary(scope:QualityCandidateScope,signal?:AbortSignal,mode:'all'|'evaluation'='evaluation',source:'strict'|'mixed'='strict'):Promise<QualityCandidateSummary>{
+function loadIndex(scope:QualityCandidateScope,signal?:AbortSignal,mode:'all'|'evaluation'='evaluation',source:'strict'|'mixed'='strict'){
+ return candidateResource(JSON.stringify(['candidate-index',scope.sourceRevision,mode,source]),async sharedSignal=>{
+  const base=source==='mixed'?(mode==='all'?MIXED_FULL:MIXED_EVAL):mode==='all'?'/qoe/quality-improvement-full/':BASE;
+  const index=await read<Index>('index.json',sharedSignal,base);
+  if(index.schemaVersion!=='quality-improvement-index-v1')throw new QualityCandidateError('invalid-data','후보 자료 형식이 다릅니다.');
+  if(index.sourceRevision!==scope.sourceRevision)throw new QualityCandidateError('revision-mismatch','후보 자료의 원본 버전이 현재 통화 자료와 다릅니다.');
+  return index;
+ },signal);
+}
+export function loadQualityCandidateSummary(scope:QualityCandidateScope,signal?:AbortSignal,mode:'all'|'evaluation'='evaluation',source:'strict'|'mixed'='strict'):Promise<QualityCandidateSummary>{
+ return candidateResource(JSON.stringify(['candidate-summary',source,mode,...scopeFields.map(field=>scope[field])]),sharedSignal=>readQualityCandidateSummary(scope,sharedSignal,mode,source),signal);
+}
+async function readQualityCandidateSummary(scope:QualityCandidateScope,signal:AbortSignal,mode:'all'|'evaluation',source:'strict'|'mixed'):Promise<QualityCandidateSummary>{
  const index=await loadIndex(scope,signal,mode,source),entry=index.entries.find(e=>sameQualityCandidateScope(e.scope,scope));
  if(!entry)throw new QualityCandidateError('not-generated','현재 기간·시간의 후보 자료가 아직 생성되지 않았습니다.');
  const summary=await read<QualityCandidateSummary>(entry.path,signal,source==='mixed'?(mode==='all'?MIXED_FULL:MIXED_EVAL):mode==='all'?'/qoe/quality-improvement-full/':BASE);
@@ -42,11 +54,17 @@ export function validateQualityCandidateDetail(summary:QualityCandidateSummary,d
  if(detail.candidate.memberCallIds.some(callId=>!calls.has(callId)||!summary.discoveryDates.includes(calls.get(callId)!.date)))return false;
  return detail.candidate.nearbyPoints.every(p=>calls.has(p.callId)&&(p.role.startsWith('validation')?summary.validationDates:summary.discoveryDates).includes(p.date)&&['gnss','reviewed-radio','rough'].includes(p.kind)&&Number.isFinite(p.lat)&&Number.isFinite(p.lon));
 }
-export async function loadQualityCandidateDetail(summary:QualityCandidateSummary,id:string,signal?:AbortSignal,mode:'all'|'evaluation'='evaluation'):Promise<QualityCandidateDetail>{
+export function loadQualityCandidateDetail(summary:QualityCandidateSummary,id:string,signal?:AbortSignal,mode:'all'|'evaluation'='evaluation'):Promise<QualityCandidateDetail>{
+ return candidateResource(JSON.stringify(['candidate-detail',summary.scope.sourceRevision,summary.scopeKey,summary.locationMode,mode,id]),sharedSignal=>readQualityCandidateDetail(summary,id,sharedSignal,mode),signal);
+}
+async function readQualityCandidateDetail(summary:QualityCandidateSummary,id:string,signal:AbortSignal,mode:'all'|'evaluation'):Promise<QualityCandidateDetail>{
  const card=summary.candidates.find(c=>c.id===id);if(!card)throw new QualityCandidateError('invalid-data','선택 후보가 현재 조건에 없습니다.');
  const detail=await read<QualityCandidateDetail>(card.detailPath,signal,summary.locationMode===MIXED_MODE?(mode==='all'?MIXED_FULL:MIXED_EVAL):mode==='all'?'/qoe/quality-improvement-full/':BASE);if((summary.locationMode===MIXED_MODE)!==(detail.locationMode===MIXED_MODE)||!validateQualityCandidateDetail(summary,detail,id))throw new QualityCandidateError('invalid-data','후보 상세의 발견·검증 조건이 맞지 않습니다.');return detail;
 }
-export async function loadQualityEvidenceIndex(scope:QualityCandidateScope,signal?:AbortSignal):Promise<QualityEvidenceIndex>{
+export function loadQualityEvidenceIndex(scope:QualityCandidateScope,signal?:AbortSignal):Promise<QualityEvidenceIndex>{
+ return candidateResource(JSON.stringify(['candidate-evidence',scope.sourceRevision,scope.dateStart,scope.dateEnd,scope.policy]),sharedSignal=>readQualityEvidenceIndex(scope,sharedSignal),signal);
+}
+async function readQualityEvidenceIndex(scope:QualityCandidateScope,signal:AbortSignal):Promise<QualityEvidenceIndex>{
  const index=await loadIndex(scope,signal),entries=index.evidence.filter(e=>e.date>=scope.dateStart&&e.date<=scope.dateEnd);
  const dates=index.availableDates?.filter(d=>d>=scope.dateStart&&d<=scope.dateEnd)??[];
  if(!entries.length||dates.some(d=>!entries.some(e=>e.date===d)))throw new QualityCandidateError('not-generated','현재 기간의 위치 근거가 아직 생성되지 않았습니다.');

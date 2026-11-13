@@ -1,3 +1,6 @@
+// Historical source assertions use the preserved original cohort; current sources have a separate census test.
+const {historicalRead,historicalJson,skipHistoricalSource}=require('./published-fixture.cjs');
+if(skipHistoricalSource(__filename))return;
 /* eslint-disable @typescript-eslint/no-require-imports */
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
@@ -9,19 +12,19 @@ const {buildCandidateRoughPoints}=load('lib/analyst/quality-candidate-rough-poin
 const {matchCandidateRoughPoints,candidateCircleDistanceM}=load('lib/analyst/quality-candidate-rough-membership.ts');
 const {selectCandidateStationSites}=load('lib/analyst/station-map-presentation.ts');
 const dates=[26,27,28,29,30].map(n=>'2026-10-'+n);
-const overview=combineDateOverviews(dates.map(d=>require('../../public/analyst-overview/MDT/'+d+'.json')));
-const roughDays=dates.map(d=>require('../../public/three-site-rough/'+d+'.json'));
-const index=require('../../public/quality-improvement-full/index.json');
+const overview=combineDateOverviews(dates.map(d=>historicalJson('../../public/analyst-overview/MDT/'+d+'.json')));
+const roughDays=dates.map(d=>historicalJson('../../public/three-site-rough/'+d+'.json'));
+const index=historicalJson('../../public/quality-improvement-full/index.json');
 const entry=index.entries.find(e=>e.scope.dateStart===dates[0]&&e.scope.dateEnd===dates.at(-1));
 assert(entry);
-const summary=require('../../public/quality-improvement-full/'+entry.path);
+const summary=historicalJson('../../public/quality-improvement-full/'+entry.path);
 const candidates=buildQualityPresentationCandidates(summary,null);
 const all=matchCandidateRoughPoints(candidates,buildCandidateRoughPoints(overview,{
   sourceRevision:overview.sourceRevision,dateStart:dates[0],dateEnd:dates.at(-1),
   from:'00:00',to:'23:59',policy:'strict-3-site-v1'
 },roughDays));
-const LTE=require('../../public/station-catalog.json');
-const NR=require('../../public/nr-station-catalog.json');
+const LTE=historicalJson('../../public/station-catalog.json');
+const NR=historicalJson('../../public/nr-station-catalog.json');
 const selected=(id,range='inside',rat='LTE',highlightRelated=true)=>{
   const circle=candidates.filter(c=>c.id===id);
   const points=all.filter(p=>p.matchingCandidateIds.includes(id));
@@ -72,9 +75,9 @@ test('single selection respects LTE/5G, 500m and hide choices',()=>{
  assert(nr.every(s=>s.technology==='NR'));
 });
 test('map passes only selected rough and station layers, keeps other candidate circles',()=>{
- const db=fs.readFileSync('components/analyst/quality-two-candidate-workspace.tsx','utf8');
- const alt=fs.readFileSync('components/analyst/quality-model-alternative-workspace.tsx','utf8');
- const map=fs.readFileSync('components/analyst/improvement-candidate-map.tsx','utf8');
+ const db=historicalRead('components/analyst/quality-two-candidate-workspace.tsx','utf8');
+ const alt=historicalRead('components/analyst/quality-model-alternative-workspace.tsx','utf8');
+ const map=historicalRead('components/analyst/improvement-candidate-map.tsx','utf8');
  for(const source of [db,alt]){
   assert(source.includes('roughPoints={selectedRough} stationSites={stationSites}'));
   assert(source.includes('selectedMapCandidates'));

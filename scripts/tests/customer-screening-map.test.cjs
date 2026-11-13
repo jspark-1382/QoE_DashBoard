@@ -1,3 +1,6 @@
+// Historical source assertions use the preserved original cohort; current sources have a separate census test.
+const {historicalRead,historicalJson,skipHistoricalSource}=require('./published-fixture.cjs');
+if(skipHistoricalSource(__filename))return;
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
@@ -22,8 +25,8 @@ const testSource={
   ],audit:{calls:5,poor:4,drops:2,locatedPoor:4,customers:2},
 };
 test('administrative polygons are real schema with matching revision and source ids',()=>{
-  const raw=JSON.parse(fs.readFileSync('public/customer-screening-data/administrative-boundaries-v1.json'));
-  const source=JSON.parse(fs.readFileSync('public/customer-screening-data/2026-10-26_2026-10-30.json'));
+  const raw=JSON.parse(historicalRead('public/customer-screening-data/administrative-boundaries-v1.json'));
+  const source=JSON.parse(historicalRead('public/customer-screening-data/2026-10-26_2026-10-30.json'));
   assert(map.validScreeningBoundaries(raw,source.sourceRevision));
   assert.equal(raw.features.length,Object.keys(source.areas).length);
   assert(raw.features.every(x=>x.geometry.type==='MultiPolygon'&&x.geometry.coordinates.length>0));
@@ -51,7 +54,7 @@ test('BYE Cell coordinates never substituted with GNSS, but all poor by serving 
   assert.equal(map.metricLabel('customers'),'저품질 경험 고객');
 });
 test('real 5-day area summary independently reconciles per-region scoped customer rankings',()=>{
-  const source=JSON.parse(fs.readFileSync('public/customer-screening-data/2026-10-26_2026-10-30.json'));
+  const source=JSON.parse(historicalRead('public/customer-screening-data/2026-10-26_2026-10-30.json'));
   const geo=map.buildScreeningGeography(source,source.dates[0],source.dates.at(-1),'00:00','23:59');
   const all=aggregateScreening(source,source.dates[0],source.dates.at(-1),'00:00','23:59');
   assert.equal(geo.areas.reduce((s,d)=>s+d.poorCalls,0)+geo.unmappedPoorCalls,all.poor);

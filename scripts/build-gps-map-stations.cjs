@@ -1,7 +1,7 @@
 /* Read-only extraction of exact same-call, same-time GPS serving-station evidence. */
 const fs=require('node:fs');
 const path=require('node:path');
-const root=path.resolve(__dirname,'../public');
+const root=path.resolve(process.env.QOE_PUBLIC_DIR || path.resolve(__dirname,'../public'));
 const manifest=JSON.parse(fs.readFileSync(path.join(root,'voice-1030.json'),'utf8'));
 const valid=s=>s&&!s.isVirtual&&s.baseStationId&&s.cellId&&
   Number.isFinite(s.latitude)&&Number.isFinite(s.longitude)&&

@@ -1,9 +1,15 @@
 /** Read-only 25 m MDT RSRP reference grid, independent of 2026-10-26~30 QoE clustering. */
+export interface Mdt25mAnalysis{
+ date:string;band:string;earfcn:string;samples:number;
+ rsrpMean:number;rsrqMean:number|null;phrMean:number|null;rsrpMeanSumCnt:number|null;
+ belowPct:Record<string,number|null>;metricSamples:Record<string,number>;sourceFiles:string[];
+}
 export interface Mdt25mCell{
  pot:string;x:number;y:number;lat:number;lon:number;
  rsrp:number;samples:number;
  /** Band label -> [mean RSRP dBm, measurement count]. */
  bands:Record<string,[number,number]>;
+ analysis?:Mdt25mAnalysis[];displayDate?:string;
 }
 export interface Mdt25mGrid{
  schemaVersion:'mdt-25m-rsrp-grid-v1';
@@ -11,6 +17,9 @@ export interface Mdt25mGrid{
  gridCells:number;sourceRows:number;measurements:number;statistic:string;
  basisPerMeter:{latPerX:number;lonPerX:number;latPerY:number;lonPerY:number};
  records:Mdt25mCell[];
+ analysisSchemaVersion?:'mdt-grid-analysis-v1';sourceDates?:string[];
+ sources?:{file:string;sourceRows:number;acceptedRows:number;duplicateRows:number}[];
+ metricWeightBasis?:string;analysisSource?:string;inputSignature?:string;
 }
 export function isValidMdt25mGrid(raw:unknown):raw is Mdt25mGrid{
  if(!raw||typeof raw!=='object')return false;
@@ -19,7 +28,35 @@ export function isValidMdt25mGrid(raw:unknown):raw is Mdt25mGrid{
   typeof grid.sourceDate==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(grid.sourceDate)&&
   Number.isFinite(grid.basisPerMeter?.latPerX)&&Number.isFinite(grid.basisPerMeter?.lonPerX)&&
   Number.isFinite(grid.basisPerMeter?.latPerY)&&Number.isFinite(grid.basisPerMeter?.lonPerY)&&
-  Array.isArray(grid.records)&&grid.records.length===grid.gridCells&&grid.gridCells<=50000;
+  Array.isArray(grid.records)&&grid.records.length===grid.gridCells&&grid.gridCells<=50000&&
+  (grid.analysisSchemaVersion===undefined||validAnalysisGrid(grid));
+}
+function validAnalysisGrid(grid:Mdt25mGrid):boolean{
+ const date=(v:unknown):v is string=>typeof v==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(v);
+ const count=(n:unknown):n is number=>Number.isSafeInteger(n)&&(n as number)>=0;
+ if(grid.analysisSchemaVersion!=='mdt-grid-analysis-v1'||!Array.isArray(grid.sourceDates)||
+  !grid.sourceDates.length||!grid.sourceDates.every(date)||!Array.isArray(grid.sources)||
+  !grid.sources.length||!grid.sources.every(s=>typeof s.file==='string'&&count(s.sourceRows)&&
+   count(s.acceptedRows)&&count(s.duplicateRows)&&s.acceptedRows+s.duplicateRows===s.sourceRows))return false;
+ const files=new Set(grid.sources.map(s=>s.file));
+ return grid.records.every(c=>Array.isArray(c.analysis)&&c.analysis.length>0&&
+  new Set(c.analysis.map(a=>a.date+':'+a.earfcn)).size===c.analysis.length&&c.analysis.every(a=>{
+   if(!date(a.date)||!grid.sourceDates!.includes(a.date)||typeof a.band!=='string'||
+    typeof a.earfcn!=='string'||!count(a.samples)||a.samples<=0||
+    !Number.isFinite(a.rsrpMean)||!Array.isArray(a.sourceFiles)||!a.sourceFiles.length||
+    !a.sourceFiles.every(f=>files.has(f))||!a.metricSamples||!a.belowPct)return false;
+   for(const key of ['rsrpMean','rsrqMean','phrMean','rsrpMeanSumCnt'] as const){
+    const v=a[key],n=a.metricSamples[key];
+    if(!(v===null||typeof v==='number'&&Number.isFinite(v))||!count(n)||n>(a.samples)||
+     (v===null?n!==0:n===0))return false;
+   }
+   for(const key of ['-85','-90','-95','-100','-105','-110']){
+    const v=a.belowPct[key],n=a.metricSamples[key];
+    if(!(v===null||typeof v==='number'&&Number.isFinite(v)&&v>=0&&v<=100)||
+     !count(n)||n>a.samples||(v===null?n!==0:n===0))return false;
+   }
+   return true;
+  }));
 }
 export type MdtGridMode='top1'|'900'|'1.8협'|'1.8광'|'2.1'|'hidden';
 export type MdtGridFrequency=Exclude<MdtGridMode,'top1'|'hidden'>;

@@ -12,6 +12,30 @@ const withFetch=async(implementation,run)=>{
   try{return await run();}finally{global.fetch=original;}
 };
 
+test('already-derived large overviews retain source objects instead of duplicating every call',async()=>{
+  const value={...summary('already-derived'),calls:[Object.freeze({id:'a',mos:4,qoe:4,sipCause:'A: Normal'})]};
+  const source={...dataset('already-derived'),meta:{...dataset('already-derived').meta,qoeBasis:'rtcp-mos-v5'}};
+  await withFetch(async()=>({ok:true,json:async()=>value}),async()=>{
+    const actual=await loadOverview(source,'MDT','2026-10-30');
+    assert.equal(actual,value);
+    assert.equal(actual.calls,value.calls);
+  });
+});
+
+test('an obsolete score copies only its own call and leaves original data untouched',async()=>{
+  const good=Object.freeze({id:'a',mos:4,qoe:4,sipCause:'A: Normal'});
+  const drop=Object.freeze({id:'b',mos:4,qoe:4,sipCause:'H: Drop'});
+  const value={...summary('sparse-score-update'),calls:Object.freeze([good,drop])};
+  const source={...dataset('sparse-score-update'),meta:{...dataset('sparse-score-update').meta,qoeBasis:'rtcp-mos-v5'}};
+  await withFetch(async()=>({ok:true,json:async()=>value}),async()=>{
+    const actual=await loadOverview(source,'MDT','2026-10-30');
+    assert.equal(actual.calls[0],good);
+    assert.notEqual(actual.calls[1],drop);
+    assert.equal(actual.calls[1].qoe,1.5);
+    assert.equal(drop.qoe,4);
+  });
+});
+
 test('a repeated manifest read parses one response and keeps HTTP revalidation',async()=>{
   let requests=0,parses=0;
   const value=dataset('loader-cache-manifest');

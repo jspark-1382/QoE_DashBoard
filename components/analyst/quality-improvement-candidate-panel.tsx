@@ -16,10 +16,14 @@ import modelStyles from './quality-model-alternative.module.css';
 import {useCandidateStationLayer} from './use-candidate-station-layer';
 import {coreMinDays,isCandidateShown,type CandidateDisplayMode} from '../../lib/analyst/quality-candidate-visibility';
 import {MDT_GRID_MODES,type MdtGridMode} from '../../lib/analyst/mdt-25m-grid';
+import {loadCandidateTopTenCustomers,loadDbscanTopTenMatches,type CandidateTopTenMatch,type CandidateTopTenState} from '../../lib/analyst/candidate-top-ten';
 export interface QualityCandidateSelection {candidateId:string;callIds:string[];customerIds:string[]}
 interface Props {scope:QualityCandidateScope;overview:AnalystOverview;onInvestigate?:(selection:QualityCandidateSelection)=>void;proposalTwo?:boolean}
 const message=(error:unknown)=>error instanceof Error?error.message:'후보 자료를 확인할 수 없습니다.';
 const emptyPoints:[]=[];
+const emptyCandidateIds:string[]=[];
+const emptyTopTenMatches:CandidateTopTenMatch[]=[];
+const emptyTopTen:CandidateTopTenState={status:'idle',customers:[],error:null};
 export function QualityImprovementCandidatePanel({scope,overview,onInvestigate,proposalTwo=false}:Props){
  const [analysisMode,setAnalysisMode]=useState<'all'|'evaluation'>('all');
  const eligibleEvaluation=(Date.parse(scope.dateEnd+'T00:00:00Z')-Date.parse(scope.dateStart+'T00:00:00Z'))>=2*86400000;
@@ -32,6 +36,9 @@ export function QualityImprovementCandidatePanel({scope,overview,onInvestigate,p
  const [selectedId,setSelectedId]=useState<string|null>(null);
  const [selectedModel,setSelectedModel]=useState<QualityModelId>('dbscan');
  const [candidateDisplayMode,setCandidateDisplayMode]=useState<CandidateDisplayMode>('core');
+ const topTenScopeKey=JSON.stringify(scope);
+ const [topTenStore,setTopTenStore]=useState<{key:string;value:CandidateTopTenState}>({key:'',value:emptyTopTen});
+ const [topTenMatches,setTopTenMatches]=useState<{key:string;ids:string[];matches:CandidateTopTenMatch[];status:CandidateTopTenState['status'];error:string|null}>({key:'',ids:[],matches:[],status:'idle',error:null});
  const [mdtGridMode,setMdtGridMode]=useState<MdtGridMode>('top1');
  const [guideOpenRequest,setGuideOpenRequest]=useState(0);
  const [fullscreenActive,setFullscreenActive]=useState(false);
@@ -43,15 +50,46 @@ export function QualityImprovementCandidatePanel({scope,overview,onInvestigate,p
  const roughStatus=roughState.key!==key?'loading':roughState.error?'error':'ready';
  const roughError=roughState.key===key?roughState.error:null;
  const minimumDays=coreMinDays(scope.dateStart,scope.dateEnd);
- const displayedSummary=useMemo(()=>summary?{...summary,candidates:proposalTwo?summary.candidates.filter(c=>isCandidateShown(c.poorCallCount,c.poorCustomerCount,c.poorDateCount,minimumDays,candidateDisplayMode)):summary.candidates}:null,[summary,minimumDays,candidateDisplayMode,proposalTwo]);
+ const storedTopTen=topTenStore.key===topTenScopeKey?topTenStore.value:emptyTopTen;
+ const topTen:CandidateTopTenState=storedTopTen.status==='idle'||(storedTopTen.status==='loading'&&candidateDisplayMode!=='top10')
+  ?{...emptyTopTen,status:candidateDisplayMode==='top10'?'loading':'idle'}:storedTopTen;
+ const topTenMatchKey=JSON.stringify([key,summary?.scopeKey,summary?.locationMode,topTen.customers.map(c=>c.id)]);
+ const matchState=topTenMatches.key===topTenMatchKey?topTenMatches:null;
+ const dbscanTopTen:CandidateTopTenState={...topTen,
+  status:topTen.status==='ready'?(matchState?.status??'loading'):topTen.status,
+  error:topTen.error??matchState?.error??null};
+ const topTenIds=matchState?.status==='ready'?matchState.ids:emptyCandidateIds;
+ const topTenCandidateMatches=matchState?.status==='ready'?matchState.matches:emptyTopTenMatches;
+ const displayedSummary=useMemo(()=>summary?{...summary,candidates:!proposalTwo?summary.candidates:
+  candidateDisplayMode==='top10'?summary.candidates.filter(c=>dbscanTopTen.status==='ready'&&topTenIds.includes(c.id)):
+  summary.candidates.filter(c=>isCandidateShown(c.poorCallCount,c.poorCustomerCount,c.poorDateCount,minimumDays,candidateDisplayMode))}:null,
+  [summary,minimumDays,candidateDisplayMode,proposalTwo,dbscanTopTen.status,topTenIds]);
  const activeId=displayedSummary?.candidates.some(c=>c.id===selectedId)?selectedId:displayedSummary?.candidates[0]?.id??null;
  const detail=detailState.key===key&&detailState.id===activeId?detailState.value:null;
+ useEffect(()=>{
+  if(!proposalTwo||candidateDisplayMode!=='top10')return;
+  const controller=new AbortController();
+  queueMicrotask(()=>{if(!controller.signal.aborted)setTopTenStore(previous=>previous.key===topTenScopeKey&&previous.value.status==='ready'?previous:{key:topTenScopeKey,value:{...emptyTopTen,status:'loading'}});});
+  void loadCandidateTopTenCustomers(scope,controller.signal)
+   .then(customers=>{if(!controller.signal.aborted)setTopTenStore({key:topTenScopeKey,value:{status:'ready',customers,error:null}});})
+   .catch(error=>{if(!controller.signal.aborted)setTopTenStore({key:topTenScopeKey,value:{...emptyTopTen,status:'error',error:message(error)}});});
+  return()=>controller.abort();
+ },[proposalTwo,candidateDisplayMode,topTenScopeKey,scope]);
+ useEffect(()=>{
+  if(!proposalTwo||candidateDisplayMode!=='top10'||selectedModel!=='dbscan'||!summary||topTen.status!=='ready')return;
+  const controller=new AbortController();
+  queueMicrotask(()=>{if(!controller.signal.aborted)setTopTenMatches(previous=>previous.key===topTenMatchKey&&previous.status==='ready'?previous:{key:topTenMatchKey,ids:[],matches:[],status:'loading',error:null});});
+  void loadDbscanTopTenMatches(summary,topTen.customers,effectiveMode,controller.signal)
+   .then(matches=>{if(!controller.signal.aborted)setTopTenMatches({key:topTenMatchKey,ids:matches.map(match=>match.candidateId),matches,status:'ready',error:null});})
+   .catch(error=>{if(!controller.signal.aborted)setTopTenMatches({key:topTenMatchKey,ids:[],matches:[],status:'error',error:message(error)});});
+  return()=>controller.abort();
+ },[proposalTwo,candidateDisplayMode,selectedModel,summary,topTen.status,topTen.customers,effectiveMode,topTenMatchKey]);
  useEffect(()=>{
   const controller=new AbortController();
   void loadQualityCandidateSummary(scope,controller.signal,effectiveMode,proposalTwo?'mixed':'strict').then(value=>{if(!controller.signal.aborted){setSummaryState({key,summary:value,error:null,loading:false});setSelectedId(value.candidates[0]?.id??null);}}).catch(error=>{if(!controller.signal.aborted){setSummaryState({key,summary:null,error:message(error),loading:false});setSelectedId(null);}});
   void loadQualityEvidenceIndex(scope,controller.signal).then(value=>{if(!controller.signal.aborted)setEvidenceState({key,value,error:null});}).catch(error=>{if(!controller.signal.aborted)setEvidenceState({key,value:null,error:message(error)});});
   return()=>controller.abort();
- },[key,scope,effectiveMode]);
+ },[key,scope,effectiveMode,proposalTwo]);
  // Display-only approximate coordinates; never feed the candidate algorithm.
  useEffect(()=>{
   const controller=new AbortController();
@@ -109,13 +147,13 @@ export function QualityImprovementCandidatePanel({scope,overview,onInvestigate,p
  </div>;
  if(proposalTwo)return <>
   {selectedModel==='dbscan'?<>
-   <QualityTwoCandidateWorkspace summary={displayedSummary!} fullSummary={summary} mdtGridMode={mdtGridMode} totalCount={summary.candidates.length} minimumDays={minimumDays} displayMode={candidateDisplayMode} onDisplayModeChange={setCandidateDisplayMode} analysisMode={effectiveMode} guideOpenRequest={guideOpenRequest} mapControls={mapControls} initiallyExpanded={fullscreenActive} onFullscreenChange={setFullscreenActive} mapped={mapped} selectedId={activeId} detail={detail}
+   <QualityTwoCandidateWorkspace summary={displayedSummary!} fullSummary={summary} topTen={dbscanTopTen} topTenCount={topTenIds.length} topTenMatches={topTenCandidateMatches} mdtGridMode={mdtGridMode} totalCount={summary.candidates.length} minimumDays={minimumDays} displayMode={candidateDisplayMode} onDisplayModeChange={setCandidateDisplayMode} analysisMode={effectiveMode} guideOpenRequest={guideOpenRequest} mapControls={mapControls} initiallyExpanded={fullscreenActive} onFullscreenChange={setFullscreenActive} mapped={mapped} selectedId={activeId} detail={detail}
     detailPending={detailState.key!==key||detailState.id!==activeId}
     detailError={detailState.key===key&&detailState.id===activeId?detailState.error:null}
     overview={overview} observationPoints={observations} roughPoints={roughPoints} roughStatus={roughStatus} roughError={roughError} stationLayer={stationLayer} onSelect={setSelectedId} onInvestigate={investigate}/>
    {effectiveMode==='evaluation'&&<QualityTwoCandidateAudit scope={scope} summary={summary} onSelectCandidate={id=>{if(!displayedSummary?.candidates.some(c=>c.id===id))setCandidateDisplayMode('all');setSelectedId(id);}}/>}
   </>:<QualityModelAlternativeWorkspace key={selectedModel+'|'+key} scope={scope} overview={overview}
-   modelId={selectedModel as AlternativeModelId} mdtGridMode={mdtGridMode} analysisMode={effectiveMode} locationSource={proposalTwo?'mixed':'strict'} displayMode={candidateDisplayMode} onDisplayModeChange={setCandidateDisplayMode} guideOpenRequest={guideOpenRequest} mapControls={mapControls} initiallyExpanded={fullscreenActive} onFullscreenChange={setFullscreenActive} baselineCount={summary.candidates.length} roughPoints={roughPoints} roughStatus={roughStatus} roughError={roughError} stationLayer={stationLayer} onInvestigate={onInvestigate}/>}
+   modelId={selectedModel as AlternativeModelId} topTen={topTen} mdtGridMode={mdtGridMode} analysisMode={effectiveMode} locationSource={proposalTwo?'mixed':'strict'} displayMode={candidateDisplayMode} onDisplayModeChange={setCandidateDisplayMode} guideOpenRequest={guideOpenRequest} mapControls={mapControls} initiallyExpanded={fullscreenActive} onFullscreenChange={setFullscreenActive} baselineCount={summary.candidates.length} roughPoints={roughPoints} roughStatus={roughStatus} roughError={roughError} stationLayer={stationLayer} onInvestigate={onInvestigate}/>}
  </>;
  const chooseFilter=(value:'all'|'spatial'|'cell')=>{setFilter(value);if(value==='cell')setSelectedId(null);else if(!selectedId)setSelectedId(summary.candidates[0]?.id??null);};
  return <><CandidateWorkspaceView proposalTwo={proposalTwo} report={report} selectedId={selectedId??''} filter={filter} onFilter={chooseFilter} onSelect={setSelectedId}

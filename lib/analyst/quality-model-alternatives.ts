@@ -1,4 +1,5 @@
 import type {QualityCandidateScope} from './quality-improvement-candidates';
+import {candidateResource} from './candidate-resource-cache';
 
 export type AlternativeModelId='hdbscan'|'st_dbscan'|'adaptive_kde'|'spatial_scan'|'bayesian';
 export type QualityModelId='dbscan'|AlternativeModelId;
@@ -53,7 +54,10 @@ async function read<T>(path:string,signal?:AbortSignal,base=BASE):Promise<T>{
  if(!response.ok)throw new Error(response.status===404?'이 분석 조건에 대한 대안 모델 결과가 없습니다.':'모델 자료를 불러오지 못했습니다.');
  return response.json() as Promise<T>;
 }
-export async function loadAlternativeModelReport(scope:QualityCandidateScope,signal?:AbortSignal,mode:'all'|'evaluation'='evaluation',source:'strict'|'mixed'='strict'):Promise<AlternativeModelReport>{
+export function loadAlternativeModelReport(scope:QualityCandidateScope,signal?:AbortSignal,mode:'all'|'evaluation'='evaluation',source:'strict'|'mixed'='strict'):Promise<AlternativeModelReport>{
+ return candidateResource(JSON.stringify(['alternative-models',source,mode,scope.sourceRevision,scope.dateStart,scope.dateEnd,scope.from,scope.to,scope.policy]),sharedSignal=>readAlternativeModelReport(scope,sharedSignal,mode,source),signal);
+}
+async function readAlternativeModelReport(scope:QualityCandidateScope,signal:AbortSignal,mode:'all'|'evaluation',source:'strict'|'mixed'):Promise<AlternativeModelReport>{
  const base=source==='mixed'?(mode==='all'?MIXED_FULL:MIXED_EVAL):mode==='all'?'/qoe/quality-models-full/':BASE;
  const idx=await read<ModelIndex>('index.json',signal,base);
  if(idx.schemaVersion!=='quality-model-index-v1'||idx.sourceRevision!==scope.sourceRevision||(source==='mixed')!==((idx as ModelIndex&{locationMode?:string}).locationMode===MIXED_TAG))

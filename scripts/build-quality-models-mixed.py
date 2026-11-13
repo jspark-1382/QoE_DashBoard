@@ -10,13 +10,13 @@ import argparse
 import importlib.util
 import json
 import math
+import os
 from pathlib import Path
 
 ROOT=Path(__file__).resolve().parents[1]
-REVISION="79840583bdb8e36221c2"
 TAG="gps-mdt-rough-unvalidated-v1"
 SRC_DIR=ROOT/"scripts"
-PUB=ROOT/"public"
+PUB=Path(os.environ.get('QOE_PUBLIC_DIR', ROOT/'public'))
 
 def import_script(name, filename):
     spec=importlib.util.spec_from_file_location(name,SRC_DIR/filename)
@@ -27,13 +27,15 @@ def import_script(name, filename):
 
 models=import_script("strict_alternative_model","build-quality-model-alternatives.py")
 mixed=import_script("mixed_candidate_pipeline","build-quality-mixed-candidates.py")
+REVISION=mixed.REVISION
 
 def read(p):
     return json.loads(p.read_text(encoding="utf8"))
 
 def by_date():
     original=models.accepted_call_positions(REVISION)
-    totals=dict(gnssPoor=0,roughPoor=0,gnssNormal=0,roughNormal=0,overlapPrevented=0)
+    totals=dict(gnssPoor=0,roughPoor=0,gnssNormal=0,roughNormal=0,overlapPrevented=0,
+                reviewedRadioPoor=0,reviewedRadioNormal=0)
     for d in mixed.REVISION_INDEX["availableDates"]:
         overview=read(mixed.OVER/(d+".json"))
         part=read(mixed.ROUGH/(d+".json"))
@@ -69,7 +71,9 @@ def by_date():
         totals["roughPoor"]+=sum(p["kind"]=="rough" and p["mos"]<3 for p in existing.values())
         totals["gnssNormal"]+=sum(p["kind"]=="gnss" and p["mos"]>=3 for p in existing.values())
         totals["roughNormal"]+=sum(p["kind"]=="rough" and p["mos"]>=3 for p in existing.values())
-    assert totals["gnssPoor"]==131 and totals["roughPoor"]==106,totals
+        totals['reviewedRadioPoor']+=sum(p['kind']=='reviewed-radio' and p['mos']<3 for p in existing.values())
+        totals['reviewedRadioNormal']+=sum(p['kind']=='reviewed-radio' and p['mos']>=3 for p in existing.values())
+    assert sum(day['located']['poor'] for day in original.values()) == totals['gnssPoor'] + totals['roughPoor'] + totals['reviewedRadioPoor'],totals
     assert all(len(day["points"])==len({p["callId"] for p in day["points"]}) for day in original.values())
     return original,totals
 
@@ -105,7 +109,8 @@ def publish(mode,byday,preview=False):
                 members=candidate["members"]
                 kinds={p["callId"]:p["kind"] for p in members}
                 candidate["roughCalls"]=sum(k=="rough" for k in kinds.values())
-                assert candidate["roughCalls"]+candidate["gnssCalls"]==candidate["poorCalls"]
+                candidate['reviewedRadioCalls']=sum(p['kind']=='reviewed-radio' for p in members)
+                assert candidate["roughCalls"]+candidate["gnssCalls"]+candidate['reviewedRadioCalls']==candidate["poorCalls"]
                 center=min(members,key=lambda p:models.haversine_to(p,[{"lat":candidate["lat"],"lon":candidate["lon"]}])[0])
                 candidate["medoidKind"]=center["kind"]
                 candidate["locationMode"]=TAG
@@ -131,7 +136,10 @@ def publish(mode,byday,preview=False):
                 "gpsPoor":sum(p["kind"]=="gnss" and p["mos"]<3 for p in train),
                 "roughPoor":sum(p["kind"]=="rough" and p["mos"]<3 for p in train),
                 "gpsNormal":sum(p["kind"]=="gnss" and p["mos"]>=3 for p in normal),
-                "roughNormal":sum(p["kind"]=="rough" and p["mos"]>=3 for p in normal)
+                "roughNormal":sum(p["kind"]=="rough" and p["mos"]>=3 for p in normal),
+                **({'reviewedRadioPoor':sum(p['kind']=='reviewed-radio' for p in train),
+                    'reviewedRadioNormal':sum(p['kind']=='reviewed-radio' for p in normal)}
+                   if any(p['kind']=='reviewed-radio' for p in train+normal) else {})
             },
             "selectionBiasWarning":"GPS·MDT 근사 좌표의 확보 여부가 QoE 등급·지역·기지국 구성과 연관될 수 있습니다. MDT 좌표 정확도도 검증되지 않았으므로 Spatial Scan/Bayesian의 표본 내 비율·p값·사후확률은 통신망 전체의 확정 위험도로 사용하면 안 됩니다.",
             "models":outcomes

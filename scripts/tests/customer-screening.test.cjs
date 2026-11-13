@@ -1,3 +1,6 @@
+// Historical source assertions use the preserved original cohort; current sources have a separate census test.
+const {historicalRead,historicalJson,skipHistoricalSource}=require('./published-fixture.cjs');
+if(skipHistoricalSource(__filename))return;
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
@@ -51,7 +54,7 @@ test('map counts unique customers, BYE site reference omitted in GNSS mode',()=>
 test('generated 5-day source provenance, audit totals and no fabricated customers',()=>{
   const p='public/customer-screening-data/2026-10-26_2026-10-30.json';
   assert.ok(fs.existsSync(p));
-  const source=JSON.parse(fs.readFileSync(p,'utf8'));
+  const source=JSON.parse(historicalRead(p,'utf8'));
   assert.equal(validScreeningSource(source),true);
   assert.equal(source.customers.length,source.audit.customers);
   const report=aggregateScreening(source,source.dates[0],source.dates.at(-1),'00:00','23:59');

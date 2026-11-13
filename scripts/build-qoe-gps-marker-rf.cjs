@@ -5,7 +5,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
-const dataRoot = path.join(root, 'public');
+const dataRoot = path.resolve(process.env.QOE_PUBLIC_DIR || path.join(root, 'public'));
 const output = path.join(dataRoot, 'quality-improvement', 'gps-marker-rf-v1.json');
 const manifest = JSON.parse(fs.readFileSync(path.join(dataRoot, 'voice-1030.json'), 'utf8'));
 const index = JSON.parse(fs.readFileSync(path.join(dataRoot, 'quality-improvement', 'index.json'), 'utf8'));

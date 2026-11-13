@@ -7,6 +7,44 @@ export interface CustomerRoutePoint {
   lat:number;lon:number;evidence:RouteEvidence;cell:string;area:string;
   qoe:number|null;drop:boolean;quality:RouteQuality;
 }
+export interface CustomerRouteLocation {
+  lat:number;lon:number;evidence:RouteEvidence;poorCalls:number;totalCalls:number;
+  endpoint:boolean;observations:CustomerRoutePoint[];
+}
+export function groupCustomerRouteLocations(points:CustomerRoutePoint[]):CustomerRouteLocation[] {
+  const locations=new Map<string,CustomerRouteLocation>();
+  for(const [index,point] of points.entries()){
+    // Group recorded positions only; keep GPS measurements separate from site references.
+    const key=point.evidence+'|'+point.lat+'|'+point.lon;
+    const location=locations.get(key)??{
+      lat:point.lat,lon:point.lon,evidence:point.evidence,poorCalls:0,totalCalls:0,
+      endpoint:false,observations:[],
+    };
+    location.totalCalls++;
+    if(point.quality==='poor')location.poorCalls++;
+    if(index===0||index===points.length-1)location.endpoint=true;
+    location.observations.push(point);
+    locations.set(key,location);
+  }
+  return [...locations.values()];
+}
+export function findOverlappingRouteMarkers<T extends {x:number;y:number;radius:number}>(markers:readonly T[],selected:T):T[] {
+  return markers.filter(marker=>Math.hypot(marker.x-selected.x,marker.y-selected.y)<=marker.radius+selected.radius+2);
+}
+export function summarizeRouteCells(locations:readonly CustomerRouteLocation[]) {
+  const cells=new Map<string,{cellId:string;poorCalls:number;totalCalls:number}>();
+  const counted=new Set<string>();
+  for(const location of locations)for(const point of location.observations){
+    if(counted.has(point.id))continue;
+    counted.add(point.id);
+    const cellId=point.cell||'';
+    const cell=cells.get(cellId)??{cellId,poorCalls:0,totalCalls:0};
+    cell.totalCalls++;
+    if(point.quality==='poor')cell.poorCalls++;
+    cells.set(cellId,cell);
+  }
+  return [...cells.values()].sort((a,b)=>b.totalCalls-a.totalCalls||a.cellId.localeCompare(b.cellId));
+}
 export interface CustomerRouteCellSite {
   cell:string;lat:number;lon:number;count:number;gnssServed:number;
 }

@@ -1,5 +1,6 @@
 import { AnalystDashboard } from '@/components/analyst/analyst-dashboard';
 import { QualityProposalFour } from '@/components/analyst/quality-proposal-four';
+import { ServerQualityOverview } from '@/components/analyst/server-quality-overview';
 
 /**
  * Main quality overview uses improvement 2.
@@ -14,5 +15,6 @@ export default async function Home({
   const params = await searchParams;
   const view = params?.view;
   if (view === 'overview' || view === 'contract') return <AnalystDashboard />;
-  return <QualityProposalFour variant={params?.variant==='improvement2'?'improvement2':params?.variant==='improvement1'?'improvement1':params?.variant==='current'?'current':'improvement2'} />;
+  if(params?.variant==='current'||params?.variant==='improvement1')return <QualityProposalFour variant={params.variant}/>;
+  return <ServerQualityOverview />;
 }

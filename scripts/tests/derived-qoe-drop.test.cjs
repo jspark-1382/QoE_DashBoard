@@ -1,3 +1,6 @@
+// Historical source assertions use the preserved original cohort; current sources have a separate census test.
+const {historicalRead,historicalJson,skipHistoricalSource}=require('./published-fixture.cjs');
+if(skipHistoricalSource(__filename))return;
 /* eslint-disable no-restricted-syntax */
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
@@ -9,7 +12,7 @@ const {calculateProposalGrades}=load('lib/analyst/quality-proposal-metrics.ts');
 const {buildFourthHourly,fourthBandCalls}=load('lib/analyst/quality-proposal-four.ts');
 const {getOverviewAnalytics}=load('lib/analyst/overview-analytics.ts');
 const {loadOverview}=load('lib/analyst/data-loader.ts');
-const raw=JSON.parse(fs.readFileSync('public/analyst-overview/MDT/2026-10-30.json','utf8'));
+const raw=JSON.parse(historicalRead('public/analyst-overview/MDT/2026-10-30.json','utf8'));
 test('the initial QoE rule uses only the original MOS(v5) and SIP CDR 11.REASON',()=>{
   assert.equal(SIP_DROP_QOE_PENALTY,2.5);
   for(const reason of ['H: Drop','H : Drop/V : Rx_RTP_middle_Loss','C^H^J^K','B: Drop']){

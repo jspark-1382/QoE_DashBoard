@@ -166,7 +166,7 @@ for (const [source, filename, folder] of [
         ], {
           cwd: path.resolve(__dirname, '..'),
           encoding: 'utf8',
-          timeout: 120000,
+          timeout: 600000,
           maxBuffer: 1024 * 1024,
         });
         if (mapper.error || mapper.status !== 0) {

@@ -1,9 +1,12 @@
+// Historical source assertions use the preserved original cohort; current sources have a separate census test.
+const {historicalRead,historicalJson,skipHistoricalSource}=require('./published-fixture.cjs');
+if(skipHistoricalSource(__filename))return;
 const test=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const root=path.resolve(__dirname,'../..');
-const read=file=>fs.readFileSync(path.join(root,file),'utf8');
+const read=file=>historicalRead(path.join(root,file),'utf8');
 
 test('main route renders improvement 2 quality overview, while original remains under view=overview',()=>{
  const source=read('app/page.tsx');
@@ -11,8 +14,8 @@ test('main route renders improvement 2 quality overview, while original remains 
  assert.match(source,/view === 'overview' \|\| view === 'contract'/);
  assert.match(source,/return <AnalystDashboard \/>/);
  assert.match(source,/return <QualityProposalFour variant=/);
- assert(source.includes("?'current':'improvement2'"));
- assert(read('app/overview-proposal-4/page.tsx').includes('<QualityProposalFour />'),
+ assert(source.includes('return <ServerQualityOverview />'));
+ assert(read('app/overview-proposal-4/page.tsx').includes('<ServerQualityOverview />'),
    'keep older bookmarks accessible as an alias');
 });
 test('all active navigation bars use the four requested tabs in order',()=>{
@@ -26,7 +29,7 @@ test('all active navigation bars use the four requested tabs in order',()=>{
    for(const n of [1,2,3])
      assert(!item.includes('href="/overview-proposal-'+n+'"'),'retired tab must be absent');
  }
- const order=['품질 현황','고객 선별','고객·통화 분석','기지국·PCI'];
+ const order=['품질 현황','고객현황','고객·통화 분석','기지국·PCI'];
  const positions=order.map(label=>top.indexOf('>'+label));
  assert(positions.every(x=>x>=0),'shared tabs have all requested labels');
  assert(positions.every((x,i)=>i===0||positions[i-1]<x),'tabs follow the requested order');

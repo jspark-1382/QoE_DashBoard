@@ -1,3 +1,5 @@
+// Historical source assertions use the preserved original cohort; current sources have a separate census test.
+const {historicalRead,historicalJson}=require('./published-fixture.cjs');
 /* eslint-disable @typescript-eslint/no-require-imports */
 const assert = require('node:assert/strict');
 const test = require('node:test');
@@ -181,13 +183,14 @@ test('experience orders full timestamps rather than IDs and unknown scores break
   assert.equal(group(result, 'consecutive').count, 1);
   assert.equal(group(result, 'consecutive').percent, 25);
 });
-test('ambiguous or missing chronology withholds consecutive rather than publishing partial counts', () => {
-  for (const bad of [undefined, 'invalid', '2026-09-15T09:00:00+09:00']) {
+test('genuinely missing chronology withholds consecutive rather than publishing partial counts', () => {
+  for (const bad of [undefined, 'invalid']) {
     const result = api.getOverviewAnalytics(
       [
         at('known-1', 1, 10, 0, 'b'),
         at('known-2', 1, 10, 1, 'b'),
         at('a', 1, 9),
+        at('a-normal', 4, 9, 30),
         call('b', 1, { startTimestamp: bad }),
       ],
       'qoe',
@@ -199,6 +202,29 @@ test('ambiguous or missing chronology withholds consecutive rather than publishi
     assert.equal(group(result, 'consecutive').hourly, null);
     assert.deepEqual(group(result, 'consecutive').customerIds, []);
   }
+});
+test('same-time poor calls are consecutive without choosing an arbitrary record order',()=>{
+  const rows=[at('a-1',1,9),at('a-2',1,9),at('a-normal',4,9,30),at('normal',4,10,0,'b')];
+  for(const calls of [rows,[...rows].reverse()]){
+    const result=api.getOverviewAnalytics(calls,'qoe',2.5);
+    assert.equal(group(result,'consecutive').count,1);
+    assert.deepEqual(group(result,'consecutive').customerIds,['a']);
+    assert.equal(group(result,'consecutive').hourly[9],1);
+  }
+});
+test('same-time healthy or unscored calls still break poor runs without suppressing the card',()=>{
+  const result=api.getOverviewAnalytics([at('a-1',1,9),at('a-normal',4,9,10),at('a-unscored',null,9,10),at('a-2',1,9,20)],'qoe',2.5);
+  assert.equal(group(result,'consecutive').count,0);
+  assert.equal(group(result,'consecutive').hourly[9],0);
+});
+test('only a mixed timestamp block that changes adjacency withholds the exact count',()=>{
+  const result=api.getOverviewAnalytics([
+    at('a-poor',1,9),at('a-normal',4,9),at('a-later',1,9,10),
+    at('b-1',1,10,0,'b'),at('b-2',1,10,1,'b'),
+  ],'qoe',2.5);
+  assert.equal(group(result,'repeat').count,2);
+  assert.equal(group(result,'consecutive').count,null);
+  assert.deepEqual(group(result,'consecutive').customerIds,[]);
 });
 test('hourly experience independently qualifies customers within each hour, never fabricating cumulative trends', () => {
   const result = api.getOverviewAnalytics(
@@ -375,7 +401,7 @@ test('published overview builder writes the analytics contract and fields from s
     const inputPath = path.join(fixtureRoot, 'public', 'executive-data.json');
     fs.writeFileSync(inputPath, input);
     vm.runInNewContext(
-      fs.readFileSync(script, 'utf8'),
+      historicalRead(script, 'utf8'),
       {
         require: createRequire(script),
         __dirname: path.join(fixtureRoot, 'scripts'),
@@ -385,7 +411,7 @@ test('published overview builder writes the analytics contract and fields from s
       { filename: script },
     );
     const result = JSON.parse(
-      fs.readFileSync(
+      historicalRead(
         path.join(
           fixtureRoot,
           'public',
@@ -400,7 +426,7 @@ test('published overview builder writes the analytics contract and fields from s
     assert.equal(result.calls[0].mos, 4);
     assert.equal(result.calls[0].startTimestamp, '2026-09-15T09:00:00+09:00');
     assert.equal(result.calls[0].endType, 'unknown-code');
-    assert.equal(fs.readFileSync(inputPath, 'utf8'), input);
+    assert.equal(historicalRead(inputPath, 'utf8'), input);
   } finally {
     assert.equal(path.dirname(path.resolve(fixtureRoot)), fixtureParent);
     fs.rmSync(fixtureRoot, { recursive: true, force: true });

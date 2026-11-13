@@ -1,14 +1,17 @@
+// Numerical source regressions retain the original two-workbook cohort.
+const {historicalRead,historicalJson,skipHistoricalSource}=require('./published-fixture.cjs');
+if(skipHistoricalSource(__filename))return;
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const path=require('node:path');
 const root=path.resolve(__dirname,'../..');
-const read=p=>JSON.parse(fs.readFileSync(path.join(root,p),'utf8'));
-const source=fs.readFileSync(path.join(root,'components/analyst/candidate-mdt-rsrp-chart.tsx'),'utf8');
-const basic=fs.readFileSync(path.join(root,'components/analyst/quality-two-candidate-workspace.tsx'),'utf8');
-const alternative=fs.readFileSync(path.join(root,'components/analyst/quality-model-alternative-workspace.tsx'),'utf8');
-const map=fs.readFileSync(path.join(root,'components/analyst/improvement-candidate-map.tsx'),'utf8');
-const symbols=fs.readFileSync(path.join(root,'components/analyst/gps-marker-style.tsx'),'utf8');
+const read=p=>JSON.parse(historicalRead(path.join(root,p),'utf8'));
+const source=historicalRead(path.join(root,'components/analyst/candidate-mdt-rsrp-chart.tsx'),'utf8');
+const basic=historicalRead(path.join(root,'components/analyst/quality-two-candidate-workspace.tsx'),'utf8');
+const alternative=historicalRead(path.join(root,'components/analyst/quality-model-alternative-workspace.tsx'),'utf8');
+const map=historicalRead(path.join(root,'components/analyst/improvement-candidate-map.tsx'),'utf8');
+const symbols=historicalRead(path.join(root,'components/analyst/gps-marker-style.tsx'),'utf8');
 const sidecar=read('public/quality-improvement/candidate-mdt-rsrp-v1.json');
 const index=read('public/quality-improvement-mixed-full/index.json');
 const e=index.entries.find(x=>x.scope.dateStart==='2026-10-26'&&x.scope.dateEnd==='2026-10-30');

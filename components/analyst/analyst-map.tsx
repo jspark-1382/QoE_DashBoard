@@ -341,7 +341,7 @@ export function AnalystMap({
                 weight:2,dashArray:'5 5',fillOpacity:0.055,
                 fillColor:'#079b86',
               }).bindTooltip('마지막 GPS 기준 이동 가능 영역 · 실제 단말 이동경로 아님').addTo(layer);
-              if(!hideByeSiteMarkers&&point.byeRuId&&point.byeStationLat!=null&&point.byeStationLon!=null){
+              if(showStations&&!hideByeSiteMarkers&&point.byeRuId&&point.byeStationLat!=null&&point.byeStationLon!=null){
                 const site:[number,number]=[point.byeStationLat,point.byeStationLon];
                 // The mini-map must include BOTH actual GNSS and the separate BYE site.
                 focusBounds.push(site);
@@ -368,7 +368,7 @@ export function AnalystMap({
                 dashArray:'7 6',weight:2,fillColor:'#dba34d',fillOpacity:0.025,
               }).bindTooltip('삼각 측량 기반 대략 조사 권역 · 정확도 검증 구간 아님').addTo(layer);
             }
-            if(callLocations.length===1) {
+            if(showStations&&callLocations.length===1) {
               for(const site of point.usedStations??[]) {
                 const positionSite:[number,number]=[site.lat,site.lon];
                 focusBounds.push(positionSite);
@@ -672,7 +672,7 @@ export function AnalystMap({
       }
       // If the station checkbox changes after an empty GNSS view, refit
       // to the RU locations rather than reusing the old offscreen viewport.
-      const stationFitKey=focusKey+'/station-layer-'+(showStations?'on':'off');
+      const stationFitKey=focusKey+'/station-layer-'+(showStations?(visibleStationBounds.length?'on':'loading'):'off');
       if (fitKey.current !== stationFitKey) {
         fitKey.current = stationFitKey;
         const saved = views.get(focusKey);

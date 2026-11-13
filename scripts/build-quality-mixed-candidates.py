@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -29,10 +30,11 @@ POLICY = strict_builder.POLICY
 REVISION = strict_builder.REVISION
 REVISION_INDEX = strict_builder.REVISION_INDEX
 days_between = strict_builder.days_between
-OVER = ROOT / "public" / "analyst-overview" / "MDT"
-ROUGH = ROOT / "public" / "three-site-rough"
-FULL_INDEX = ROOT / "public" / "quality-improvement-full" / "index.json"
-HOLD_INDEX = ROOT / "public" / "quality-improvement" / "index.json"
+PUBLIC=Path(os.environ.get('QOE_PUBLIC_DIR', ROOT/'public'))
+OVER = PUBLIC / "analyst-overview" / "MDT"
+ROUGH = PUBLIC / "three-site-rough"
+FULL_INDEX = PUBLIC / "quality-improvement-full" / "index.json"
+HOLD_INDEX = PUBLIC / "quality-improvement" / "index.json"
 NAME = "gps-mdt-rough-unvalidated-v1"
 POLICY_VERSION = "THREE_SITE_RSRP_CENTROID"
 RANGE = (600, 5000)
@@ -76,6 +78,7 @@ def valid_rough(point, call, boundaries, old):
 def source_by_date(strict):
     combined = {}
     all_counts = {"gnss":0, "rough":0, "overlapPrevented":0}
+    reviewed_radio = 0
     for d in REVISION_INDEX["availableDates"]:
         overview = read(OVER/(d+".json"))
         rough = read(ROUGH/(d+".json"))
@@ -88,6 +91,7 @@ def source_by_date(strict):
         approved, cdrs, approvals = strict[d]
         results=dict(approved)
         all_counts["gnss"] += sum(p["kind"]=="gnss" for p in approved.values())
+        reviewed_radio += sum(p['kind']=='reviewed-radio' for p in approved.values())
         for point in rough["points"]:
             call = calls.get(point.get("callId"))
             if call is None or not valid_rough(point,call,boundaries,locations.get(point["callId"])):
@@ -128,12 +132,13 @@ def source_by_date(strict):
             }
             all_counts["rough"]+=1
         combined[d]=(results,cdrs,approvals,calls)
-    assert all_counts["gnss"] == 131, all_counts
-    assert all_counts["rough"] == 106, all_counts
+    if reviewed_radio:
+        all_counts['reviewedRadio'] = reviewed_radio
+    assert sum(len(day[0]) for day in combined.values()) == all_counts['gnss'] + all_counts['rough'] + reviewed_radio
     return combined,all_counts
 
 def generate(mode, source_index, by_day, dry_run):
-    output=ROOT/"public"/("quality-improvement-mixed-full" if mode=="all" else "quality-improvement-mixed-evaluation")
+    output=PUBLIC/("quality-improvement-mixed-full" if mode=="all" else "quality-improvement-mixed-evaluation")
     entries=[]
     stats=[]
     for entry in source_index["entries"]:
@@ -207,7 +212,9 @@ def generate(mode, source_index, by_day, dry_run):
             "auditReference":"docs/quality-gps-mdt-rough-exploratory-20261110.md",
             "observationPath":directory+"/observations.json",
             "inputCounts":{"gnss":sum(p["kind"]=="gnss" for p in points),
-                           "rough":sum(p["kind"]=="rough" for p in points)},
+                           "rough":sum(p["kind"]=="rough" for p in points),
+                           **({'reviewedRadio':sum(p['kind']=='reviewed-radio' for p in points)}
+                              if any(p['kind']=='reviewed-radio' for p in points) else {})},
             "candidates":cards
         }
         if not dry_run:

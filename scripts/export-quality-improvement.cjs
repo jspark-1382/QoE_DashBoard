@@ -55,5 +55,5 @@ function publish(inputDir,outDir,auditDir){
  writeJson(path.join(auditDir,index.sourceRevision,'audit.json'),{sourceRevision:index.sourceRevision,entries:audit});
  const output={schemaVersion:'quality-improvement-index-v1',sourceRevision:index.sourceRevision,availableDates:index.availableDates,entries,evidence};writeJson(path.join(outDir,'index.json'),output);return output;
 }
-if(require.main===module){const base=path.resolve(__dirname,'..');const index=publish(path.join(base,'public/voice-improvement-1'),path.join(base,'public/quality-improvement'),path.join(base,'outputs/quality-improvement-audit'));process.stdout.write(JSON.stringify({revision:index.sourceRevision,scopes:index.entries.length,evidenceDays:index.evidence.length})+'\n');}
+if(require.main===module){const base=path.resolve(__dirname,'..'),pub=path.resolve(process.env.QOE_PUBLIC_DIR||path.join(base,'public'));const index=publish(path.join(pub,'voice-improvement-1'),path.join(pub,'quality-improvement'),path.join(base,'outputs/quality-improvement-audit'));process.stdout.write(JSON.stringify({revision:index.sourceRevision,scopes:index.entries.length,evidenceDays:index.evidence.length})+'\n');}
 module.exports={splitReport,publish,proveEvidenceCensus};

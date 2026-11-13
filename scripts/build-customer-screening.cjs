@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const ROOT = process.cwd();
-const SOURCE = path.join(ROOT, 'public');
+const SOURCE = path.resolve(process.env.QOE_PUBLIC_DIR || path.join(ROOT, 'public'));
 const OUTPUT = path.join(SOURCE, 'customer-screening-data', '2026-10-26_2026-10-30.json');
 const BOUNDARY_OUTPUT = path.join(SOURCE, 'customer-screening-data', 'administrative-boundaries-v1.json');
 const DROP_RX = /(?:^|[\^\s\/;,])H\s*(?::\s*Drop\b|(?=\^|$))|(?:^|[\s:;\/])Drop\b/i;

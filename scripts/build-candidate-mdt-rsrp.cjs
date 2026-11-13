@@ -5,7 +5,7 @@
 const fs=require('node:fs');
 const path=require('node:path');
 const root=path.resolve(__dirname,'..');
-const pub=path.join(root,'public');
+const pub=path.resolve(process.env.QOE_PUBLIC_DIR || path.join(root,'public'));
 const read=(p)=>JSON.parse(fs.readFileSync(path.join(pub,p),'utf8'));
 const manifest=read('voice-1030.json');
 const index=read('quality-improvement-mixed-full/index.json');
@@ -24,7 +24,7 @@ const result={schemaVersion:'qoe-candidate-mdt-rsrp-v1',sourceRevision:revision,
  excludes:'invalid/non-finite/null/out-of-physical-range RSRP; no invented values, no frequency filter; neighbor objects not counted as serving rows',
  earfcnSource:'original sample[21].frequency = MDT dlearfcn, integer only; all available EARFCN series retained',
  records:{}};
-const stats={calls:0,withValid:0,allRows:0,validRows:0,excludedRows:0,missingPartitions:0,rough:0,gps:0};
+const stats={calls:0,withValid:0,allRows:0,validRows:0,excludedRows:0,missingPartitions:0,rough:0,gps:0,reviewedRadio:0};
 for(const p of observed.points){
  const callId=p.callId, key=p.date+'|'+p.customerId;
  if(result.records[callId])throw Error('Duplicate evidence call: '+callId);
@@ -58,13 +58,14 @@ for(const p of observed.points){
  if(Object.values(earfcnBins).reduce((sum,freqBins)=>sum+Object.values(freqBins).reduce((a,b)=>a+b,0),0)!==valid)throw Error('dlearfcn series conservation failed '+callId);
  result.records[callId]={validRows:valid,excludedRows:all-valid,totalRows:all,bins,earfcnBins};
  stats.calls++;stats.allRows+=all;stats.validRows+=valid;stats.excludedRows+=(all-valid);
- stats.withValid+=Number(valid>0);if(p.kind==='rough')stats.rough++;else if(p.kind==='gnss')stats.gps++;
+ stats.withValid+=Number(valid>0);if(p.kind==='rough')stats.rough++;else if(p.kind==='gnss')stats.gps++;else if(p.kind==='reviewed-radio')stats.reviewedRadio++;
 }
-if(stats.calls!==237||stats.rough!==106||stats.gps!==131)throw Error('Unexpected mixed-call distribution: '+JSON.stringify(stats));
+if(stats.calls!==observed.points.length||stats.rough+stats.gps+stats.reviewedRadio!==stats.calls)throw Error('Mixed-call evidence census mismatch: '+JSON.stringify(stats));
 const dest=path.join(pub,'quality-improvement','candidate-mdt-rsrp-v1.json');
 fs.writeFileSync(dest,JSON.stringify(result),'utf8');
 console.log(JSON.stringify({output:path.relative(root,dest),sourceRevision:revision,stats,
  firstCandidate:Object.fromEntries((()=>{
+  if(!summary.candidates.length)return [];
   const d=read('quality-improvement-mixed-full/'+summary.candidates[0].detailPath);
   const n={};let valid=0,excluded=0;
   for(const p of d.candidate.nearbyPoints.filter(x=>x.role==='discovery-member')){

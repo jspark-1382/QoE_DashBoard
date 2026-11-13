@@ -1,3 +1,6 @@
+// Numerical source regressions retain the original two-workbook cohort.
+const {historicalRead,historicalJson,skipHistoricalSource}=require('./published-fixture.cjs');
+if(skipHistoricalSource(__filename))return;
 /* eslint-disable @typescript-eslint/no-require-imports */
 // Validates the refreshed Oct 26-30 CDR/MDT source and all five daily summaries.
 const assert=require('node:assert/strict');
@@ -8,8 +11,8 @@ const {getOverviewAnalytics}=load('lib/analyst/overview-analytics.ts');
 const root=path.resolve(__dirname,'../..');
 const manifestPath=path.join(root,'public/voice-1030.json');
 const auditPath=path.join(root,'outputs/voice-1030-quality-report.json');
-const manifest=JSON.parse(fs.readFileSync(manifestPath,'utf8'));
-const audit=JSON.parse(fs.readFileSync(auditPath,'utf8'));
+const manifest=JSON.parse(historicalRead(manifestPath,'utf8'));
+const audit=JSON.parse(historicalRead(auditPath,'utf8'));
 const dates=['2026-10-26','2026-10-27','2026-10-28','2026-10-29','2026-10-30'];
 
 assert.deepEqual(manifest.meta.dates,dates);
@@ -33,7 +36,7 @@ const summaries={};
 for(const date of dates){
  const output=path.join(root,'public/analyst-overview/MDT',date+'.json');
  assert(fs.existsSync(output),'missing daily overview '+date);
- const overview=JSON.parse(fs.readFileSync(output,'utf8'));
+ const overview=JSON.parse(historicalRead(output,'utf8'));
  const dayEntries=manifest.days.filter(day=>day.date===date);
  assert.equal(overview.sourceRevision,manifest.meta.revision,'stale daily location revision '+date);
  assert.equal(overview.date,date);
@@ -69,7 +72,7 @@ assert.deepEqual(totals,{
 assert.equal(audit.matching.cdrMatched+audit.matching.cdrUnmatched+audit.matching.cdrAmbiguous,manifest.meta.totalCalls);
 const example=manifest.days.find(day=>day.sampleCount>0);
 assert(example);
-const detail=JSON.parse(fs.readFileSync(path.join(root,'public',example.dataPath),'utf8'));
+const detail=JSON.parse(historicalRead(path.join(root,'public',example.dataPath),'utf8'));
 assert(detail.calls.every(call=>call.mosV5Original===call.mos));
 assert(detail.calls.every(call=>call.matchStatus));
 assert(detail.calls.every(call=>call.rtp&&Object.hasOwn(call.rtp,'rxJitter')));

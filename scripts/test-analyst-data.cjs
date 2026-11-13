@@ -43,7 +43,8 @@ if (require.main === module) {
     sampleCount: 1,
     samples: [raw],
     calls: [
-      { id: 'c', start: '01:00:00', end: '01:00:01', qoe: 0 },
+      // A zero display QoE needs a valid original MOS (2.5 minus Drop 2.5).
+      { id: 'c', start: '01:00:00', end: '01:00:01', qoe: 0, mos: 2.5, sipCause: 'H: Drop' },
       { id: 'empty', start: '02:00:00', end: '02:00:01', qoe: null },
     ],
   };

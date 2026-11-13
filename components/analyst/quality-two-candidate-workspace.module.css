@@ -36,6 +36,7 @@
 .mapLegend i{display:inline-block;width:10px;height:10px;border-radius:50%;flex-shrink:0}
 .selectedDot{background:#f5bd42;border:2px solid #ab650e}
 .otherDot{background:#98afbe;border:1px solid #fff}
+.unmatchedDot{background:#e83b63;border:1px solid #fff;box-shadow:0 0 0 1px #e83b63}
 .gnssDot{background:#e7a13d}
 .legendHeading{font-weight:800!important;color:#365b71!important;margin-left:5px}
 .rsrpRed{background:#dc2626}
@@ -60,6 +61,12 @@
 .regionFilterLine button{padding:4px 7px}
 .regionList header p,.customerPanel header p{font-size:10px;line-height:1.5;color:#8495a5;margin:0}
 .regionRows{padding:0 9px 10px;display:flex;flex-direction:column;gap:5px}
+.regionRowGroup{display:flex;align-items:stretch;gap:5px;min-width:0}
+.regionRowGroup>.regionRow{flex:1;min-width:0}
+.regionCopy .regionState{align-self:flex-start;padding:2px 5px;font-size:8px;margin-top:1px}
+.aiButton{flex-shrink:0;align-self:center;min-width:60px;padding:7px 8px;background:#edf8f5;border:1px solid #acd9cc;border-radius:7px;color:#16806d;font-size:10px;font-weight:800;cursor:pointer;white-space:nowrap}
+.aiButton:hover{background:#dff3eb}
+.aiButton:focus-visible{outline:3px solid #2bc9b6;outline-offset:2px}
 .regionRow{display:flex;align-items:center;gap:9px;border:1px solid #e4ecf2;border-radius:8px;min-width:0;width:100%;text-align:left;background:#fbfdff;color:#314d63;cursor:pointer;padding:8px 7px}
 .regionRow:hover{background:#f2f8ff;border-color:#a5cadf}
 .regionRow:focus-visible{outline:3px solid #168da4;outline-offset:2px}

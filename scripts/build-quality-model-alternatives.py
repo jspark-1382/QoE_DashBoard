@@ -12,6 +12,7 @@ from __future__ import annotations
 import hashlib
 import json
 import math
+import os
 from datetime import date as Date
 from pathlib import Path
 import numpy as np
@@ -20,9 +21,10 @@ from sklearn.cluster import HDBSCAN
 from sklearn.metrics.pairwise import haversine_distances
 
 ROOT=Path(__file__).resolve().parents[1]
-SOURCE=ROOT/"public"/"quality-improvement"
-OUTPUT=ROOT/"public"/"quality-models"
-OVERVIEWS=ROOT/"public"/"analyst-overview"/"MDT"
+PUBLIC=Path(os.environ.get('QOE_PUBLIC_DIR', ROOT/'public'))
+SOURCE=PUBLIC/"quality-improvement"
+OUTPUT=PUBLIC/"quality-models"
+OVERVIEWS=PUBLIC/"analyst-overview"/"MDT"
 R=6371008.8
 MODELS=("hdbscan","st_dbscan","adaptive_kde","spatial_scan","bayesian")
 MIN_CUSTOMERS=3
@@ -297,8 +299,8 @@ def model_entry(name,train,normal,valid):
 
 def generate(analysis_mode="evaluation"):
  if analysis_mode not in ("all","evaluation"):raise ValueError("invalid mode")
- summary_root=ROOT/"public"/("quality-improvement-full" if analysis_mode=="all" else "quality-improvement")
- output_root=ROOT/"public"/("quality-models-full" if analysis_mode=="all" else "quality-models")
+ summary_root=PUBLIC/("quality-improvement-full" if analysis_mode=="all" else "quality-improvement")
+ output_root=PUBLIC/("quality-models-full" if analysis_mode=="all" else "quality-models")
  index=json.loads((summary_root/"index.json").read_text(encoding="utf8"))
  revision=index["sourceRevision"]
  byday=accepted_call_positions(revision)

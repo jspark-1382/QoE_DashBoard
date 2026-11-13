@@ -1,15 +1,18 @@
+// Historical source assertions use the preserved original cohort; current sources have a separate census test.
+const {historicalRead,historicalJson,skipHistoricalSource}=require('./published-fixture.cjs');
+if(skipHistoricalSource(__filename))return;
 /* eslint-disable @typescript-eslint/no-require-imports -- Existing Node test harness. */
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
 const {load}=require('../analyst-ts-loader.cjs');
 const {callEvidenceUrl,validateImprovementReport}=load('lib/analyst/improvement-candidates.ts');
-const read=p=>JSON.parse(fs.readFileSync(p,'utf8'));
+const read=p=>JSON.parse(historicalRead(p,'utf8'));
 const report=read('public/improvement-candidates/2026-10-26_2026-10-30.json');
 const manifest=read('public/voice-1030.json');
 
 test('Leaflet GNSS popup resolves its raw-call deep link under /qoe, not server root',()=>{
- const source=fs.readFileSync('components/analyst/improvement-candidate-map.tsx','utf8');
+ const source=historicalRead('components/analyst/improvement-candidate-map.tsx','utf8');
  assert(source.includes("import {withQoeBasePath} from './document-link'"));
  assert(source.includes('link.href=withQoeBasePath(callEvidenceUrl('));
  assert(!source.includes('link.href=callEvidenceUrl('));
@@ -67,8 +70,8 @@ test('spatial centroids come from discovery GNSS, NOT withheld 30th or a base-st
  }
 });
 test('current dashboard includes opt-in mode and keeps original 1-3 day view/table intact',()=>{
- const ui=fs.readFileSync('components/analyst/quality-proposal-four.tsx','utf8');
- const workspace=fs.readFileSync('components/analyst/improvement-candidates.tsx','utf8');
+ const ui=historicalRead('components/analyst/quality-proposal-four.tsx','utf8');
+ const workspace=historicalRead('components/analyst/improvement-candidates.tsx','utf8');
  assert(ui.includes('aria-label="지도 모드"'));
  assert(ui.includes("mapMode==='improvement'"));
  assert(ui.includes("mapMode==='current'"));
@@ -95,8 +98,8 @@ test('current dashboard includes opt-in mode and keeps original 1-3 day view/tab
 });
 
 test('improvement map enables real wheel zoom and candidate panels use matched responsive heights',()=>{
- const map=fs.readFileSync('components/analyst/improvement-candidate-map.tsx','utf8');
- const css=fs.readFileSync('components/analyst/improvement-candidates.module.css','utf8');
+ const map=historicalRead('components/analyst/improvement-candidate-map.tsx','utf8');
+ const css=historicalRead('components/analyst/improvement-candidates.module.css','utf8');
  assert(map.includes('scrollWheelZoom:true'),'wheel zoom must be enabled');
  assert(!map.includes('scrollWheelZoom:false'));
  assert(map.includes('wheelPxPerZoomLevel:75'));

@@ -2,7 +2,7 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs');
-const file=fs.readFileSync('components/analyst/quality-proposal-four.tsx','utf8');
+const file=fs.readFileSync('components/analyst/quality-proposal-four.tsx','utf8')+'\n'+fs.readFileSync('components/analyst/quality-summary-panels.tsx','utf8');
 
 test('overview mode buttons use the requested short labels without changing mapMode identifiers',()=>{
  assert(file.includes("onClick={()=>{setMapMode('current');setChosenCall(null);setDialogOpen(false);}}>품질현황</button>"));

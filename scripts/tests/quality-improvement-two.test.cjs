@@ -1,3 +1,6 @@
+// Historical source assertions use the preserved original cohort; current sources have a separate census test.
+const {historicalRead,historicalJson,skipHistoricalSource}=require('./published-fixture.cjs');
+if(skipHistoricalSource(__filename))return;
 /* 개선 2안 독립 회귀: 현재/1안 보존 및 본부장 보고 필수 항목 확인 */
 const test=require('node:test');
 const assert=require('node:assert/strict');
@@ -5,13 +8,13 @@ const fs=require('node:fs');
 const path=require('node:path');
 const {load}=require('../analyst-ts-loader.cjs');
 const root=path.resolve(__dirname,'../..');
-const read=p=>fs.readFileSync(path.join(root,p),'utf8');
+const read=p=>historicalRead(path.join(root,p),'utf8');
 
 test('improvement 2 is the default quality overview and historic variant links retain conditions',()=>{
  const router=read('app/page.tsx'),nav=read('components/analyst/quality-top-nav.tsx');
  const state=load('lib/analyst/quality-comparison-state.ts');
- assert.match(router,/variant===\x27improvement2\x27/);
- assert.match(router,/\x27current\x27:\x27improvement2\x27/);
+ assert.match(router,/return <ServerQualityOverview/);
+ assert.match(router,/params\?\.variant===\x27current\x27\|\|params\?\.variant===\x27improvement1\x27/);
  assert(!nav.includes('>개선 1안</Link>')&&!nav.includes('>개선 2안</Link>'));
  assert(nav.includes('품질 현황'));
  const query='?variant=improvement2&dateStart=2026-10-26&dateEnd=2026-10-30&customer=a&customer=b&selectedBand=poor&mapMode=improvement&from=09:00&to=19:00';

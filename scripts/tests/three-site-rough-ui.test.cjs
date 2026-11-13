@@ -1,3 +1,6 @@
+// Numerical source regressions retain the original two-workbook cohort.
+const {historicalRead,historicalJson,skipHistoricalSource}=require('./published-fixture.cjs');
+if(skipHistoricalSource(__filename))return;
 /* Coarse 3-site data is shown in the EXISTING 3-site tab, not a new page. */
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
@@ -5,7 +8,7 @@ const fs=require('node:fs');
 const {load}=require('../analyst-ts-loader.cjs');
 const {overlayThreeSiteRough}=load('lib/analyst/three-site-rough.ts');
 const {buildImprovedView}=load('lib/analyst/improved-overview.ts');
-const read=(name)=>JSON.parse(fs.readFileSync(name,'utf8'));
+const read=(name)=>JSON.parse(historicalRead(name,'utf8'));
 const dates=['2026-10-26','2026-10-27','2026-10-28','2026-10-29','2026-10-30'];
 
 test('five actual date partitions expose GNSS-free 3-site search-zone candidates',()=>{

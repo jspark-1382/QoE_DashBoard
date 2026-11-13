@@ -25,6 +25,7 @@ from base_station_master import load_master
 from lte_station_catalog import load_lte_catalog, resolve_lte_master
 from nr_station_catalog import resolve_nr_master
 from mdt_gnss import convert_gnss
+from voice_xlsx_rows import cdr_rows
 
 KST = timezone(timedelta(hours=9))
 FIELDS = ['second', 'time', 'lat', 'lon', 'site', 'areaType', 'floorCode',
@@ -131,90 +132,136 @@ def file_sha256(path):
     return sha.hexdigest()
 
 
-def read_cdr(cdr_path, target_date):
+# Preserve original namespaces literally. A string "Null" and numeric 0 may be
+# vendor source values; only an absent/empty cell is unavailable here.
+TERMINATION_COLUMNS = {
+    'fcRaw': '102. FC', 'reasonRaw': '11. REASON',
+    'releaseCauseRaw': '13. Release Cause',
+    'secondaryReleaseCause1Raw': '14. S Release Cause 1',
+    'secondaryReleaseCause2Raw': '15. S Release Cause 2',
+    'sipFailResponseCodeRaw': '109. SIP Fail Response Code',
+    'byeReasonRaw': '115. BYE REASON', 'callDirectionRaw': '9. CALL DIR',
+}
+
+
+def termination_fields(row):
+    return {key: None if row.get(column) is None or str(row[column]) == '' else str(row[column])
+            for key, column in TERMINATION_COLUMNS.items()}
+
+
+def read_cdr(cdr_path, target_date, *, seen=None, identity_source=None, wanted_ids=None):
     dates = selected_dates(target_date)
-    try:
-        import openpyxl
-    except ImportError as exc:
-        raise RuntimeError('CDR 읽기를 위해 openpyxl을 설치하세요: python -m pip install openpyxl') from exc
-    book = openpyxl.load_workbook(cdr_path, read_only=True, data_only=True, keep_links=False)
-    try:
-        sheet = book.active
-        headers = [clean(v) for v in next(sheet.iter_rows(min_row=1, max_row=1, values_only=True))]
-        required = ['4. START TIME', '5. END TIME', '140. RTCP MOS(v5)',
-                    'E2. svc_cont_id', 'E3. Call_ID_edit']
-        if any(header not in headers for header in required):
-            raise ValueError(f'10/30 CDR 스키마 불일치: {required}')
-        positions = {header: i for i, header in enumerate(headers)}
-        calls = []
-        audit = Counter()
-        for row_number, cells in enumerate(sheet.iter_rows(min_row=2, values_only=True), 2):
-            row = {name: cells[idx] if idx < len(cells) else None for name, idx in positions.items()}
-            audit['inputRows'] += 1
-            start = iso_kst(source_field(row, '4. START TIME'))
-            end = iso_kst(source_field(row, '5. END TIME'))
-            if start is None or start.date().isoformat() not in dates:
-                audit['excludedDifferentDateOrTime'] += 1
+    required = ['4. START TIME', '5. END TIME', '140. RTCP MOS(v5)',
+                'E2. svc_cont_id', 'E3. Call_ID_edit']
+    columns = set(required) | {'6. CALL TIME(sec)', '76. BYE CELL ID', '75. BYE 200OK CELL ID',
+        '73. BYE P-Access-Network-Info', '72. BYE 200OK P-Access Network-Info',
+        '74. User start CELL ID', '139. INVITE CELL ID', '10. RESULT', '11. REASON',
+        '109. SIP Fail Response Code', '13. Release Cause', '9. CALL DIR',
+        '59. Audio Tx jitter', '60. Audio Rx jitter', '63. Audio Tx Packetloss',
+        '64. Audio Rx Packetloss', '131. RTP Audio Tx Loss CNT', '132. RTP Audio Rx Loss CNT'}
+    columns.update(TERMINATION_COLUMNS.values())
+    calls = []
+    audit = Counter()
+    occurrences = Counter()
+    for row_number, row, fingerprint in cdr_rows(cdr_path, required, columns):
+        audit['inputRows'] += 1
+        start = iso_kst(source_field(row, '4. START TIME'))
+        end = iso_kst(source_field(row, '5. END TIME'))
+        if start is None or start.date().isoformat() not in dates:
+            audit['excludedDifferentDateOrTime'] += 1
+            continue
+        day = start.date().isoformat()
+        contract = clean(source_field(row, 'E2. svc_cont_id'))
+        if not contract:
+            audit['excludedMissingContract'] += 1
+            continue
+        if seen is not None:
+            occurrences[fingerprint] += 1
+            if occurrences[fingerprint] <= seen.get(fingerprint, 0):
+                audit['excludedCrossFileDuplicates'] += 1
                 continue
-            day = start.date().isoformat()
-            audit['published_'+day] += 1
-            contract = clean(source_field(row, 'E2. svc_cont_id'))
-            if not contract:
-                audit['excludedMissingContract'] += 1
-                continue
-            if end is None or end < start:
-                end = start + timedelta(seconds=max(0, value_number(source_field(row, '6. CALL TIME(sec)')) or 0))
-                audit['endTimeRepaired'] += 1
-            mos = mos_number(source_field(row, '140. RTCP MOS(v5)'))
-            status = 'VALID' if mos is not None else 'MISSING'
-            if status == 'MISSING':
-                audit['missingOrInvalidMos'] += 1
-            elif mos < 3:
-                audit['poorMos'] += 1
-            elif mos < 3.5:
-                audit['warningMos'] += 1
-            else:
-                audit['goodMos'] += 1
-            # CDR CALL ID and EDIT CALL ID are not guaranteed unique; never group by either.
-            call_id = 'call-' + sha_key('cdr-leg', contract, start.isoformat(), end.isoformat(),
-                                        clean(source_field(row, 'E3. Call_ID_edit')), row_number)
-            bye_cell = clean(source_field(row, '76. BYE CELL ID'))
-            ack_cell = clean(source_field(row, '75. BYE 200OK CELL ID'))
-            # Match the RAT to the same source message as the published end Cell.
-            # A start-access flag or another message's PANI may describe a different RAT.
-            end_rat = end_rat_from_pani(source_field(row, '73. BYE P-Access-Network-Info')) if bye_cell else (
-                end_rat_from_pani(source_field(row, '72. BYE 200OK P-Access Network-Info')) if ack_cell else None
-            )
-            calls.append({
-                'id': call_id,
-                'customerId': 'mdt-' + sha_key('mdt', contract),
-                'contract': contract,
-                'date': day,
-                'startDt': start,
-                'endDt': end,
-                'editedKey': clean(source_field(row, 'E3. Call_ID_edit')),
-                'startCellId': clean(source_field(row, '74. User start CELL ID')) or clean(source_field(row, '139. INVITE CELL ID')),
-                'endCellId': bye_cell or ack_cell,
-                'endRat': end_rat,
-                'mos': mos,
-                'mosStatus': status,
-                'endType': clean(source_field(row, '10. RESULT')),
-                'sipCause': clean(source_field(row, '11. REASON')) or clean(source_field(row, '109. SIP Fail Response Code')),
-                'q850Cause': clean(source_field(row, '13. Release Cause')),
-                'direction': clean(source_field(row, '9. CALL DIR')),
-                'rtp': {
-                    'txJitter': value_number(source_field(row, '59. Audio Tx jitter')),
-                    'rxJitter': value_number(source_field(row, '60. Audio Rx jitter')),
-                    'txPacketLoss': value_number(source_field(row, '63. Audio Tx Packetloss')),
-                    'rxPacketLoss': value_number(source_field(row, '64. Audio Rx Packetloss')),
-                    'txLossCount': value_number(source_field(row, '131. RTP Audio Tx Loss CNT')),
-                    'rxLossCount': value_number(source_field(row, '132. RTP Audio Rx Loss CNT')),
-                },
-            })
-            audit['publishedCalls'] += 1
-        return calls, audit
-    finally:
-        book.close()
+        audit['published_'+day] += 1
+        if end is None or end < start:
+            end = start + timedelta(seconds=max(0, value_number(source_field(row, '6. CALL TIME(sec)')) or 0))
+            audit['endTimeRepaired'] += 1
+        mos = mos_number(source_field(row, '140. RTCP MOS(v5)'))
+        status = 'VALID' if mos is not None else 'MISSING'
+        if status == 'MISSING':
+            audit['missingOrInvalidMos'] += 1
+        elif mos < 3:
+            audit['poorMos'] += 1
+        elif mos < 3.5:
+            audit['warningMos'] += 1
+        else:
+            audit['goodMos'] += 1
+        # CDR CALL ID and EDIT CALL ID are not guaranteed unique; never group by either.
+        identity = ['cdr-leg', contract, start.isoformat(), end.isoformat(),
+                    clean(source_field(row, 'E3. Call_ID_edit')), row_number]
+        if identity_source is not None:
+            identity.append(identity_source)
+        call_id = 'call-' + sha_key(*identity)
+        # Sidecar extraction keeps exact existing identity/dedup rules without retaining all calls.
+        if wanted_ids is not None and call_id not in wanted_ids:
+            continue
+        bye_cell = clean(source_field(row, '76. BYE CELL ID'))
+        ack_cell = clean(source_field(row, '75. BYE 200OK CELL ID'))
+        # Match the RAT to the same source message as the published end Cell.
+        # A start-access flag or another message's PANI may describe a different RAT.
+        end_rat = end_rat_from_pani(source_field(row, '73. BYE P-Access-Network-Info')) if bye_cell else (
+            end_rat_from_pani(source_field(row, '72. BYE 200OK P-Access Network-Info')) if ack_cell else None
+        )
+        calls.append({
+            'id': call_id,
+            'customerId': 'mdt-' + sha_key('mdt', contract),
+            'contract': contract,
+            'date': day,
+            'startDt': start,
+            'endDt': end,
+            'editedKey': clean(source_field(row, 'E3. Call_ID_edit')),
+            'startCellId': clean(source_field(row, '74. User start CELL ID')) or clean(source_field(row, '139. INVITE CELL ID')),
+            'endCellId': bye_cell or ack_cell,
+            'endRat': end_rat,
+            'mos': mos,
+            'mosStatus': status,
+            'endType': clean(source_field(row, '10. RESULT')),
+            'sipCause': clean(source_field(row, '11. REASON')) or clean(source_field(row, '109. SIP Fail Response Code')),
+            'q850Cause': clean(source_field(row, '13. Release Cause')),
+            'termination': termination_fields(row),
+            'direction': clean(source_field(row, '9. CALL DIR')),
+            'rtp': {
+                'txJitter': value_number(source_field(row, '59. Audio Tx jitter')),
+                'rxJitter': value_number(source_field(row, '60. Audio Rx jitter')),
+                'txPacketLoss': value_number(source_field(row, '63. Audio Tx Packetloss')),
+                'rxPacketLoss': value_number(source_field(row, '64. Audio Rx Packetloss')),
+                'txLossCount': value_number(source_field(row, '131. RTP Audio Tx Loss CNT')),
+                'rxLossCount': value_number(source_field(row, '132. RTP Audio Rx Loss CNT')),
+            },
+        })
+        audit['publishedCalls'] += 1
+    if seen is not None:
+        for fingerprint, count in occurrences.items():
+            seen[fingerprint] = max(count, seen.get(fingerprint, 0))
+    return calls, audit
+
+
+def discover_sources(root):
+    files = [p for p in root.glob('*.xlsx') if not p.name.startswith('~$')]
+    def ordered(paths):
+        return sorted(paths, key=lambda p: (not p.name.startswith('261026_1030_'), p.name.casefold()))
+    return (ordered([p for p in files if 'sip_call' in p.name.casefold()]),
+            ordered([p for p in files if 'volte+mdt' in p.name.casefold()]))
+
+
+def read_cdr_files(paths, target_date):
+    calls, seen, totals, sources = [], {}, Counter(), []
+    for index, path in enumerate(paths):
+        print(json.dumps({'phase': 'read-cdr', 'file': path.name}, ensure_ascii=False), flush=True)
+        rows, audit = read_cdr(path, target_date, seen=seen, identity_source=path.name if index else None)
+        calls.extend(rows)
+        totals.update(audit)
+        sources.append({'file': path.name, 'bytes': path.stat().st_size, **dict(audit)})
+        print(json.dumps({'phase': 'cdr-complete', 'file': path.name, **dict(audit)}, ensure_ascii=False), flush=True)
+    return calls, totals, sources
 
 
 def read_mdt(mdt_path, target_date, cdr_contracts=None):
@@ -259,6 +306,29 @@ def read_mdt(mdt_path, target_date, cdr_contracts=None):
             audit['events'] += 1
         audit['publishedRows'] += 1
     return list(groups.values()), audit
+
+
+def read_mdt_files(paths, target_date, cdr_contracts=None):
+    groups, event_sources, totals, sources = {}, {}, Counter(), []
+    for source_index, path in enumerate(paths):
+        print(json.dumps({'phase': 'read-mdt', 'file': path.name}, ensure_ascii=False), flush=True)
+        incoming, audit = read_mdt(path, target_date, cdr_contracts)
+        for group in incoming:
+            key = (group['date'], group['contract'], group['mdtCallKey'],
+                   group['call'].get('startTimestamp'), group['call'].get('endTimestamp'))
+            target = groups.setdefault(key, {**group, 'events': []})
+            for event in group['events']:
+                fingerprint = sha_key(key, event)
+                previous = event_sources.setdefault(fingerprint, source_index)
+                if previous != source_index:
+                    audit['excludedCrossFileDuplicateEvents'] += 1
+                    continue
+                target['events'].append(event)
+        totals.update(audit)
+        sources.append({'file': path.name, 'bytes': path.stat().st_size, **dict(audit)})
+        print(json.dumps({'phase': 'mdt-complete', 'file': path.name, **dict(audit)}, ensure_ascii=False), flush=True)
+    totals['uniqueEvents'] = sum(len(g['events']) for g in groups.values())
+    return list(groups.values()), totals, sources
 
 
 def start_timestamp(group):
@@ -392,7 +462,8 @@ def as_day(customer_id, contract, group, stations, station_indices):
             'endType': call['endType'],
             'sipCause': call['sipCause'],
             'q850Cause': call['q850Cause'],
-            'fc': '',
+            'fc': call.get('termination', {}).get('fcRaw') or '',
+            'termination': call.get('termination', {}),
             'direction': call['direction'],
         })
     return {
@@ -421,6 +492,8 @@ def publish(calls, stations, audit, output, revision):
     partition_root.mkdir(parents=True, exist_ok=True)
     destination = partition_root / revision
     pending = partition_root / ('.tmp-' + uuid.uuid4().hex)
+    if pending.resolve().parent != partition_root.resolve() or not pending.name.startswith('.tmp-'):
+        raise ValueError('Unsafe temporary partition directory')
     pending.mkdir(parents=True)
     groups = defaultdict(list)
     for call in calls:
@@ -441,6 +514,8 @@ def publish(calls, stations, audit, output, revision):
                 'rats': detail['rats'], 'areaTypes': detail['areaTypes'],
                 'dataPath': f'voice-1030-data/{revision}/{filename}', 'samples': [],
             })
+            if len(days) % 10000 == 0:
+                print(json.dumps({'phase': 'partitions', 'written': len(days)}, ensure_ascii=False), flush=True)
             customer = customers_by_id.setdefault(customer_id, {
                 'id': customer_id,
                 'displayName': '계약 ' + contract,
@@ -461,7 +536,8 @@ def publish(calls, stations, audit, output, revision):
         meta = {
             'schemaVersion': 'voice-1030-v1', 'partitioned': True, 'revision': revision,
             'source': 'MDT', 'dates': sorted({call['date'] for call in calls}),
-            'sourceFiles': [audit['cdrFile'], audit['mdtFile']],
+            'sourceFiles': audit.get('sourceFiles', [audit['cdrFile'], audit['mdtFile']]),
+            **({'sourceWorkbookAudit': audit['sourceWorkbookAudit']} if 'sourceWorkbookAudit' in audit else {}),
             'stationInventory': {
                 'file': audit['lteMasterFile'], 'sha256': audit['lteMasterSha256'],
                 'pciColumnPresent': audit['lteMasterAudit']['pciColumnPresent'],
@@ -507,8 +583,8 @@ def publish(calls, stations, audit, output, revision):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument('--cdr', type=Path, default=None)
-    parser.add_argument('--mdt', type=Path, default=None)
+    parser.add_argument('--cdr', type=Path, action='append', default=None)
+    parser.add_argument('--mdt', type=Path, action='append', default=None)
     parser.add_argument('--master', type=Path, default=Path('data/BaseStation/BaseStation_new.txt'))
     parser.add_argument('--lte-master', type=Path, default=None,
                         help='RU+CellID 정확 매칭 인벤토리. 기본: QOE_LTE_MASTER 또는 최신 수도권_LTE_YYMMDD.xlsx')
@@ -521,9 +597,9 @@ def main():
     parser.add_argument('--match-seconds', type=int, default=MATCH_TOLERANCE_SEC)
     args = parser.parse_args()
     root = Path('data/MDT_New')
-    cdr = args.cdr or next(iter(sorted(root.glob('261026_1030_SIP_Call*.xlsx'))), None)
-    mdt = args.mdt or next(iter(sorted(root.glob('261026_1030_VoLTE+MDT*.xlsx'))), None)
-    if cdr is None or mdt is None or not cdr.is_file() or not mdt.is_file():
+    discovered_cdr, discovered_mdt = discover_sources(root)
+    cdr_files, mdt_files = args.cdr or discovered_cdr, args.mdt or discovered_mdt
+    if not cdr_files or not mdt_files or any(not p.is_file() for p in [*cdr_files, *mdt_files]):
         parser.error('10월 26~30일 SIP CDR 및 VoLTE MDT 통합 파일을 찾지 못했습니다.')
     try:
         selected_dates(args.date)
@@ -536,10 +612,8 @@ def main():
         args.nr_master = resolve_optional_nr_master(args.nr_master, args.lte_master.parent)
     except FileNotFoundError as exc:
         parser.error(str(exc))
-    print(json.dumps({'phase': 'read-cdr', 'file': cdr.name}, ensure_ascii=False), flush=True)
-    calls, cdr_audit = read_cdr(cdr, args.date)
-    print(json.dumps({'phase': 'read-mdt', 'file': mdt.name}, ensure_ascii=False), flush=True)
-    mdt_groups, mdt_audit = read_mdt(mdt, args.date, {call['contract'] for call in calls})
+    calls, cdr_audit, cdr_sources = read_cdr_files(cdr_files, args.date)
+    mdt_groups, mdt_audit, mdt_sources = read_mdt_files(mdt_files, args.date, {call['contract'] for call in calls})
     matched, matching_audit = build_candidate_maps(calls, mdt_groups, args.match_seconds)
     for ci, mi in matched.items():
         calls[ci]['matchedGroup'] = mdt_groups[mi]
@@ -557,14 +631,16 @@ def main():
         {key for call in calls for key in (call['startCellId'], call['endCellId']) if key},
     )
     stations = exact_lte_stations + legacy_stations
-    config = {'pipeline': 'voice-1026-1030-bye-mdt-first-v6', 'date': args.date,
+    config = {'pipeline': 'voice-1026-1030-multi-source-v7', 'date': args.date,
               'toleranceSec': args.match_seconds, 'mosPoor': 3,
               'mosWarning': 3.5, 'masterJoin': 'ru+cell-exact-first',
               'byeSiteSelection': 'same-call-mdt-30s-then-first-valid-inventory-row'}
     master_sources = [args.lte_master] + ([args.nr_master] if args.nr_master is not None else []) + ([args.master] if legacy_present else [])
-    revision = file_revision([cdr, mdt, *master_sources], config)
+    revision = file_revision([*cdr_files, *mdt_files, *master_sources], config)
     audit = {
-        'cdrFile': cdr.name, 'mdtFile': mdt.name,
+        'cdrFile': cdr_files[0].name, 'mdtFile': mdt_files[0].name,
+        'sourceFiles': [p.name for p in [*cdr_files, *mdt_files]],
+        'sourceWorkbookAudit': {'cdr': cdr_sources, 'mdt': mdt_sources},
         'date': args.date,
         'sourceCdr': dict(cdr_audit), 'sourceMdt': dict(mdt_audit),
         'matching': dict(matching_audit), 'masterStations': len(stations),
