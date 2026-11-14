@@ -11,6 +11,9 @@
 # testing
 /coverage
 
+# Rebuildable TypeScript incremental cache
+*.tsbuildinfo
+
 # next.js
 /.next/
 /.vinext/

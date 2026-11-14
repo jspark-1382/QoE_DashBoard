@@ -194,29 +194,10 @@
 .reviewDifference > div { display:flex; flex-direction:column; gap:3px; padding:7px 9px; border:1px solid #dce8ee; border-radius:5px; min-width:0; background:#fff; }
 .reviewDifference strong { font-size:11px; color:#316b73; }
 .reviewDifference span { font-size:10px; line-height:1.5; overflow-wrap:anywhere; }
-.ruleChoices { flex:none; padding:7px 9px; border:1px solid #cbdde9; border-radius:8px; background:#f4f8fc; }
-.ruleChoices > header { display:flex; justify-content:space-between; gap:9px; margin-bottom:5px; font-size:11px; color:#426e89; }
-.ruleChoices > header > span { color:#7a8f9d; font-size:10px; }
-.ruleChoices > div,.ruleChoices > details > div { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:5px; }
-.ruleChoices button { display:flex; align-items:center; gap:6px; background:#fff; border:1px solid #d4e3ed; padding:5px 7px; border-radius:5px; color:#385f78; text-align:left; font:inherit; cursor:pointer; min-width:0; }
-.ruleChoices button[aria-pressed=true] { background:#e7f4ed; border-color:#78b5a0; }
-.ruleChoices button > b { font-size:11px; color:#487b97; }
-.ruleChoices button > span { display:flex; flex-direction:column; gap:2px; min-width:0; }
-.ruleChoices button strong { font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.ruleChoices button small { color:#76909f; font-size:10px; }
-.ruleChoices > details { margin-top:5px; }
-.ruleChoices > details > summary { cursor:pointer; font-size:11px; color:#6c8798; }
-.ruleChoices > details[open] > div { margin-top:6px; }
-.ruleChoicesFold { flex:none; border:1px solid #d2e1eb; border-radius:7px; background:#f5f9fc; }
-.ruleChoicesFold > summary { display:flex; align-items:center; gap:10px; padding:7px 10px; font-size:11px; color:#446f86; cursor:pointer; list-style:none; }
-.ruleChoicesFold > summary > span { color:#8294a0; margin-left:auto; font-size:10px; }
-.ruleChoicesFold > summary > svg { flex:none; }
-.ruleChoicesFold > .ruleChoices { margin:0 7px 7px; }
 .singleFinding > button,.selectionStatus > button { margin-left:auto; padding:5px 8px; border:1px solid #91bead; background:#fff; color:#29725d; border-radius:5px; font:inherit; font-size:11px; cursor:pointer; }
 @media(min-width:851px) { .columns { min-height:330px; } }
 @media(min-width:851px) and (max-height:850px) {
   .workspace { gap:8px; }
-  .ruleChoicesFold > summary { padding:5px 9px; }
   .independentReview > summary { padding-top:5px; padding-bottom:5px; }
   .categories button { padding-top:5px; padding-bottom:5px; }
   .findingLabel { gap:1px; }
@@ -226,8 +207,6 @@
   .independentReview > summary > span { white-space:normal; }
   .independentReview > summary > .reviewCounts { margin-left:0; }
   .reviewDifference { grid-template-columns:1fr; }
-  .ruleChoices > div,.ruleChoices > details > div { grid-template-columns:repeat(2,minmax(0,1fr)); }
-  .ruleChoices > header > span { display:none; }
 }
 
 /* Desktop keeps the map and the three result scopes in parallel. */

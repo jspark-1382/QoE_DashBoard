@@ -1,5 +1,5 @@
 /* oxlint-disable jsx-a11y/prefer-tag-over-role -- Interactive SVG observations need ARIA roles because HTML buttons cannot be SVG children. */
-import {useEffect,useId,useRef,useState} from 'react';
+import {useEffect,useId,useMemo,useRef,useState} from 'react';
 import {Activity,RotateCcw} from 'lucide-react';
 import type {AnalysisScope} from '../../lib/analyst/customer-ai-analysis';
 import type {ScreeningRow} from '../../lib/analyst/customer-screening';
@@ -29,7 +29,9 @@ const detailHref=(customerId:string,call:CustomerQoeCall)=>'/?'+new URLSearchPar
 
 /** Fetch-free renderer: useful for previews, SSR and deterministic chart checks. */
 export function CustomerQoeTimelineChart({calls,customerId,scope,mode='all',date,selectedCallId,onSelectCall}:CustomerQoeTimelineChartProps){
-  const chart=buildCustomerQoeChart(calls,{scope,mode,date});
+  const {dateStart,dateEnd,from,to}=scope;
+  const chart=useMemo(()=>buildCustomerQoeChart(calls,{scope:{dateStart,dateEnd,from,to},mode,date}),
+    [calls,dateStart,dateEnd,from,to,mode,date]);
   const [selected,setSelected]=useState<string|null>(selectedCallId??null);
   const [hovered,setHovered]=useState<string|null>(null);
   const pointRefs=useRef<(SVGGElement|null)[]>([]);
