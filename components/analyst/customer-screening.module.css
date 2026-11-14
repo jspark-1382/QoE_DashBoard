@@ -63,6 +63,10 @@
 .rankTable tbody tr[aria-selected="true"]{background:#e6f9f7}
 .rankTable td{padding:6px 8px;white-space:nowrap}
 .rankTable td button{background:none;border:0;color:#244767;font-weight:800;padding:0;text-align:left}
+.deviceModel{display:flex;align-items:center;gap:3px;max-width:112px;white-space:nowrap;color:#244767;font-weight:500}
+.deviceModel>span{min-width:0;overflow:hidden;text-overflow:ellipsis}
+.deviceModel[data-device-count="0"]{color:#8493a5}
+.deviceModel small{font-size:inherit;color:#6e8299;flex:none}
 .rankNumber{display:inline-grid;place-items:center;min-width:23px;height:21px;background:#e9f3fd;border-radius:6px;color:#317aba;font-weight:850}
 .rankTable tbody tr:nth-child(-n+3) .rankNumber{background:#ffe8ed;color:#d63850}
 .barCell{display:flex;align-items:center;gap:6px;min-width:90px;color:#e04961;font-weight:850}

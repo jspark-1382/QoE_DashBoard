@@ -20,6 +20,8 @@ export interface PoorCall {
 }
 export interface ScreeningRow {
   id:string;number:string;total:number;eligible:number;poor:number;poorRate:number;
+  /** Customer-side SIP models in the selected date/time scope, most recent first. */
+  deviceModels?:string[];
   drop:number;dropRate:number;mean:number|null;repeatedDays:number;sameAreaDays:number;
   latestDate:string;mainArea:string;mainAreaId:string;mainCell:string;group:CustomerGroup;
   badCalls:PoorCall[];dailyTotal:number[];dailyPoor:number[];href:string;

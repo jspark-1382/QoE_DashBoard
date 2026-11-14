@@ -200,7 +200,8 @@ function createQueryEngine({dbPath,root=path.resolve(__dirname,'..'),publicDir=p
     return {dataset:{meta,customers:row?[parse(row.json)]:[],days:row?all('SELECT json FROM days WHERE customer_id=? ORDER BY date',[row.id]).map(r=>parse(r.json)):[]}};
   }
   const {createScreeningQueries}=require('./voice-query-screening.cjs');
-  const {screening,source:screeningSource,map:screeningMap,customerQoeTimeline}=createScreeningQueries({db,all,one,base,dates,areas,sourceMeta,rounded,text,pageOf});
+  const deviceReader=require('./customer-device-reader.cjs').createCustomerDeviceReader({root,publicDir,sourceRevision:revision});
+  const {screening,source:screeningSource,map:screeningMap,customerQoeTimeline}=createScreeningQueries({db,all,one,base,dates,areas,sourceMeta,rounded,text,pageOf,deviceModelsFor:(id,scope)=>deviceReader.modelsFor(id,scope)});
   function query(args){
     if(!args||typeof args!=='object'||Array.isArray(args))fail('Invalid query');if(args.sourceRevision!=null&&args.sourceRevision!==revision){const e=new Error('Source revision mismatch; reload the dataset.');e.status=409;throw e;}
     if(args.page!=null&&(!Number.isInteger(args.page)||args.page<0))fail('Invalid page');
@@ -239,6 +240,6 @@ function createQueryEngine({dbPath,root=path.resolve(__dirname,'..'),publicDir=p
     const stmt=db.prepare(`SELECT c.*,p.number,l.json AS location FROM calls c${hint} LEFT JOIN customers p ON p.id=c.customer_id LEFT JOIN locations l ON l.call_id=c.id AND l.kind=? WHERE ${f.where.join(' AND ')} ORDER BY COALESCE(json_extract(c.json,'$.startTimestamp'),'') DESC,c.start_second DESC,c.id`);
     let chunk='';for(const r of stmt.iterate(f.kind,...f.args)){const c=parse(r.json),p=r.location?parse(r.location):{},detail=readDetail(r.customer_id,r.date,r.raw_id);chunk+=[r.date+' '+c.start,c.end,'고객 ··'+r.customer_id.slice(-5).toUpperCase(),areas[p.areaId]?.[0]??'',r.qoe,r.mos,{drop:'Drop',normal:'Normal',other:'기타'}[r.sip_group],c.sipCause,detail?.rtp?.txPacketLoss,detail?.rtp?.txJitter,detail?.rsrp,detail?.sinr,p.lat,p.lon,p.evidence,p.observedAt,p.cdrEndAt,p.secondsBeforeEnd,p.byeCellId,p.byeRuId,p.representativeBasis,p.byeSelectionMethod,p.byeCandidateCount,p.byeSelectionDeltaSeconds,revision,r.id,r.raw_id,r.customer_id,r.number,detail?.rtp?.rxPacketLoss,detail?.rtp?.rxJitter].map(quote).join(',')+'\r\n';if(chunk.length>=65536){yield chunk;chunk='';}}if(chunk)yield chunk;
   }
-  return {query,exportCsv,screeningSource:raw=>screeningSource(scopeOf(raw)),close:()=>db.close()};
+  return {query,exportCsv,screeningSource:raw=>screeningSource(scopeOf(raw)),close:()=>{deviceReader.close();db.close();}};
 }
 module.exports={createQueryEngine};

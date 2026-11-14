@@ -86,7 +86,7 @@ function CustomerGroups({report}:{report:Omit<ScreeningResult,'rows'>}) {
 }
 function RankingTable({rows,selected,onPick,sortMode,setSortMode,onAll}:{rows:ScreeningRow[];selected:string;
   onPick:(s:string)=>void;sortMode:RankMode;setSortMode:(s:RankMode)=>void;onAll:()=>void}) {
-  return <section className={styles.panel}>
+  return <section className={styles.panel} data-screening-ranking>
     <Heading icon={Target} actions={<div className={styles.panelActions}>
       {([['poor','저품질 건수'],['drop','Drop 기준'],['repeat','반복 기준']] as const).map(([id,text])=>
         <button key={id} type="button" className={styles.tabButton+' '+(sortMode===id?styles.active:'')} onClick={()=>setSortMode(id)}>{text}</button>)}
@@ -95,13 +95,17 @@ function RankingTable({rows,selected,onPick,sortMode,setSortMode,onAll}:{rows:Sc
     <div className={styles.ranking}>
       <div className={styles.tableScroll}>
         <table className={styles.rankTable}>
-          <thead><tr><th>순위</th><th>서비스계약번호</th><th>총 통화 건수</th><th>저품질 통화 수</th><th>저품질 비율*</th>
-            <th>발생 일수</th><th>Drop</th><th>주요 행정동</th><th>최근 발생</th><th>분류</th></tr></thead>
+          <thead><tr><th>순위</th><th>서비스계약번호</th><th title="선택 기간의 SIP 원본에서 확인한 고객 단말입니다. 복수 기종이면 최근 관측 기종과 추가 기종 수를 표시합니다.">단말</th><th>총 통화</th><th>저품질 통화</th><th>저품질 비율*</th>
+            <th>발생일</th><th>Drop</th><th>주요 행정동</th><th>최근 발생</th><th>분류</th></tr></thead>
           <tbody>{rows.map((r,i)=><tr key={r.id} aria-selected={r.id===selected} onClick={()=>onPick(r.id)}>
             <td><span className={styles.rankNumber}>{i+1}</span></td>
             <td><button type="button" onClick={()=>onPick(r.id)}>{r.number}</button></td>
+            <td data-device-cell><span className={styles.deviceModel} data-customer-device data-device-count={r.deviceModels?.length??0}
+              title={r.deviceModels?.length?'SIP 원본 · 최근 관측순: '+r.deviceModels.join(' · '):'선택 기간의 고객 단말 기종을 확인할 수 없습니다.'}>
+              <span>{r.deviceModels?.[0]??'미확인'}</span>{(r.deviceModels?.length??0)>1&&<small>+{r.deviceModels!.length-1}</small>}
+            </span></td>
             <td>{number(r.total)}건</td>
-            <td><div className={styles.barCell}>{number(r.poor)}건
+            <td data-low-quality-calls><div className={styles.barCell}>{number(r.poor)}건
               <span className={styles.rateBar}><i style={{width:(rows[0]?.poor?Math.min(100,r.poor/Math.max(1,...rows.slice(0,10).map(x=>x.poor))*100):0)+'%'}}/></span>
             </div></td>
             <td>{percent(r.poor,r.eligible)}</td><td>{r.repeatedDays}일</td><td>{r.drop}건</td>

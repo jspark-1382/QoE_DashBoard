@@ -4,7 +4,7 @@ const path=require('node:path');
 const {load}=require('./analyst-ts-loader.cjs');
 const placeholders=values=>values.map(()=>'?').join(',');
 const fail=message=>{const error=new Error(message);error.status=400;throw error;};
-function createScreeningQueries({db,all,one,base,dates,areas,sourceMeta,rounded,text,pageOf}){
+function createScreeningQueries({db,all,one,base,dates,areas,sourceMeta,rounded,text,pageOf,deviceModelsFor=()=>[]}){
   let screeningKey=null,scopeSequence=0,cellSites=null,timelineClockSql=null;
   const scopeCache=new Map(),enrichmentCache=new Map(),geographyCache=new Map();
   const MAX_SCOPES=2,MAX_ENRICHMENTS=512,MAX_GEOGRAPHIES=2;
@@ -62,6 +62,8 @@ function createScreeningQueries({db,all,one,base,dates,areas,sourceMeta,rounded,
     const dailyPoor=dates.map(date=>bad.filter(c=>c.date===date).length),latest=bad[0];
     const query=new URLSearchParams({source:'MDT',view:'contract',date:latest?.date??s.dateEnd,customer:row.id});if(latest?.rawCallId)query.set('call',latest.rawCallId);
     const full={id:row.id,number:row.number,total:row.total,eligible:row.eligible,poor:row.poor,poorRate:row.poorRate,drop:row.dropCount,dropRate:row.dropRate,mean:row.mean,repeatedDays:row.repeatedDays,sameAreaDays:row.sameAreaDays,latestDate:latest?.date??'',mainArea:areas[mainAreaId]?.[0]??(mainAreaId?'행정동 미확인':'위치 근거 없음'),mainAreaId,mainCell,group:row.concentrated?'concentrated':row.repeatedDays>=2?'repeat':row.dropHeavy?'drop':row.poor?'temporary':'good',badCalls:bad.map(c=>({date:c.date,second:c.second,qoe:c.qoe,drop:Boolean(c.dropCall),area:c.area,cell:c.cell,lat:c.lat==null?null:Math.round(c.lat*1e6)/1e6,lon:c.lon==null?null:Math.round(c.lon*1e6)/1e6,evidence:c.evidence,rawCallId:c.rawCallId})),dailyTotal,dailyPoor,href:'/?'+query};
+    const deviceModels=deviceModelsFor(row.id,s);
+    if(deviceModels.length)full.deviceModels=deviceModels;
     remember(enrichmentCache,cacheKey,full,MAX_ENRICHMENTS);
     return includeBad?full:{...full,badCalls:[]};
   }

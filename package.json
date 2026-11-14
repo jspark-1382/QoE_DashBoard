@@ -21,6 +21,7 @@
     "data:overview": "node scripts/build-analyst-overview.cjs",
     "data:gps-stations": "node scripts/build-gps-map-stations.cjs",
     "data:voice-query": "python -B scripts/build_voice_query_db.py",
+    "data:customer-devices": "python -B scripts/build_customer_device_catalog.py --publish",
     "test:voice-query": "node --test scripts/tests/voice-query-api.test.cjs scripts/tests/server-query-client.test.cjs scripts/tests/server-quality-opening.test.cjs scripts/tests/server-quality-customer-picker.test.cjs scripts/tests/server-screening-ui.test.cjs scripts/tests/quality-summary-panels.test.cjs scripts/tests/visible-map.test.cjs scripts/tests/voice-query-scheduling.test.cjs scripts/tests/screening-query-cache.test.cjs scripts/tests/candidate-loading-performance.test.cjs scripts/tests/candidate-station-on-demand.test.cjs scripts/tests/consecutive-poor.test.cjs",
     "data:stations": "python scripts/build_station_catalog.py",
     "data:stations:5g": "python scripts/build_nr_station_catalog.py",
