@@ -330,9 +330,15 @@
 .customerRouteLegend strong{font-size:11px;font-weight:850}
 .customerRouteLegend span{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
 .customerRouteLegend small{font-size:9px;color:#71859c;line-height:1.25}
-.routeGpsDot,.routeSiteDot{display:inline-block;flex:none;width:10px;height:10px;border-radius:50%;border:1.5px solid white}
+.routeGpsDot,.routeSiteDot,.routeMixedDot{display:inline-block;flex:none;width:10px;height:10px;border-radius:50%;border:1.5px solid white}
 .routeGpsDot{background:#16ab91}
 .routeSiteDot{background:#f3a443;margin-left:8px}
+.routeMixedDot{background:#547a8d}
+.routeClusterLabel{display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.15;gap:2px}
+.routeClusterLabel>b{font-size:12px}
+.routeClusterLabel>small{font-size:9px;font-weight:700}
+.mapWrap :global(.customer-route-cluster){cursor:zoom-in}
+.mapWrap :global(.customer-route-point:focus-visible){outline:2px solid #164f78;outline-offset:3px}
 .routePoorRing,.routeEndpointRing,.routeNormalRing{display:inline-block;flex:none;width:12px;height:12px;border-radius:50%;background:#dce8ed;border:2px solid #de3f57}
 .routeEndpointRing{border-color:#164f78}
 .routeNormalRing{border-color:#fff;box-shadow:0 0 0 1px #b9cbd8}
@@ -341,6 +347,7 @@
   box-shadow:none;padding:0;pointer-events:none;white-space:nowrap;text-shadow:0 1px 1px #ffffffa0;
 }
 .mapWrap :global(.customer-route-count::before){display:none}
+.mapWrap :global(.customer-route-count-mixed){color:#fff;text-shadow:none}
 .mapWrap :global(.customer-route-index){
   border:0;background:#fffefbf0;color:#204366;font-size:9px;font-weight:850;
   box-shadow:0 1px 2px #16395a35;border-radius:4px;padding:0px 3px;
@@ -358,6 +365,7 @@
 .routeLocationPopup summary{cursor:pointer;font-weight:750;font-size:11px}
 .routeLocationPopup details>div{margin-top:7px;font-size:11px}
 .routeLocationPopup small{color:#6d8195;font-size:10px}
+.scatterNote.routeCountsNote{white-space:normal;overflow:visible;text-overflow:clip;font-size:10px;line-height:1.4;padding:4px 8px;overflow-wrap:anywhere}
 .customerListModal{
   position:fixed;inset:0;z-index:2200;
   background:#09223885;display:flex;align-items:center;justify-content:center;padding:22px;

@@ -9,6 +9,7 @@ import {CustomerScreeningPreview} from './customer-screening-preview';
 import {CustomerQoeTimelinePanel} from './customer-qoe-timeline';
 import type {CustomerQoeCall} from '../../lib/analyst/customer-qoe-timeline';
 import {customerQoeMapFocus} from '../../lib/analyst/customer-qoe-map-focus';
+import {customerRouteCountSummary} from '../../lib/analyst/customer-screening-route';
 import {MapPanelFrame} from './map-panel-frame';
 const CustomerScreeningMap=lazy(()=>import('./customer-screening-map').then(module=>({default:module.CustomerScreeningMap})));
 import {number,percent,type CustomerGroup,type ScreeningResult,type ScreeningRow} from '../../lib/analyst/customer-screening';
@@ -332,11 +333,11 @@ export function CustomerScreeningDashboard(){
                onSelectCell={cell=>{setSelectedCellId(cell);setSelectedAreaId('');setSelectedId('');setTimelineSelection(null);}}
               onSelectCustomer={pickCustomer}/></Suspense>}
             </div>
-            <div className={styles.scatterNote}>
+            <div className={styles.scatterNote+(mapView==='route'? ' '+styles.routeCountsNote:'')}
+              aria-label={mapView==='route'?'선택 고객 지도 표시 집계':undefined}>
               {!mapEnabled?'요약 표시 후 지도 영역이 보이면 자동으로 조회합니다.':!geography?'지도 집계를 조회하는 중…':mapView==='top10'?`상단 TOP 10과 동일한 고객 · 위치 표시 ${topCustomers.points.length}명 / ${topCustomers.total}명 · 최대 확대 시 전체 고객 통화 위치 흐름 자동 표시 · 위치 미확보 ${topCustomers.unlocated}명`:
                mapView==='route'?route?
-                '선택 '+route.name+' · GPS '+route.gnssCount+'건 / BYE Cell 참고 '+route.cellReferenceCount+
-                '건 · 시간순 점선은 관측점 연결(실제 이동경로 아님)':
+                customerRouteCountSummary(route):
                 '고객을 선택하면 GPS와 서빙 기지국 기준 통화 위치 흐름이 표시됩니다.':
                mapView==='dong'?'행정동별 '+metricLabel(mapMetric)+' · 행정동 경계(SHP) 및 BYE Cell 참고 권역':
                 mapView==='cell'?'BYE Cell별 '+metricLabel(mapMetric)+' · 지도 좌표는 기지국 참고 위치':

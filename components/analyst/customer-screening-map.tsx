@@ -2,11 +2,13 @@
 
 import {useEffect,useRef,useState} from 'react';
 import {ChevronDown} from 'lucide-react';
-import type {LayerGroup,Map as LeafletMap} from 'leaflet';
+import type {LayerGroup,LeafletKeyboardEvent,Map as LeafletMap} from 'leaflet';
 import {metricColor,metricLabel,metricSteps,metricUnit,metricValue,validScreeningBoundaries,
   type ScreeningBoundary,type ScreeningGeography,type ScreeningMapMetric,type ScreeningMapView} from '../../lib/analyst/customer-screening-map';
 import {findOverlappingRouteMarkers,groupCustomerRouteLocations,summarizeRouteCells,
   type CustomerRoute,type CustomerRouteLocation} from '../../lib/analyst/customer-screening-route';
+import {clusterCustomerRouteLocations,routeMarkerRadius,separateRouteLocations,
+  type CustomerRouteCluster} from '../../lib/analyst/customer-route-clusters';
 import {groupTopCustomers,topCustomerBubbleDiameter,TOP_CUSTOMER_ROUTE_ZOOM,type TopCustomerMap,type TopCustomerRoute} from '../../lib/analyst/customer-screening-top-ten';
 import type {CustomerQoeCall} from '../../lib/analyst/customer-qoe-timeline';
 import {customerQoeMapFocus} from '../../lib/analyst/customer-qoe-map-focus';
@@ -34,6 +36,7 @@ export function CustomerScreeningMap({
   const topOverlay=useRef<LayerGroup|null>(null);
   const callOverlay=useRef<LayerGroup|null>(null);
   const fitMode=useRef('');
+  const routeFit=useRef('');
   const callbacks=useRef({onSelectArea,onSelectCell,onSelectCustomer});
   const [map,setMap]=useState<LeafletMap|null>(null);
   const [zoom,setZoom]=useState(12);
@@ -279,7 +282,10 @@ export function CustomerScreeningMap({
   // Dashed links are visual order hints only, NEVER a verified traversed route.
   useEffect(()=>{
     routeOverlay.current?.remove();routeOverlay.current=null;
-    if(!map||mode!=='route'||!customerRoute)return;
+    if(!map||mode!=='route'||!customerRoute){
+      if(mode!=='route')routeFit.current='';
+      return;
+    }
     let active=true;
     void import('leaflet').then(L=>{
       if(!active)return;
@@ -287,8 +293,8 @@ export function CustomerScreeningMap({
       const group=L.layerGroup().addTo(map);
       routeOverlay.current=group;
       const points=customerRoute.observations;
-      const key='route|'+customerRoute.customerId+'|'+points.map(p=>p.id).join(',');
-      const html=(value:unknown)=>String(value??'').replace(/[&<>"']/g,c=>({
+      const key='route|'+sourceRevision+'|'+customerRoute.customerId+'|'+points.map(p=>p.id).join(',');
+      const html=(value:string|number|null|undefined)=>String(value??'').replace(/[&<>"']/g,c=>({
         '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
       } as Record<string,string>)[c]);
       const popupFor=(locations:CustomerRouteLocation[])=>{
@@ -296,7 +302,7 @@ export function CustomerScreeningMap({
         const total=cells.reduce((sum,cell)=>sum+cell.totalCalls,0);
         const poor=cells.reduce((sum,cell)=>sum+cell.poorCalls,0);
         return '<div class="'+styles.routeLocationPopup+'"><strong>'+
-          (locations.length>1?'선택 원과 겹친 위치 '+locations.length+'곳':'통화 위치')+
+          (locations.length>1?'묶인 위치 '+locations.length+'곳':'통화 위치')+
           '</strong><div>저품질 통화 '+poor+'건 / 총통화 '+total+'건</div>'+
           '<table aria-label="겹친 위치의 BYE Cell ID별 통화"><thead><tr><th>BYE Cell ID</th><th>저품질/총통화</th></tr></thead><tbody>'+
           cells.map(cell=>'<tr><td>'+html(cell.cellId||'미확인')+'</td><td>'+cell.poorCalls+'/'+cell.totalCalls+'</td></tr>').join('')+
@@ -306,7 +312,8 @@ export function CustomerScreeningMap({
             location.observations.map(p=>'<div><b>'+p.index+'. '+html(p.date)+' '+html(p.time)+'</b><br/>QoE '+
               (p.qoe===null?'미평가':p.qoe.toFixed(2))+(p.drop?' · SIP Drop':'')+
               ' · BYE Cell ID '+html(p.cell||'미확인')+'</div>').join('')+'</details>'
-          ).join('')+'<small>기지국은 단말 실측 위치가 아닙니다. 시간순 연결은 실제 이동경로 확인이 아닙니다.</small></div>';
+          ).join('')+(locations.length>1?'<small>묶음의 중심은 표시용입니다. 각 위치의 원본 좌표와 통화는 그대로 유지됩니다.</small>':'')+
+          '<small>기지국은 단말 실측 위치가 아닙니다. 시간순 연결은 실제 이동경로 확인이 아닙니다.</small></div>';
       };
       for(const segment of customerRoute.segments){
         const a=points[segment.from],b=points[segment.to];
@@ -333,64 +340,106 @@ export function CustomerScreeningMap({
           .addTo(group);
       }
       const locations=groupCustomerRouteLocations(points);
-      const radiusFor=(label:string)=>Math.max(18,6+label.length*3.3);
-      const positions=new Map<string,typeof locations>();
-      const rendered:Array<{location:CustomerRouteLocation;lat:number;lon:number;radius:number}>=[];
-      for(const location of locations){
-        const position=location.lat+'|'+location.lon;
-        const shared=positions.get(position)??[];
-        shared.push(location);positions.set(position,shared);
-      }
-      for(const location of locations){
-        const gps=location.evidence==='gnss';
-        const label=location.poorCalls+'/'+location.totalCalls;
-        const recorded=L.latLng(location.lat,location.lon);
-        const shared=positions.get(location.lat+'|'+location.lon)!;
-        let displayed=recorded;
-        if(shared.length>1){
-          const widths=shared.map(item=>2*radiusFor(item.poorCalls+'/'+item.totalCalls)+6);
-          const index=shared.indexOf(location);
-          const offset=-widths.reduce((sum,width)=>sum+width,0)/2+
-            widths.slice(0,index).reduce((sum,width)=>sum+width,0)+widths[index]/2;
-          displayed=map.layerPointToLatLng(map.latLngToLayerPoint(recorded).add(L.point(offset,0)));
+      const currentZoom=map.getZoom(),maxZoom=map.getMaxZoom();
+      const project=(location:CustomerRouteLocation)=>map.project([location.lat,location.lon],currentZoom);
+      const bubbles=clusterCustomerRouteLocations(locations,project,currentZoom,maxZoom);
+      const displayPositions=new Map<CustomerRouteLocation,ReturnType<typeof L.latLng>>();
+      if(currentZoom>=maxZoom){
+        // At the zoom limit, fan out colliding locations with guides to the
+        // recorded positions. Never replace or modify their source coordinates.
+        for(const {location,x,y} of separateRouteLocations(locations,
+          location=>map.latLngToLayerPoint([location.lat,location.lon]))){
+          const recorded=L.latLng(location.lat,location.lon),original=map.latLngToLayerPoint(recorded);
+          if(Math.hypot(x-original.x,y-original.y)<.1)continue;
+          const displayed=map.layerPointToLatLng(L.point(x,y));
+          displayPositions.set(location,displayed);
           L.polyline([recorded,displayed],{
             color:'#567086',weight:1,opacity:.75,interactive:false,className:'customer-route-position-guide',
           }).addTo(group);
-          if(index===0)L.circleMarker(recorded,{
+          L.circleMarker(recorded,{
             radius:2.5,color:'#355e85',weight:1,fillColor:'#fff',fillOpacity:1,interactive:false,
           }).addTo(group);
         }
+      }
+      const rendered:Array<{bubble:CustomerRouteCluster;lat:number;lon:number;radius:number}>=[];
+      for(const bubble of bubbles){
+        const clustered=bubble.locations.length>1;
+        const gpsCount=bubble.locations.filter(location=>location.evidence==='gnss').length;
+        const label=bubble.poorCalls+'/'+bubble.totalCalls;
+        const displayed=!clustered&&displayPositions.get(bubble.locations[0])||L.latLng(bubble.lat,bubble.lon);
+        const radius=routeMarkerRadius(label,clustered);
         const marker=L.circleMarker(displayed,{
-          radius:radiusFor(label),
-          color:location.poorCalls>0?'#de3f57':location.endpoint?'#164f78':'#fff',
-          weight:location.poorCalls>0||location.endpoint?2.8:1.5,
-          fillColor:gps?'#16ab91':'#f3a443',fillOpacity:.93,
-          className:'customer-route-point',
+          radius,
+          color:bubble.poorCalls>0?'#de3f57':bubble.endpoint?'#164f78':'#fff',
+          weight:bubble.poorCalls>0||bubble.endpoint?2.8:1.5,
+          fillColor:gpsCount===bubble.locations.length?'#16ab91':gpsCount===0?'#f3a443':'#547a8d',fillOpacity:.93,
+          className:'customer-route-point'+(clustered?' customer-route-cluster':''),
         }).addTo(group);
-        marker.getElement()?.setAttribute('data-poor-calls',String(location.poorCalls));
-        marker.getElement()?.setAttribute('data-total-calls',String(location.totalCalls));
+        const element=marker.getElement();
+        element?.setAttribute('data-location-count',String(bubble.locations.length));
+        element?.setAttribute('data-poor-calls',String(bubble.poorCalls));
+        element?.setAttribute('data-total-calls',String(bubble.totalCalls));
+        element?.setAttribute('data-gnss-locations',String(gpsCount));
+        element?.setAttribute('role','button');
+        element?.setAttribute('tabindex','0');
+        element?.setAttribute('aria-label',(clustered?'묶인 '+bubble.locations.length+'개 지점':'통화 위치')+
+          ' · 저품질 '+bubble.poorCalls+'건 / 총통화 '+bubble.totalCalls+'건'+
+          (clustered?' · Enter 또는 클릭으로 확대, Space로 통화 상세':' · 통화 상세 보기'));
         const markerIndex=rendered.length;
-        rendered.push({location,lat:displayed.lat,lon:displayed.lng,radius:radiusFor(label)});
-        marker.bindPopup(()=>{
-          const projected=rendered.map(item=>{
-            const point=map.latLngToLayerPoint([item.lat,item.lon]);
-            return {...item,x:point.x,y:point.y};
+        rendered.push({bubble,lat:displayed.lat,lon:displayed.lng,radius});
+        if(clustered){
+          const zoomToBubble=()=>{
+            const targetZoom=Math.min(maxZoom,currentZoom+2);
+            map.fitBounds(L.latLngBounds(bubble.locations.map(location=>[location.lat,location.lon] as [number,number])),
+              {padding:[64,64],maxZoom:targetZoom,animate:false});
+            if(map.getZoom()<=currentZoom)map.setView([bubble.lat,bubble.lon],targetZoom,{animate:false});
+          };
+          const showDetails=()=>{
+            const popup=L.popup({maxHeight:300,minWidth:250,maxWidth:360})
+              .setLatLng(displayed).setContent(popupFor(bubble.locations)).openOn(map);
+            group.addLayer(popup);
+          };
+          marker.on('click',zoomToBubble);
+          marker.on('contextmenu',showDetails);
+          marker.on('keydown',event=>{
+            const keyboard=(event as LeafletKeyboardEvent).originalEvent;
+            if(keyboard.key==='Enter'){L.DomEvent.stop(keyboard);zoomToBubble();}
+            if(keyboard.key===' '){L.DomEvent.stop(keyboard);showDetails();}
           });
-          const overlapping=findOverlappingRouteMarkers(projected,projected[markerIndex]);
-          return popupFor(overlapping.map(item=>item.location));
-        },{maxHeight:300,minWidth:250,maxWidth:360});
-        marker.bindTooltip(label,{
-          permanent:true,direction:'center',className:'customer-route-count',interactive:false,opacity:1,
+        }else{
+          marker.bindPopup(()=>{
+            const projected=rendered.map(item=>{
+              const point=map.latLngToLayerPoint([item.lat,item.lon]);
+              return {...item,x:point.x,y:point.y};
+            });
+            const overlapping=findOverlappingRouteMarkers(projected,projected[markerIndex]);
+            return popupFor(overlapping.flatMap(item=>item.bubble.locations));
+          },{maxHeight:300,minWidth:250,maxWidth:360});
+          marker.on('keydown',event=>{
+            const keyboard=(event as LeafletKeyboardEvent).originalEvent;
+            if(keyboard.key==='Enter'||keyboard.key===' '){L.DomEvent.stop(keyboard);marker.openPopup();}
+          });
+        }
+        const countLabel=document.createElement('span');
+        countLabel.className=clustered?styles.routeClusterLabel:'';
+        const countText=document.createElement('b');countText.textContent=label;countLabel.appendChild(countText);
+        if(clustered){
+          const locationText=document.createElement('small');locationText.textContent=bubble.locations.length+'곳';
+          countLabel.appendChild(locationText);
+        }
+        marker.bindTooltip(countLabel,{
+          permanent:true,direction:'center',className:'customer-route-count'+
+            (gpsCount>0&&gpsCount<bubble.locations.length?' customer-route-count-mixed':''),interactive:false,opacity:1,
         });
       }
-      if(points.length>0&&fitMode.current!==key){
+      if(points.length>0&&routeFit.current!==key){
         const bounds=L.latLngBounds(points.map(p=>[p.lat,p.lon] as [number,number]));
         if(bounds.isValid())map.fitBounds(bounds,{padding:[34,40],maxZoom:14.5,animate:false});
-        fitMode.current=key;
+        routeFit.current=key;
       }
     });
     return()=>{active=false;routeOverlay.current?.remove();routeOverlay.current=null;};
-  },[map,mode,customerRoute,zoom]);
+  },[map,mode,customerRoute,sourceRevision,zoom]);
   useEffect(()=>{
     callOverlay.current?.remove();callOverlay.current=null;
     const focus=customerQoeMapFocus(focusedCall);
@@ -449,12 +498,13 @@ export function CustomerScreeningMap({
       <span>총통화 {customerRoute.totalCalls}건 · 지도 표시 {customerRoute.observations.length}건</span>
       <span><i className={styles.routeGpsDot}/> GPS 실측 {customerRoute.gnssCount}건
         <i className={styles.routeSiteDot}/> BYE 기지국 참고 {customerRoute.cellReferenceCount}건</span>
-      <span>원 안 숫자 = 저품질 통화/총통화 (같은 위치)</span>
-      <small>원 클릭 = 겹친 위치의 BYE Cell ID별 통화 확인</small>
+      <span>원 안 숫자 = 저품질 통화/총통화 · N곳 = 묶인 지점 수</span>
+      <small>묶음 클릭 = 확대 · 개별 지점 클릭 = 통화 상세</small>
+      <span><i className={styles.routeMixedDot}/> 청회색 = GPS·기지국 위치가 함께 묶임</span>
       <span><i className={styles.routePoorRing}/> 빨간 테두리 = 저품질 통화 포함</span>
       <span><i className={styles.routeEndpointRing}/> 파란 테두리 = 첫·마지막 통화 위치 · 저품질 0건</span>
       <span><i className={styles.routeNormalRing}/> 흰 테두리 = 그 외 위치 (저품질 없음)</span>
-      <small>같은 좌표의 GPS·기지국 원은 나란히 표시 · 가는 선 끝이 기록 위치</small>
+      <small>확대하면 지점별로 분리 · 최대 확대에서 겹친 원은 펼쳐 표시하며 가는 선 끝이 기록 위치</small>
       <small>시간순 점선 = 관측점 연결, 실제 이동경로 아님</small>
       <small>위치 없는 통화 {customerRoute.unlocatedCalls}건 · 날짜·시간 간격 큰 구간 미연결</small>
     </div>:<div className={styles.screenMapLegend} aria-label="고객 지도 집계 범례">
