@@ -153,7 +153,7 @@ export function ObservationDetails({
       ) : (
         <p className={styles.empty}>이 통화에 관측 이벤트가 없습니다.</p>
       )}
-      <section className={styles.conditions} aria-label="관측 조건 · 선택 통화">
+      {samples.length > 0 && <section className={styles.conditions} aria-label="관측 조건 · 선택 통화">
         <h4>관측 조건 · 선택 통화</h4>
         <ul className={styles.conditionList}>
           {conditions.map(({ label, count, total }) => (
@@ -174,7 +174,7 @@ export function ObservationDetails({
             </li>
           ))}
         </ul>
-      </section>
+      </section>}
       {sample && (
         <>
           {source === 'MDT' && (

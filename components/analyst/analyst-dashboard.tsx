@@ -29,6 +29,7 @@ import { ContractWorkspace } from './contract-workspace';
 import { adjustDateRange, combineDateOverviews, datesInRange, dateOfCall } from '../../lib/analyst/date-range';
 import { QualityOverview, type OverviewFilters } from './quality-overview';
 import styles from './analyst-shell.module.css';
+import contractTheme from './contract-analysis-theme.module.css';
 import { QualityTopNav } from './quality-top-nav';
 import { buildImprovementHref, withComparisonRevision } from '../../lib/analyst/improvement-navigation';
 const initialFilters: OverviewFilters = {
@@ -537,7 +538,7 @@ export function AnalystDashboard() {
     </div>
   );
   return (
-    <div className={styles.shell}>
+    <div className={[styles.shell, resolved.view === 'contract' ? contractTheme.page : ''].join(' ')}>
       <QualityTopNav
         active={resolved.view === 'overview' ? 'legacy' : 'contract'}
         date={resolved.date}

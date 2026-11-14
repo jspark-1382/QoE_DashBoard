@@ -1,13 +1,13 @@
 .observation {
   min-width: 0;
-  padding: 12px;
+  padding: 14px 12px;
   font-size: 12px;
   font-variant-numeric: tabular-nums;
   overflow-wrap: anywhere;
 }
 .observation h3 {
   margin: 0;
-  font-size: 14px;
+  font-size: 16px;
 }
 .observation h4 {
   margin: 12px 0 8px;
@@ -15,7 +15,7 @@
 }
 .observationTime {
   margin: 9px 0 5px;
-  font-size: 20px;
+  font-size: 23px;
   font-weight: 650;
   line-height: 1.2;
 }
@@ -33,7 +33,7 @@
 .detailList {
   display: grid;
   grid-template-columns: minmax(60px, 0.8fr) minmax(0, 1.2fr);
-  gap: 6px 8px;
+  gap: 7px 8px;
   margin: 8px 0;
   line-height: 1.4;
 }

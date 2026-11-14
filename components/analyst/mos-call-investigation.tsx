@@ -6,14 +6,14 @@ import type { AnalystCall, AnalystSample } from '../../lib/analyst/types';
 import { evaluateCallEvidence } from '../../lib/mos/call-evidence';
 import styles from './mos-call-investigation.module.css';
 
-type Props = {call: AnalystCall; samples: AnalystSample[]};
+type Props = {call: AnalystCall; samples: AnalystSample[]; compact?: boolean};
 const titles = {POOR:'불량',WARNING:'주의',GOOD:'양호',UNAVAILABLE:'미평가'};
 const num = (v: number) => v.toLocaleString('ko-KR');
 
-export function MosCallInvestigation({call, samples}: Props) {
+export function MosCallInvestigation({call, samples, compact = false}: Props) {
   const result = useMemo(() => evaluateCallEvidence(call, samples), [call, samples]);
   return (
-    <section className={styles.panel} aria-label="통화별 QoE 원인 근거 분석">
+    <section className={[styles.panel, compact ? styles.compact : ''].filter(Boolean).join(' ')} aria-label="통화별 QoE 원인 근거 분석">
       <div className={styles.heading}>
         <div>
           <h3>통화별 QoE 원인 근거 분석</h3>
@@ -45,14 +45,24 @@ export function MosCallInvestigation({call, samples}: Props) {
       <div className={styles.columns}>
         <div>
           <h4>CDR 전송 품질 지표</h4>
+          {compact && <p className={styles.metricNote}>CDR 원본 수치 · 단위 및 허용 기준 미검증</p>}
           <div className={styles.metrics}>
             {result.evidence.filter((row) => !['rsrp','sinr'].includes(row.key)).map((row) => (
               <div className={styles.metric} key={row.key}>
                 <div><span>{row.label}</span><strong>{row.value}</strong></div>
-                <small className={row.tone === 'attention' ? styles.attention : ''}>{row.description}</small>
+                {!compact && <small className={row.tone === 'attention' ? styles.attention : ''}>{row.description}</small>}
               </div>
             ))}
           </div>
+          {compact && <details className={styles.metricDetails}>
+            <summary>전송 지표 상세 근거</summary>
+            <dl>{result.evidence.filter((row) => !['rsrp','sinr'].includes(row.key)).map((row) => (
+              <div key={row.key}>
+                <dt>{row.label} · {row.value}</dt>
+                <dd className={row.tone === 'attention' ? styles.attention : ''}>{row.description}</dd>
+              </div>
+            ))}</dl>
+          </details>}
         </div>
         <div>
           <h4>MDT 무선품질 관측</h4>
