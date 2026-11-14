@@ -18,14 +18,16 @@ import {coreMinDays,isCandidateShown,type CandidateDisplayMode} from '../../lib/
 import {MDT_GRID_MODES,type MdtGridMode} from '../../lib/analyst/mdt-25m-grid';
 import {loadCandidateTopTenCustomers,loadDbscanTopTenMatches,type CandidateTopTenMatch,type CandidateTopTenState} from '../../lib/analyst/candidate-top-ten';
 export interface QualityCandidateSelection {candidateId:string;callIds:string[];customerIds:string[]}
-interface Props {scope:QualityCandidateScope;overview:AnalystOverview;onInvestigate?:(selection:QualityCandidateSelection)=>void;proposalTwo?:boolean}
+interface Props {scope:QualityCandidateScope;overview:AnalystOverview;onInvestigate?:(selection:QualityCandidateSelection)=>void;proposalTwo?:boolean;analysisMode?:'all'|'evaluation';onAnalysisModeChange?:(mode:'all'|'evaluation')=>void}
 const message=(error:unknown)=>error instanceof Error?error.message:'후보 자료를 확인할 수 없습니다.';
 const emptyPoints:[]=[];
 const emptyCandidateIds:string[]=[];
 const emptyTopTenMatches:CandidateTopTenMatch[]=[];
 const emptyTopTen:CandidateTopTenState={status:'idle',customers:[],error:null};
-export function QualityImprovementCandidatePanel({scope,overview,onInvestigate,proposalTwo=false}:Props){
- const [analysisMode,setAnalysisMode]=useState<'all'|'evaluation'>('all');
+export function QualityImprovementCandidatePanel({scope,overview,onInvestigate,proposalTwo=false,analysisMode:controlledAnalysisMode,onAnalysisModeChange}:Props){
+ const [localAnalysisMode,setLocalAnalysisMode]=useState<'all'|'evaluation'>('all');
+ const analysisMode=controlledAnalysisMode??localAnalysisMode;
+ const setAnalysisMode=onAnalysisModeChange??setLocalAnalysisMode;
  const eligibleEvaluation=(Date.parse(scope.dateEnd+'T00:00:00Z')-Date.parse(scope.dateStart+'T00:00:00Z'))>=2*86400000;
  const effectiveMode=analysisMode==='evaluation'&&eligibleEvaluation?'evaluation':'all';
  const key=JSON.stringify([scope,effectiveMode]);

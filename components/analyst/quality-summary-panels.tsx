@@ -14,6 +14,7 @@ import {classifySipReason11,sipReasonLabel,type SipReasonGroup} from '../../lib/
 import {effectiveCallQoe} from '../../lib/analyst/derived-qoe';
 import {byeSelectionLabel,byeSelectionDescription} from '../../lib/analyst/bye-selection';
 import styles from './quality-proposal-four.module.css';
+import status from './quality-status-panels.module.css';
 
 const DATE='2026-10-30';
 const n=(value:number)=>value.toLocaleString('ko-KR');
@@ -47,17 +48,17 @@ export function QualitySummaryKpis({grades,mapped,selectedBand}:{
     {name:band==='good'?'양호 QoE 위치 활용':band==='fair'?'보통 QoE 위치 활용':'저품질통화 (위치활용)',value:n(mapped.U)+'건',extraSub:`GPS ${n(mapped.G)}건 · 삼각 측량 근사 ${n(mapped.T)}건`,
       locationRate:ratio(mapped.U,bandCalls),locationRateLabel:band==='good'?'양호 통화 대비':band==='fair'?'보통 통화 대비':'저품질 통화 대비',icon:MapPin,color:'#eb4e5d',background:'#ffeaee'},
   ];
-  return <section className={styles.kpis} data-five="true" aria-label="주요 QoE 품질 지표">
+  return <section className={`${styles.kpis} ${status.kpis}`} data-five="true" aria-label="주요 QoE 품질 지표">
     {entries.map(entry=>{
       const Icon=entry.icon,isLocationCard='locationRate' in entry;
-      return <div className={[styles.kpi,isLocationCard?styles.locationKpi:''].filter(Boolean).join(' ')} key={entry.name}
+      return <div className={[styles.kpi,status.kpi,isLocationCard?styles.locationKpi:''].filter(Boolean).join(' ')} key={entry.name}
         title={isLocationCard?'현재 지도에 표시되는 QoE 등급·기간·시간·고객·지역·위치 유형 기준 GPS + 삼각 측량 근사 위치 합계. 통화별 중복 제외 · BYE 기지국 제외 · 삼각 측량은 단말 실측 좌표가 아닌 RSRP 가중중심 조사 참고 위치':undefined}>
-        <div className={styles.kpiSymbol} style={{color:entry.color,background:entry.background}}><Icon size={28}/></div>
-        <div className={styles.kpiContent}><span>{entry.name}</span>
-          <div className={styles.kpiValueLine}>
+        <div className={`${styles.kpiSymbol} ${status.kpiSymbol}`} style={{color:entry.color,background:entry.background}}><Icon size={28}/></div>
+        <div className={`${styles.kpiContent} ${status.kpiContent}`}><span>{entry.name}</span>
+          <div className={`${styles.kpiValueLine} ${status.kpiValueLine}`}>
             <strong style={isLocationCard?{color:'#cb3546'}:{}}>{entry.value}</strong>
-            {entry.mosRate&&<em className={styles.poorTotalRate} title="유효 QoE 평가 통화 대비">QoE 대비 {entry.mosRate}</em>}
-            {'locationRate' in entry&&<em className={styles.locationCoverageRate} title="위치 활용 통화 수 ÷ 동일 기간·시간 범위의 해당 등급 통화 수 (지도 추가 필터 적용 시 분자만 감소)">{entry.locationRateLabel} {entry.locationRate}</em>}
+            {entry.mosRate&&<em className={`${styles.poorTotalRate} ${status.rateBadge}`} title="유효 QoE 평가 통화 대비">QoE 대비 {entry.mosRate}</em>}
+            {'locationRate' in entry&&<em className={`${styles.locationCoverageRate} ${status.rateBadge}`} title="위치 활용 통화 수 ÷ 동일 기간·시간 범위의 해당 등급 통화 수 (지도 추가 필터 적용 시 분자만 감소)">{entry.locationRateLabel} {entry.locationRate}</em>}
           </div>
           {'sub' in entry&&entry.sub&&<small>{entry.sub}</small>}
           {'extraSub' in entry&&entry.extraSub&&<small className={styles.locationBreakdown}>{entry.extraSub}</small>}
@@ -116,20 +117,20 @@ function GradeDonut({grades,selected,onSelect,mode,onModeChange}:{
     const band=percentile<bad.percentage?'poor':percentile<stop?'fair':'good';
     if(grades.bands.find(entry=>entry.id===band)?.count)choose(band);
   };
-  return <section className={styles.panel}>
-    <PanelHeading icon={Activity} title="QoE 분포"
+  return <section className={`${styles.panel} ${status.chartPanel}`}>
+    <PanelHeading icon={Activity} title="QoE 분포" className={status.panelHeading}
       caption={mode==='drop'?'SIP Drop 통화는 원본 MOS(v5)에서 2.5점을 차감한 QoE로 분류합니다. 미평가는 제외합니다.':'원본 MOS(v5) 기반 QoE · SIP Drop은 −2.5점 적용 · 미평가 제외.'}
-      actions={<label className={styles.distributionSelect}>분석 기준
+      actions={<label className={`${styles.distributionSelect} ${status.distributionSelect}`}>분석 기준
         <select aria-label="QoE 분포 기준" value={mode}
           onChange={e=>onModeChange(e.target.value as 'mos'|'drop')}>
           <option value="mos">QoE</option>
           <option value="drop">절단 (SIP 상태코드)</option>
         </select>
       </label>}/>
-    <div className={styles.donutArea}>
-      <div className={styles.donut} style={{background:gradient}}
+    <div className={`${styles.donutArea} ${status.donutArea}`}>
+      <div className={`${styles.donut} ${status.donut}`} style={{background:gradient}}
         aria-label={`불량 ${bad.percentage.toFixed(1)}%, 보통 ${mid.percentage.toFixed(1)}%, 양호 ${good.percentage.toFixed(1)}%`}>
-        <div className={styles.donutInside}>
+        <div className={`${styles.donutInside} ${status.donutInside}`}>
           <span>{mode==='drop'?'Drop 평균 QoE':'평균 QoE'}</span>
           <strong>{number(grades.mean)}</strong>
         </div>
@@ -137,8 +138,8 @@ function GradeDonut({grades,selected,onSelect,mode,onModeChange}:{
           aria-label={mode==='drop'?'절단(Drop) 통화 QoE 도넛: 색상 구간을 클릭해 해당 절단 통화의 QoE 등급을 조사':'QoE 도넛: 색상 구간을 클릭해 해당 등급의 통화를 조사하고 가운데를 클릭하면 해제'}
           title="색상 구간 선택 → 해당 QoE 등급 통화 필터"/>
       </div>
-      <div className={styles.donutList}>
-        {grades.bands.map((entry,index)=><button type="button" className={styles.gradeItem} key={entry.id}
+      <div className={`${styles.donutList} ${status.donutList}`}>
+        {grades.bands.map((entry,index)=><button type="button" className={`${styles.gradeItem} ${status.gradeItem}`} key={entry.id}
           aria-pressed={selected===entry.id} disabled={entry.count===0}
           title={`${entry.label} ${entry.range} · ${n(entry.count)}통화`}
           onClick={()=>choose(entry.id)}>
@@ -151,7 +152,7 @@ function GradeDonut({grades,selected,onSelect,mode,onModeChange}:{
         </button>)}
       </div>
     </div>
-    <p className={styles.donutFooter}>{mode==='drop'?`SIP 11.REASON Drop 전체 ${n(grades.evaluated+grades.unavailable)}건 · QoE 평가 ${n(grades.evaluated)}건 · 미평가 ${n(grades.unavailable)}건 제외 · 등급 선택 → 지도·목록 조사 · 시간대·고객 차트는 전체 QoE 기준`:`유효 ${n(grades.evaluated)}통화 · 미평가 ${n(grades.unavailable)}통화 제외 · ${selected?'선택 구간 다시 클릭 시 해제':'구간 클릭 → 통화 조사'}`}</p>
+    <p className={`${styles.donutFooter} ${status.chartFoot}`}>{mode==='drop'?`SIP 11.REASON Drop 전체 ${n(grades.evaluated+grades.unavailable)}건 · QoE 평가 ${n(grades.evaluated)}건 · 미평가 ${n(grades.unavailable)}건 제외 · 등급 선택 → 지도·목록 조사 · 시간대·고객 차트는 전체 QoE 기준`:`유효 ${n(grades.evaluated)}통화 · 미평가 ${n(grades.unavailable)}통화 제외 · ${selected?'선택 구간 다시 클릭 시 해제':'구간 클릭 → 통화 조사'}`}</p>
   </section>;
 }
 
@@ -167,10 +168,10 @@ function HourlyChart({hourly,selected,onChoose}:{
     x:left+step*(h.hour+.5), y:innerBottom-(Math.max(1,Math.min(5,h.mean))-1)/4*(innerBottom-innerTop),
   }]);
   const linePoints=line.map(p=>p.x.toFixed(1)+','+p.y.toFixed(1)).join(' ');
-  return <section className={styles.panel}>
-    <PanelHeading icon={BarChart3} title="시간대별 통화 품질" caption="통화 시작 시각 기준이며, 빨강은 QoE 3.0 미만, 파랑은 나머지 유효 QoE 통화입니다."
-      actions={<div className={styles.legend}><span><i className={styles.red}/>저품질 통화</span><span><i className={styles.blue}/>그 외 통화</span><span><i className={styles.purple}/>평균 QoE</span></div>}/>
-    <div className={styles.hourPlot}>
+  return <section className={`${styles.panel} ${status.chartPanel}`}>
+    <PanelHeading icon={BarChart3} title="시간대별 통화 품질" className={status.panelHeading} caption="통화 시작 시각 기준이며, 빨강은 QoE 3.0 미만, 파랑은 나머지 유효 QoE 통화입니다."
+      actions={<div className={`${styles.legend} ${status.legend}`}><span><i className={styles.red}/>저품질 통화</span><span><i className={styles.blue}/>그 외 통화</span><span><i className={styles.purple}/>평균 QoE</span></div>}/>
+    <div className={`${styles.hourPlot} ${status.hourPlot}`}>
       <svg viewBox={`0 0 ${width} ${height}`} width="100%" height="100%"
         aria-label="시간대별 QoE 유효 통화 누적 막대와 시간대 평균 QoE(Drop −2.5 반영) 추이">
         {[0,1,2,3,4].map(i=>{
@@ -204,7 +205,7 @@ function HourlyChart({hourly,selected,onChoose}:{
           onClick={()=>onChoose(h.hour)}/>)}
       </div>
     </div>
-    <div className={styles.plotFoot}>시간대를 선택하면 지도·통화 목록이 해당 시간으로 좁혀집니다. 평균 QoE 선은 유효 통화 기준입니다.</div>
+    <div className={`${styles.plotFoot} ${status.chartFoot}`}>시간대를 선택하면 지도·통화 목록이 해당 시간으로 좁혀집니다. 평균 QoE 선은 유효 통화 기준입니다.</div>
   </section>;
 }
 
@@ -216,19 +217,19 @@ const CUSTOMER_KIND = [
 function ExperiencePanel({analytics,cohort,onChoose,improvement=false}:{
   analytics:OverviewAnalytics;cohort:ExperienceGroup|null;onChoose:(id:ExperienceGroup|null)=>void;improvement?:boolean;
 }){
-  return <section className={styles.panel}>
-    <PanelHeading icon={Users} title="고객 체감품질" caption={improvement?'고유 고객 기준. 반복은 불량 통화 2회 이상, 연속은 시간순 인접 통화가 모두 불량인 경우입니다. 정상·미평가 통화를 건너뛰지 않습니다. 불량 관측일은 서로 다른 날짜, 연속 관측일은 달력상 인접 날짜입니다.':'고유 고객 기준 QoE 품질 분석입니다. 직접 고객 설문 데이터는 아닙니다.'}/>
-    <div className={styles.experienceList}>
+  return <section className={`${styles.panel} ${status.chartPanel}`}>
+    <PanelHeading icon={Users} title="고객 체감품질" className={status.panelHeading} caption={improvement?'고유 고객 기준. 반복은 불량 통화 2회 이상, 연속은 시간순 인접 통화가 모두 불량인 경우입니다. 정상·미평가 통화를 건너뛰지 않습니다. 불량 관측일은 서로 다른 날짜, 연속 관측일은 달력상 인접 날짜입니다.':'고유 고객 기준 QoE 품질 분석입니다. 직접 고객 설문 데이터는 아닙니다.'}/>
+    <div className={`${styles.experienceList} ${status.experienceList}`}>
       {CUSTOMER_KIND.map((kind)=>{
         const group=analytics.experience.find(g=>g.id===kind.id);
         const Icon=kind.icon,max=Math.max(1,...(group?.hourly??[]));
-        return <button type="button" key={kind.id} className={styles.experienceRow}
+        return <button type="button" key={kind.id} className={`${styles.experienceRow} ${status.experienceRow}`}
           aria-pressed={cohort===kind.id} disabled={group?.count==null}
           onClick={()=>onChoose(cohort===kind.id?null:kind.id)}>
-          <span className={styles.experienceIcon} style={{color:kind.color,background:kind.color+'19'}}><Icon size={21}/></span>
-          <span className={styles.experienceName}><b>{kind.label}</b><small>{kind.description}</small></span>
+          <span className={`${styles.experienceIcon} ${status.experienceIcon}`} style={{color:kind.color,background:kind.color+'19'}}><Icon size={21}/></span>
+          <span className={`${styles.experienceName} ${status.experienceName}`}><b>{kind.label}</b><small>{kind.description}</small></span>
           <strong>{group?.count==null?'—':n(group.count)}<small>명</small></strong>
-          <span className={styles.customerSpark}>
+          <span className={`${styles.customerSpark} ${status.customerSpark}`}>
             {group?.hourly?.length===24?<svg viewBox="0 0 96 32" preserveAspectRatio="none" aria-hidden="true">
               {group.hourly.map((v,i)=><rect key={i} x={i*4} y={31-v/max*27} width="3.1"
                 height={v/max*27} fill={kind.color} rx=".6" opacity={v===max?1:.62}/>)}
@@ -237,7 +238,7 @@ function ExperiencePanel({analytics,cohort,onChoose,improvement=false}:{
         </button>;
       })}
     </div>
-    <p className={styles.experienceFoot}>{cohort?'고객 유형 필터 적용됨 · 다시 누르면 해제됩니다.':'고객 유형을 선택하면 지도·통화 목록과 연동됩니다.'}</p>
+    <p className={`${styles.experienceFoot} ${status.chartFoot}`}>{cohort?'고객 유형 필터 적용됨 · 다시 누르면 해제됩니다.':'고객 유형을 선택하면 지도·통화 목록과 연동됩니다.'}</p>
   </section>;
 }
 

@@ -318,16 +318,16 @@ export function ImprovementCandidateMap({candidates,selectedId,listFocusRequest,
         const active=candidate.id===selectedId;
         if(candidate.kind==='spatial' && loc.radiusM!=null){
           const circle=L.circle(p,{
-            radius:loc.radiusM,color:presentation==='proposal2'?(active?'#55585d':'#b6babf'):fullscreenEnhanced?(active?'#d8414c':'#9caeb8'):active?'#c4474e':'#d37c74',
+            radius:loc.radiusM,color:presentation==='proposal2'?(active?'#ba7b19':'#98afbe'):fullscreenEnhanced?(active?'#d8414c':'#9caeb8'):active?'#c4474e':'#d37c74',
             dashArray:fullscreenEnhanced&&active?'7 5':'6 5',weight:active?2.5:1.6,
-            fillColor:presentation==='proposal2'?'#a6abb2':fullscreenEnhanced?'#f06c75':'#e87b78',fillOpacity:active?0.16:0.075,
+            fillColor:presentation==='proposal2'?'#f4c85a':fullscreenEnhanced?'#f06c75':'#e87b78',fillOpacity:active?0.16:0.075,
             interactive:false,
           }).addTo(next);
           circle.getElement()?.setAttribute('data-candidate-circle-id',candidate.id);
         }
         const marker=L.circleMarker(p,{
           radius:active?12:9,weight:active?3:2,
-          color:'#fff',fillColor:presentation==='proposal2'?(active?'#191a1b':'#a6afb4'):fullscreenEnhanced?(active?'#d8414c':'#8fa4b3'):candidate.kind==='spatial'?'#d44956':'#3869a6',
+          color:presentation==='proposal2'&&active?'#9d6b16':'#fff',fillColor:presentation==='proposal2'?(active?'#f3bb43':'#98afbe'):fullscreenEnhanced?(active?'#d8414c':'#8fa4b3'):candidate.kind==='spatial'?'#d44956':'#3869a6',
           fillOpacity:1,
         }).addTo(next);
         const content=document.createElement('div');

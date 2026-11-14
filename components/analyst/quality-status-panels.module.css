@@ -1,0 +1,380 @@
+/* Presentation is limited to the server quality-status view. */
+:global([data-quality-view="current"]) .kpis[data-five="true"] {
+  grid-template-columns:repeat(5,minmax(0,1fr));
+  gap:10px;
+}
+
+:global([data-quality-view="current"]) .kpis[data-five="true"] .kpi {
+  min-height:96px;
+  padding:13px 14px;
+  gap:12px;
+  border:1px solid #d8e2ef;
+  border-radius:8px;
+  box-shadow:0 1px 2px #18365504;
+  background:#fff;
+  color:#112c50;
+}
+
+:global([data-quality-view="current"]) .kpis[data-five="true"] .kpiSymbol {
+  width:44px;
+  height:44px;
+  flex:0 0 44px;
+}
+
+:global([data-quality-view="current"]) .kpiSymbol svg {
+  width:26px;
+  height:26px;
+}
+
+:global([data-quality-view="current"]) .kpis[data-five="true"] .kpiContent {
+  align-self:center;
+  padding:0;
+  gap:4px;
+}
+
+:global([data-quality-view="current"]) .kpis[data-five="true"] .kpiContent>span {
+  color:#112c50;
+  font-size:13px;
+  font-weight:760;
+  line-height:1.3;
+  overflow-wrap:anywhere;
+}
+
+:global([data-quality-view="current"]) .kpis[data-five="true"] .kpiValueLine {
+  flex-wrap:wrap;
+  gap:4px 6px;
+  white-space:normal;
+}
+
+:global([data-quality-view="current"]) .kpis[data-five="true"] .kpiValueLine>strong {
+  max-width:100%;
+  color:#112c50;
+  font-size:clamp(23px,1.65vw,28px);
+  font-weight:830;
+  letter-spacing:-.045em;
+  line-height:1.12;
+}
+
+:global([data-quality-view="current"]) .kpis[data-five="true"] .kpiContent>small {
+  display:block;
+  color:#526b8b;
+  font-size:10px;
+  font-weight:550;
+  line-height:1.35;
+  white-space:normal;
+  overflow-wrap:anywhere;
+}
+
+:global([data-quality-view="current"]) .rateBadge {
+  max-width:100%;
+  padding:3px 5px;
+  border-radius:4px;
+  font-size:10px;
+  line-height:1.25;
+  white-space:normal;
+  overflow-wrap:anywhere;
+}
+
+:global([data-quality-view="current"]) .chartPanel {
+  display:flex;
+  flex-direction:column;
+  min-height:246px;
+  border:1px solid #d8e2ef;
+  border-radius:8px;
+  box-shadow:0 1px 2px #18365504;
+  background:#fff;
+  color:#112c50;
+}
+
+:global([data-quality-view="current"]) .panelHeading {
+  min-height:43px;
+  padding:8px 13px 6px;
+  gap:8px;
+}
+
+:global([data-quality-view="current"]) .panelHeading h2 {
+  color:#112c50;
+  font-size:15px;
+  font-weight:790;
+  letter-spacing:-.035em;
+}
+
+:global([data-quality-view="current"]) .distributionSelect {
+  gap:6px;
+  color:#526b8b;
+  font-size:10px;
+}
+
+:global([data-quality-view="current"]) .distributionSelect select {
+  height:29px;
+  max-width:165px;
+  border:1px solid #ccd9e8;
+  border-radius:5px;
+  background:#fff;
+  color:#112c50;
+  font-size:11px;
+}
+
+:global([data-quality-view="current"]) .donutArea {
+  flex:1;
+  min-height:165px;
+  padding:3px 13px 6px;
+  gap:14px;
+}
+
+:global([data-quality-view="current"]) .donut {
+  width:160px;
+  height:160px;
+  flex:0 0 160px;
+  box-shadow:none;
+}
+
+:global([data-quality-view="current"]) .donutInside {
+  width:119px;
+  height:119px;
+  gap:2px;
+}
+
+:global([data-quality-view="current"]) .donutInside span {
+  color:#526b8b;
+  font-size:12px;
+}
+
+:global([data-quality-view="current"]) .donutInside strong {
+  color:#112c50;
+  font-size:30px;
+}
+
+:global([data-quality-view="current"]) .donutList {
+  gap:0;
+}
+
+:global([data-quality-view="current"]) .gradeItem {
+  display:grid;
+  grid-template-columns:9px minmax(48px,1fr) auto auto;
+  min-height:49px;
+  gap:7px;
+  padding:6px 0;
+  margin:0;
+  border-radius:4px;
+}
+
+:global([data-quality-view="current"]) .gradeItem+ .gradeItem {
+  border-top-color:#edf1f6;
+}
+
+:global([data-quality-view="current"]) .gradeItem>b,
+:global([data-quality-view="current"]) .gradeItem>div>b {
+  color:#112c50;
+  font-size:12px;
+}
+
+:global([data-quality-view="current"]) .gradeItem>div>small {
+  color:#526b8b;
+  font-size:9px;
+}
+
+:global([data-quality-view="current"]) .gradeItem>strong {
+  color:#112c50;
+  font-size:14px;
+}
+
+:global([data-quality-view="current"]) .gradeItem>span {
+  display:block;
+  min-width:55px;
+  color:#526b8b;
+  font-size:10px;
+}
+
+:global([data-quality-view="current"]) .legend {
+  gap:10px;
+  color:#526b8b;
+  font-size:10px;
+}
+
+:global([data-quality-view="current"]) .hourPlot {
+  flex:1;
+  height:174px;
+  min-height:174px;
+  padding:0 12px;
+}
+
+:global([data-quality-view="current"]) .chartFoot {
+  margin:0;
+  padding:6px 13px 9px;
+  border-top:1px solid #edf1f6;
+  color:#607794;
+  font-size:10px;
+  line-height:1.45;
+  overflow-wrap:anywhere;
+}
+
+:global([data-quality-view="current"]) .experienceList {
+  flex:1;
+  flex-direction:column;
+  gap:5px;
+  padding:1px 12px 7px;
+}
+
+:global([data-quality-view="current"]) .experienceRow {
+  flex:1;
+  min-height:49px;
+  gap:8px;
+  padding:5px 8px;
+  border:1px solid #d8e2ef;
+  border-radius:6px;
+  color:#112c50;
+}
+
+:global([data-quality-view="current"]) .experienceIcon {
+  height:35px;
+  flex:0 0 35px;
+}
+
+:global([data-quality-view="current"]) .experienceName b {
+  color:#112c50;
+  font-size:12px;
+}
+
+:global([data-quality-view="current"]) .experienceName small {
+  color:#607794;
+  font-size:10px;
+}
+
+:global([data-quality-view="current"]) .experienceRow>strong {
+  color:#112c50;
+  font-size:22px;
+}
+
+:global([data-quality-view="current"]) .customerSpark {
+  width:68px;
+  height:31px;
+  flex:0 0 68px;
+}
+
+@media(max-width:1399px) {
+  :global([data-quality-view="current"]) .kpis[data-five="true"] .kpi {
+    padding:12px 10px;
+    gap:8px;
+  }
+  :global([data-quality-view="current"]) .kpis[data-five="true"] .kpiSymbol {
+    width:32px;
+    height:32px;
+    flex-basis:32px;
+  }
+  :global([data-quality-view="current"]) .kpiSymbol svg {
+    width:22px;
+    height:22px;
+  }
+  :global([data-quality-view="current"]) .donutArea {
+    padding:3px 11px 6px;
+    gap:10px;
+  }
+  :global([data-quality-view="current"]) .donut {
+    width:120px;
+    height:120px;
+    flex-basis:120px;
+  }
+  :global([data-quality-view="current"]) .donutInside {
+    width:89px;
+    height:89px;
+  }
+  :global([data-quality-view="current"]) .donutInside strong {
+    font-size:26px;
+  }
+  :global([data-quality-view="current"]) .gradeItem {
+    grid-template-columns:9px minmax(0,1fr) auto;
+    gap:0 5px;
+    min-height:46px;
+  }
+  :global([data-quality-view="current"]) .gradeItem>span {
+    grid-column:2/-1;
+    font-size:10px;
+    line-height:1.2;
+  }
+  :global([data-quality-view="current"]) .panelHeading {
+    flex-wrap:wrap;
+  }
+  :global([data-quality-view="current"]) .customerSpark {
+    width:48px;
+    flex-basis:48px;
+  }
+  :global([data-quality-view="current"]) .experienceRow {
+    gap:6px;
+    padding:5px 6px;
+  }
+  :global([data-quality-view="current"]) .experienceIcon {
+    height:29px;
+    flex-basis:29px;
+  }
+  :global([data-quality-view="current"]) .experienceName b {
+    font-size:11px;
+  }
+  :global([data-quality-view="current"]) .experienceName small {
+    font-size:9px;
+  }
+  :global([data-quality-view="current"]) .experienceRow>strong {
+    font-size:20px;
+  }
+}
+
+@media(max-width:1099px) {
+  :global([data-quality-view="current"]) .kpis[data-five="true"] {
+    grid-template-columns:repeat(3,minmax(0,1fr));
+  }
+}
+
+@media(max-width:799px) {
+  :global([data-quality-view="current"]) .kpis[data-five="true"] {
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:8px;
+  }
+}
+
+@media(max-width:680px) {
+  :global([data-quality-view="current"]) .chartPanel {
+    min-height:246px;
+  }
+  :global([data-quality-view="current"]) .panelHeading {
+    padding:8px 11px 6px;
+  }
+  :global([data-quality-view="current"]) .panelHeading h2 {
+    font-size:14px;
+  }
+  :global([data-quality-view="current"]) .experienceName b {
+    font-size:12px;
+  }
+  :global([data-quality-view="current"]) .customerSpark {
+    width:60px;
+    flex-basis:60px;
+  }
+  :global([data-quality-view="current"]) .legend {
+    gap:9px;
+    font-size:10px;
+  }
+}
+
+@media(max-width:479px) {
+  :global([data-quality-view="current"]) .kpis[data-five="true"] {
+    grid-template-columns:minmax(0,1fr);
+  }
+  :global([data-quality-view="current"]) .kpis[data-five="true"] .kpi {
+    min-height:88px;
+    padding:12px 14px;
+    gap:12px;
+  }
+  :global([data-quality-view="current"]) .kpis[data-five="true"] .kpiSymbol {
+    width:42px;
+    height:42px;
+    flex-basis:42px;
+  }
+  :global([data-quality-view="current"]) .kpis[data-five="true"] .kpiValueLine>strong {
+    font-size:27px;
+  }
+  :global([data-quality-view="current"]) .kpis[data-five="true"] .kpiContent>span {
+    font-size:13px;
+  }
+  :global([data-quality-view="current"]) .kpis[data-five="true"] .kpiContent>small {
+    font-size:10px;
+  }
+}

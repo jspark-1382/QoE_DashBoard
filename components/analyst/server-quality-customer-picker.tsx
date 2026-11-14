@@ -118,7 +118,6 @@ export function ServerQualityCustomerPicker({scope,sourceRevision,selectedCustom
       open(launcherInput.current, launcherQuery);
     }}>
       <label className={styles.launcherField}>
-        <span>서비스 고객번호 검색</span>
         <input ref={launcherInput} aria-label="서비스 고객번호 검색" disabled={disabled}
           value={launcherQuery} placeholder="원본 고객번호 입력" type="search" autoComplete="off"
           onChange={event => setLauncherQuery(event.target.value)} />

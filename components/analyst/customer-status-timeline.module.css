@@ -1,0 +1,43 @@
+.panel[data-timeline-customer]{display:flex;flex-direction:column;min-height:0;border-radius:8px;border-color:#d7e3ee;box-shadow:none}
+.panel .heading{min-height:30px;padding:5px 10px;border-bottom:0;gap:5px;flex:none}
+.panel .heading h3{font-size:14px;color:#193c5b}
+.panel .toolbar{padding:0 10px 4px;gap:5px 8px;flex:none}
+.panel .toolbar>div:first-child{gap:7px;min-width:0}
+.panel .toolbar>div:first-child strong{font-size:15px}
+.panel .toolbar>div:first-child small{font-size:10px}
+.panel .toolbar>div:last-child{gap:5px}
+.panel .toolbar button{min-height:25px;padding:3px 8px;font-size:11px;box-shadow:none}
+.panel .toolbar button[aria-pressed="true"]{background:#e0f7f1;color:#087f74}
+.panel .toolbar select{padding:3px;font-size:10px}
+.panel .chartWrap{display:flex;flex-direction:column;flex:1;min-height:0;padding:0 10px 5px;gap:2px}
+.panel .legend{padding:0 2px;gap:4px 10px;flex:none;line-height:1.35}
+.panel .chart{height:clamp(112px,16dvh,210px);min-height:90px;flex:1;overflow:visible}
+.panel .tooltip{min-height:22px;padding:3px 6px;gap:3px 8px;flex:none;font-size:10px;line-height:1.4;background:#f6f9fd}
+.criteria{font-size:10px;line-height:1.4;color:#536e86;flex:none;min-width:0}
+.criteria>summary{width:fit-content;margin-left:auto;font-weight:650;cursor:pointer}
+.criteria p{margin:5px 0 2px;line-height:1.5}
+.criteria>summary:focus-visible{outline:2px solid #168a9f;outline-offset:2px}
+.panel>output,.panel>div[role="alert"]{min-height:0;flex:1}
+.panel .chartWrap>output{min-height:0;flex:1}
+@media(min-width:1280px) and (min-height:900px){
+ .panel .toolbar{flex-wrap:nowrap}
+ .panel .chart text{font-size:15px}
+ .panel .chart text[data-axis-score]{font-size:16px}
+ .panel:has(.criteria[open]){height:auto;min-height:235px}
+}
+@media(min-width:1280px) and (max-height:899px){
+ .panel .chart{height:190px;min-height:190px;flex:none}
+}
+@media (min-width:1280px) and (max-width:1450px) and (min-height:900px) and (max-height:950px){
+ .panel .chart text,.panel .chart text[data-axis-score]{font-size:18px}
+}
+@media(max-width:650px){
+ .panel .heading{padding:8px 10px}
+ .panel .toolbar{padding:0 10px 5px;flex-wrap:wrap}
+ .panel .toolbar>div:last-child{width:100%;justify-content:space-between}
+ .panel .chartWrap{padding:0 7px 7px}
+ .panel .chart{height:190px;flex:none;min-height:190px}
+ .panel .tooltip{font-size:10px;min-height:28px}
+ .panel .legend{font-size:10px;gap:4px 8px}
+ .criteria{font-size:11px}
+}
