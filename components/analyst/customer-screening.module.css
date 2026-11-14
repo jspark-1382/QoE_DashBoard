@@ -44,6 +44,8 @@
 .panelTitle h2{font:inherit;margin:0}
 .panelActions{display:flex;gap:5px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
 .tabButton{font-size:11px;min-height:29px;padding:4px 8px}
+.rankingListButton{display:inline-flex;align-items:center;justify-content:center;gap:3px}
+.rankingListButton>svg{flex:none}
 .donutGrid{display:flex;align-items:center;gap:18px;padding:14px 15px 19px;min-height:235px}
 .donut{width:min(49%,175px);aspect-ratio:1;border-radius:50%;display:grid;place-items:center;flex-shrink:0;box-shadow:0 3px 7px #10395412}
 .donutCenter{width:71%;height:71%;background:#fff;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px}

@@ -90,7 +90,7 @@ function RankingTable({rows,selected,onPick,sortMode,setSortMode,onAll}:{rows:Sc
     <Heading icon={Target} actions={<div className={styles.panelActions}>
       {([['poor','저품질 건수'],['drop','Drop 기준'],['repeat','반복 기준']] as const).map(([id,text])=>
         <button key={id} type="button" className={styles.tabButton+' '+(sortMode===id?styles.active:'')} onClick={()=>setSortMode(id)}>{text}</button>)}
-      <button type="button" className={styles.tabButton} onClick={onAll}>{rows.length>10?'목록 접기':'전체 목록'} <ChevronRight size={12}/></button>
+      <button type="button" className={styles.tabButton+' '+styles.rankingListButton} onClick={onAll}>{rows.length>10?'목록 접기':'전체 목록'} <ChevronRight size={12}/></button>
     </div>}>저품질 통화 집중 고객 TOP 10</Heading>
     <div className={styles.ranking}>
       <div className={styles.tableScroll}>
