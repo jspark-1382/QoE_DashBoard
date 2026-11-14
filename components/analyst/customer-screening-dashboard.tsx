@@ -18,6 +18,7 @@ import {screeningQueryRequest,screeningRouteIds,screeningTopRoutes,
   type ScreeningRankMode as RankMode,type ScreeningCustomerFilter as CustomerFilter} from '../../lib/analyst/screening-query';
 import {voiceQuery} from '../../lib/analyst/server-query';
 import styles from './customer-screening.module.css';
+import theme from './customer-status-theme.module.css';
 import mapFrameStyles from './customer-screening-map-frame.module.css';
 
 const GROUPS:{id:CustomerGroup;label:string;color:string}[]=[
@@ -206,22 +207,22 @@ export function CustomerScreeningDashboard(){
   const reset=()=>{if(!source)return;setStart(source.dates[0]);setEnd(source.dates.at(-1)!);setFrom('00:00');setTo('23:59');
     setFilter('all');setQuery('');setSortMode('poor');setMapView('top10');setMapMetric('customers');
     setSelectedAreaId('');setSelectedCellId('');setSelectedId('');setTimelineSelection(null);setShowAll(false);setRouteDay('all');setPage(0);setMapEnabled(false);};
-  return <div className={styles.shell}>
+  return <div className={styles.shell+' '+theme.page} data-customer-screening>
     <QualityTopNav active="customer-screening" date={end} sourceLabel={(end||'2026-10-30').replaceAll('-','.')+' · MDT (Voice)'}/>
-    <main className={styles.main}>
-      <div className={styles.filters}>
+    <main className={styles.main+' '+theme.main}>
+      <div className={styles.filters+' '+theme.toolbar}>
         <label className={styles.field}><CalendarDays size={16}/>시작일
-          <select value={start} onChange={e=>{const d=e.target.value;setPage(0);setStart(d);if(d>end)setEnd(d);}}>
+          <select aria-label="고객현황 시작일" value={start} onChange={e=>{const d=e.target.value;setPage(0);setStart(d);if(d>end)setEnd(d);}}>
             {(source?.dates??['2026-10-26']).map(d=><option key={d} value={d}>{d}</option>)}
           </select>
         </label>
         <label className={styles.field}>종료일
-          <select value={end} onChange={e=>{const d=e.target.value;setPage(0);setEnd(d);if(d<start)setStart(d);}}>
+          <select aria-label="고객현황 종료일" value={end} onChange={e=>{const d=e.target.value;setPage(0);setEnd(d);if(d<start)setStart(d);}}>
             {(source?.dates??['2026-10-30']).map(d=><option key={d} value={d}>{d}</option>)}
           </select>
         </label>
-        <button className={styles.primary} type="button" onClick={()=>{if(source){setPage(0);setStart(source.dates[0]);setEnd(source.dates.at(-1)!);}}}>전체 기간</button>
-        <label className={styles.field}><Clock3 size={15}/>시간 <input type="time" value={from} onChange={e=>{setPage(0);setFrom(e.target.value);}}/></label>
+        <button className={styles.primary} type="button" aria-pressed={!!source&&start===source.dates[0]&&end===source.dates.at(-1)} onClick={()=>{if(source){setPage(0);setStart(source.dates[0]);setEnd(source.dates.at(-1)!);}}}>전체 기간</button>
+        <label className={styles.field}><Clock3 size={15}/>시간 <input aria-label="고객현황 시작 시간" type="time" value={from} onChange={e=>{setPage(0);setFrom(e.target.value);}}/></label>
         <span>~</span>
         <label className={styles.field} aria-label="종료 시간"><input aria-label="종료 시간" type="time" value={to} onChange={e=>{setPage(0);setTo(e.target.value);}}/></label>
         <label className={styles.field}>고객 조건
@@ -230,12 +231,11 @@ export function CustomerScreeningDashboard(){
             <option value="repeat">반복 불량 (2일+)</option><option value="concentrated">저품질 집중</option><option value="drop">Drop 다발</option>
           </select>
         </label>
-        <div className={styles.spacer}/>
         <label className={styles.field}><Search size={15}/>
           <input type="search" aria-label="서비스계약번호 검색" placeholder="서비스계약번호 검색" value={query} onChange={e=>setQuery(e.target.value)}/>
         </label>
         <button className={styles.secondary} type="button" onClick={()=>setShowAll(true)}>고객 목록</button>
-        <button className={styles.secondary} type="button" title="필터 초기화" onClick={reset}><RotateCcw size={17}/></button>
+        <button className={styles.secondary} type="button" title="필터 초기화" aria-label="고객현황 필터 초기화" onClick={reset}><RotateCcw size={17}/></button>
         <span className={styles.hint}>MOS(v5) · QoE &lt; 3.0 · Drop 포함</span>
       </div>
       <dialog ref={listDialog} aria-label="고객 목록에서 선택" className={styles.customerListDialog}
@@ -266,13 +266,13 @@ export function CustomerScreeningDashboard(){
       </dialog>
       {loadError?<div className={styles.loading} role="alert">{loadError}</div>:!report?
         <div className={styles.loading}>{source?'조회 기간 또는 시간 범위를 확인하세요.':'전체 고객 집계를 조회하는 중…'}</div>:<>
-        <div className={styles.kpis} aria-busy={queryLoading}>
+        <div className={styles.kpis+' '+theme.kpis} aria-busy={queryLoading}>
           <SummaryCard icon={Users} label="전체 고객" num={report.total} description="선택 기간 통화가 있는 고객"/>
           <SummaryCard icon={PhoneCall} label="전체 통화" num={report.calls} unit="건" description="전체 고객의 SIP CDR 통화"/>
           <SummaryCard icon={AlertTriangle} label="저품질 고객" num={report.affected} description={'QoE < 3.0 경험 · 전체 '+percent(report.affected,report.total)} accent="#d93855"/>
           <SummaryCard icon={Layers3} label="총통화 수" num={affectedCallTotal} unit="건" description="저품질 경험 고객의 전체 통화"/>
         </div>
-        <div className={styles.contentTop}>
+        <div className={styles.contentTop+' '+theme.contentTop}>
           <CustomerGroups report={report}/>
           <RankingTable rows={showRows} selected={selected?.id??''} onPick={pickCustomer}
             sortMode={sortMode} setSortMode={mode=>{setPage(0);setSortMode(mode);}} onAll={()=>setShowAll(s=>!s)}/>
@@ -288,7 +288,7 @@ export function CustomerScreeningDashboard(){
             </div>
           </section>
         </div>
-        <div className={styles.investigationGrid}>
+        <div className={styles.investigationGrid+' '+theme.investigation}>
           <MapPanelFrame label="문제 고객 분석 지도" className={styles.panel+' '+mapFrameStyles.panel}
             openRequest={mapOpenRequest}>{({expanded,close})=><>
             <div className={mapFrameStyles.heading}>
@@ -343,23 +343,26 @@ export function CustomerScreeningDashboard(){
                 'GPS 실측 저품질 관측 '+(geography?.gnssPoorCalls??0)+'건 · 실측 약 200m 격자 · GPS 미확보 통화 제외'}
             </div>
           </>}</MapPanelFrame>
-          <div className={styles.insightStack}>
+          <div className={styles.insightStack+' '+theme.insight}>
             <CustomerQoeTimelinePanel customer={selected} dates={source!.dates} scope={scope}
               sourceRevision={data!.sourceRevision} areaId={selectedAreaId} cellId={selectedCellId}
               selectedRegion={selectedRegion} onClearRegion={clearMapSelection}
               onSelectCall={selectTimelineCall} pending={timelinePending}/>
-            <section className={styles.panel}>
+            <section className={styles.panel} data-customer-preview-panel>
               <Heading icon={Activity}>{selectedRegion?selectedRegion+' · 선택 고객 상세':'선택 고객 상세 미리보기'}</Heading>
               {selected?<CustomerScreeningPreview row={selected} key={[selected.id,start,end,from,to,data!.sourceRevision].join('|')} dates={source!.dates} scope={scope} sourceRevision={data!.sourceRevision}/>:<div className={styles.empty}>선택된 고객이 없습니다.</div>}
             </section>
           </div>
         </div>
-        <div className={styles.note}>
+        <details className={styles.note+' '+theme.sourceNote}>
+          <summary>집계·위치 기준</summary>
+          <p>
           원본 리비전 {source!.sourceRevision} · {start} ~ {end} · 통화 {number(report.calls)}건 /
           QoE 평가 {number(report.eligible)}건 / 저품질 {number(report.poor)}건 / SIP Drop {number(report.drop)}건.
           고객군 분류는 집중 → 반복 → Drop → 일시적 순서이며 KPI별 고객은 중복될 수 있습니다.
           행정동은 BYE Cell 기준 참고 권역, 셀은 기지국 좌표, GPS만 실측 위치입니다. 위치와 원인은 확정되지 않았습니다.
-        </div>
+          </p>
+        </details>
       </>}
     </main>
   </div>;

@@ -7,6 +7,7 @@ import {loadCustomerQoeTimeline,type CustomerQoeCall,type CustomerQoeTimeline} f
 import {buildCustomerQoeChart,type CustomerQoeChartMode} from '../../lib/analyst/customer-qoe-chart';
 import Link from './document-link';
 import styles from './customer-qoe-timeline.module.css';
+import compact from './customer-status-timeline.module.css';
 
 export type CustomerQoeTimelinePanelProps={
   customer:ScreeningRow|null;scope:AnalysisScope;sourceRevision:string;dates:string[];
@@ -37,10 +38,10 @@ export function CustomerQoeTimelineChart({calls,customerId,scope,mode='all',date
   const tabStopIndex=Math.max(0,chart.points.findIndex(point=>point.call.id===selected));
   const select=(call:CustomerQoeCall)=>{setSelected(call.id);onSelectCall?.(call);};
   const axisScores=[5,4,3,2,1];
-  return <div className={styles.chartWrap} data-timeline-total={calls.length}>
-    <div className={styles.legend}><span><i className={styles.blueDot}/>통화 QoE</span><span><i className={styles.redDot}/>저품질 (3 미만)</span><span><i className={styles.diamond}/>Drop</span>{chart.points.some(point=>point.outOfRange)&&<span>△▽ 범위 밖</span>}<span>전체 {calls.length.toLocaleString('ko-KR')}건 · 표시 {chart.points.length.toLocaleString('ko-KR')}건</span></div>
+  return <div className={styles.chartWrap+' '+compact.chartWrap} data-timeline-total={calls.length}>
+    <div className={styles.legend+' '+compact.legend}><span><i className={styles.blueDot}/>통화 QoE</span><span><i className={styles.redDot}/>저품질 (3 미만)</span><span><i className={styles.diamond}/>Drop</span>{chart.points.some(point=>point.outOfRange)&&<span>△▽ 범위 밖</span>}<span>전체 {calls.length.toLocaleString('ko-KR')}건 · 표시 {chart.points.length.toLocaleString('ko-KR')}건</span></div>
     {chart.points.length?<>
-      <svg className={styles.chart} viewBox={`0 0 ${chart.width} ${chart.height}`} data-qoe-min={chart.min} data-qoe-max={chart.max} role="group" aria-label="선택 고객 통화별 QoE 추이" aria-describedby={descriptionId}>
+      <svg className={styles.chart+' '+compact.chart} viewBox={`0 0 ${chart.width} ${chart.height}`} preserveAspectRatio="none" data-qoe-min={chart.min} data-qoe-max={chart.max} role="group" aria-label="선택 고객 통화별 QoE 추이" aria-describedby={descriptionId}>
         <rect data-poor-region="true" x={chart.left} y={chart.y(3)} width={chart.right-chart.left} height={chart.bottom-chart.y(3)} fill="#fff0f3"/>
         {axisScores.map(score=><g key={score} aria-hidden="true"><line x1={chart.left} x2={chart.right} y1={chart.y(score)} y2={chart.y(score)} stroke="#e4eaf2"/><text data-axis-score={score} x={chart.left-9} y={chart.y(score)+4} textAnchor="end" className={styles.axis}>{score}</text></g>)}
         <line data-threshold="3" x1={chart.left} x2={chart.right} y1={chart.y(3)} y2={chart.y(3)} stroke="#d85e7a" strokeDasharray="5 4"/>
@@ -72,9 +73,9 @@ export function CustomerQoeTimelineChart({calls,customerId,scope,mode='all',date
         </g>)}
         {chart.ticks.map((tick,index)=><text key={index} x={tick.x} y={227} textAnchor="middle" className={styles.axis}>{tick.label}</text>)}
       </svg>
-      <div className={styles.tooltip} aria-live="polite">{active?<><strong>{active.date} {active.start}</strong><span>QoE {scoreLabel(active.qoe)}{active.drop?' · Drop':''}</span>{rangeLabel(active.qoe)&&<span>{rangeLabel(active.qoe)}</span>}<span>BYE Cell {active.cell||'미확인'}</span>{!active.location&&<span>위치 정보 없음</span>}<Link href={detailHref(customerId,active)}>통화 상세 →</Link></>:<span>통화 점을 선택하면 QoE와 BYE Cell을 확인할 수 있습니다.</span>}</div>
+      <div className={styles.tooltip+' '+compact.tooltip} aria-live="polite">{active?<><strong>{active.date} {active.start}</strong><span>QoE {scoreLabel(active.qoe)}{active.drop?' · Drop':''}</span>{rangeLabel(active.qoe)&&<span>{rangeLabel(active.qoe)}</span>}<span>BYE Cell {active.cell||'미확인'}</span>{!active.location&&<span>위치 정보 없음</span>}<Link href={detailHref(customerId,active)}>통화 상세 →</Link></>:<span>통화 점을 선택하면 QoE와 BYE Cell을 확인할 수 있습니다.</span>}</div>
     </>:<output className={styles.status}>{mode==='day'?'선택한 날짜에 통화가 없습니다.':'선택한 범위에 통화가 없습니다.'}</output>}
-    <p id={descriptionId} className={styles.caption}>세로축 1~5 · 점 1개 = 통화 1건 · 선은 같은 날의 관측값만 연결합니다. 미평가는 하단에 별도 표시합니다.{chart.points.some(point=>point.outOfRange)&&' 범위 밖 값은 경계에 표시하며 선택 시 실제 값을 확인할 수 있습니다.'} 점 선택 후 방향키로 이동할 수 있습니다.</p>
+    <details className={compact.criteria} data-timeline-criteria><summary>차트·위치 기준</summary><p id={descriptionId} className={styles.caption}>세로축 1~5 · 점 1개 = 통화 1건 · 선은 같은 날의 관측값만 연결합니다. 미평가는 하단에 별도 표시합니다.{chart.points.some(point=>point.outOfRange)&&' 범위 밖 값은 경계에 표시하며 선택 시 실제 값을 확인할 수 있습니다.'} 점 선택 후 방향키로 이동할 수 있습니다.</p></details>
   </div>;
 }
 
@@ -101,9 +102,9 @@ export function CustomerQoeTimelinePanel({customer,scope,sourceRevision,dates,ar
   const current=!pending&&result?.key===requestKey?result:null;
   const busy=pending||(!!customer&&!current);
   const changeView=(next:CustomerQoeChartMode)=>{setMode(next);onSelectCall?.(null);};
-  return <section className={styles.panel} aria-label="선택 고객 통화 품질 추이" data-timeline-customer={customer?.id??''} aria-busy={busy}>
-    <div className={styles.heading}><h3><Activity size={17}/>선택 고객 통화 품질 추이</h3>{selectedRegion&&<div className={styles.region}><span>{selectedRegion}</span>{onClearRegion&&<button type="button" onClick={onClearRegion}><RotateCcw size={12}/>지역 선택 해제</button>}</div>}</div>
-    <div className={styles.toolbar}><div className={styles.identity}><small>서비스계약번호</small><strong>{customer?.number??'고객 미선택'}</strong></div>
+  return <section className={styles.panel+' '+compact.panel} aria-label="선택 고객 통화 품질 추이" data-timeline-customer={customer?.id??''} aria-busy={busy}>
+    <div className={styles.heading+' '+compact.heading}><h3><Activity size={17}/>선택 고객 통화 품질 추이</h3>{selectedRegion&&<div className={styles.region}><span>{selectedRegion}</span>{onClearRegion&&<button type="button" onClick={onClearRegion}><RotateCcw size={12}/>지역 선택 해제</button>}</div>}</div>
+    <div className={styles.toolbar+' '+compact.toolbar}><div className={styles.identity}><small>서비스계약번호</small><strong>{customer?.number??'고객 미선택'}</strong></div>
       <div className={styles.controls}><div className={styles.toggle} role="group" aria-label="QoE 기간 보기"><button type="button" aria-pressed={mode==='all'} onClick={()=>changeView('all')}>기간 전체</button><button type="button" aria-pressed={mode==='day'} onClick={()=>changeView('day')}>하루 확대</button></div>
         <label className={styles.dateLabel}>날짜<select aria-label="통화 품질 추이 날짜" value={date} disabled={mode!=='day'||!availableDates.length} onChange={event=>{setChosenDate(event.target.value);onSelectCall?.(null);}}>{availableDates.map(date=><option value={date} key={date}>{date}</option>)}</select></label>
       </div>
