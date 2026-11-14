@@ -500,7 +500,7 @@ export function ContractWorkspace({
                 </details>
               </div>
             </div>
-            {call&&<div className={styles.positionSummary} aria-label="고객 위치 출처 요약">
+            {call&&!cdrOnly&&<div className={styles.positionSummary} aria-label="고객 위치 출처 요약">
               <div className={styles.positionSummaryTitle}>
                 <b>이동 위치 근거</b>
                 <span>GPS 실측 / 추정 위치 구분</span>
@@ -650,14 +650,14 @@ export function ContractWorkspace({
             </div>
           </section>
           {day.source === 'MDT' && call && (
-            <MosCallInvestigation call={call} samples={samples} />
+            <MosCallInvestigation call={call} samples={samples} compact />
           )}
-          <RadioTimeline
+          {!cdrOnly&&<RadioTimeline
             key={`${day.customerId}/${day.date}/${callId}`}
             samples={samples}
             selectedIndex={sampleIndex}
             onSelectSample={onSelectSample}
-          />
+          />}
         </main>
         <aside className={styles.detailsPanel}>
           <ObservationDetails

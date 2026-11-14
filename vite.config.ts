@@ -39,6 +39,17 @@ const localBindingConfig = {
 
 export default defineConfig(async ({ mode }) => {
   const localPreview = mode === 'local-preview';
+  const rscAssetsAfterCss: Plugin = {
+    name: 'qoe:rsc-assets-after-css',
+    apply: 'build',
+    configResolved(config) {
+      const manifest = config.plugins.find(plugin => plugin.name === 'rsc:virtual:vite-rsc/assets-manifest');
+      const hook = manifest?.generateBundle;
+      if (!manifest || !hook) return;
+      // Vite removes CSS-only JS chunks in css-post; collect preloads afterward.
+      manifest.generateBundle = { ...(typeof hook === 'function' ? { handler: hook } : hook), order: 'post' };
+    },
+  };
   const voiceQueryDev: Plugin = {
     name: 'qoe:voice-query-dev',
     configureServer(server) {
@@ -102,6 +113,7 @@ export default defineConfig(async ({ mode }) => {
     },
     plugins: [
       voiceQueryDev,
+      rscAssetsAfterCss,
       vinext(),
       sites(),
       cloudflare({

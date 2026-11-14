@@ -1,0 +1,27 @@
+/* Contract-only page chrome; plots and other workspaces retain their own colors. */
+.page { background:#f5f8fd; color:#193c5b; }
+.page > header { background:#fff; color:#1d405b; border-bottom:1px solid #e2eaf1; box-shadow:none; }
+.page > header > a { color:#1d405b!important; }
+.page > header > a > span { color:#31536f; }
+.page > header > a svg { color:#00a995; stroke:#00a995; }
+.page > header > span { color:#526f86; }
+.page > header > nav > a { position:relative; color:#526f86; border-radius:0; }
+.page > header > nav > a:hover { color:#1d405b; background:#f2f9fb; }
+.page > header > nav > a[aria-current='page'] { color:#1d405b; background:transparent; box-shadow:none; }
+.page > header > nav > a[aria-current='page']:hover { color:#1d405b; background:transparent; }
+.page > header > nav > a[aria-current='page']::after { content:''; position:absolute; height:2px; background:#e0282f; inset:auto 12px -8px; }
+.page > header button { border:1px solid #cbdce9!important; border-radius:6px; padding:6px 10px!important; color:#355b7a!important; background:#fff; }
+.page > div { max-width:2080px; padding:14px 24px 18px; }
+.page h1 { color:#193c5b; }
+.page button, .page select, .page input { border-color:#cbdce9; border-radius:6px; }
+.page input[role='combobox'] { height:36px; }
+.page label:has(> select[aria-label='분석 시작일']),
+.page label:has(> select[aria-label='분석 종료일']),
+.page label:has(> select[aria-label='데이터 출처']) { min-height:36px; }
+.page select[aria-label='분석 시작일'],
+.page select[aria-label='분석 종료일'],
+.page select[aria-label='데이터 출처'] { height:36px; color:#244361; }
+.page button[aria-label='고객번호 찾기'],
+.page button[aria-label='전체 분석기간 조회'] { min-height:36px; }
+.page button[aria-label='전체 분석기간 조회'][aria-pressed='true'] { border-color:#48c9b8; background:#e0f7f1; color:#087f74; }
+@media (max-width:760px) { .page > div { padding:12px; } }

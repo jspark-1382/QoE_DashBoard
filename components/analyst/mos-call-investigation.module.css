@@ -27,5 +27,34 @@
 .radioNote{margin-top:10px}
 .labLink{display:inline-block;margin-top:12px;padding:6px 10px;border:1px solid #8caed1;color:#2459a6;border-radius:4px;text-decoration:none;font-size:12px}
 .labLink:hover{background:#eaf3fc}
+.compact{border-color:#d7e3ee;border-radius:8px;padding:12px;color:#193c5b;margin-top:0}
+.compact .heading{gap:8px;margin-bottom:9px}
+.compact .heading h3{margin-bottom:3px}
+.compact .heading p{font-size:11px;line-height:1.45}
+.compact .grade{padding:4px 9px}
+.compact .topGrid{gap:8px}
+.compact .score{border-color:#dce6f1;background:#f7faff;padding:8px 10px;gap:3px}
+.compact .score strong{font-size:22px;line-height:1.2}
+.compact .score>small{font-size:11px;line-height:1.4}
+.compact .note{margin:10px 0;padding:8px 10px;border-radius:4px;background:#eef5fc;line-height:1.45}
+.compact .note p{margin-top:3px}
+.compact .columns{grid-template-columns:1.25fr 1fr;gap:14px}
+.compact .columns h4{margin-bottom:6px}
+.compact .metrics{gap:5px 7px}
+.compact .metric{padding:6px 8px;border-color:#dce6ef;background:#fbfdff}
+.compact .metric>div{gap:4px}
+.compact .metric small{margin-top:3px}
+.compact .radioNote{font-size:11px;line-height:1.45;margin-top:6px}
+.compact .labLink{margin-top:7px;padding:4px 8px;border-radius:5px}
+.metricNote{color:#607085;font-size:11px;margin:0 0 7px;line-height:1.4}
+.metricDetails{font-size:11px;color:#526a83;margin-top:7px;line-height:1.5}
+.metricDetails>summary{cursor:pointer;width:fit-content;padding:3px 0}
+.metricDetails>summary:focus-visible{outline:2px solid #2459a6;outline-offset:2px}
+.metricDetails dl{margin:5px 0 0;border-top:1px solid #e2eaf2}
+.metricDetails dl>div{padding:6px 0;border-bottom:1px solid #e2eaf2}
+.metricDetails dt{font-weight:600}
+.metricDetails dd{margin:2px 0 0;color:#68778b}
+.metricDetails dd.attention{color:#b3542f}
 @media(max-width:1200px){.columns{grid-template-columns:1fr}}
+@media(max-width:1450px){.compact .columns{grid-template-columns:1fr}}
 @media(max-width:700px){.topGrid{grid-template-columns:1fr}.metrics{grid-template-columns:1fr}}

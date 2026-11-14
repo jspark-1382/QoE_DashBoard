@@ -1,5 +1,5 @@
 .workspace {
-  color: #20252b;
+  color: #193c5b;
   font-size: 13px;
   font-variant-numeric: tabular-nums;
 }
@@ -11,9 +11,9 @@
   font: inherit;
   color: inherit;
   background: white;
-  border: 1px solid #d8dee5;
-  border-radius: 3px;
-  padding: 5px 8px;
+  border: 1px solid #cbdce9;
+  border-radius: 6px;
+  padding: 6px 9px;
   cursor: pointer;
 }
 .workspace button:focus-visible,
@@ -41,7 +41,7 @@
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 10px 18px;
-  margin: 0 0 16px;
+  margin: 0 0 12px;
 }
 .summary {
   display: flex;
@@ -66,7 +66,7 @@
   margin-left: 6px;
   font-size: 17px;
   font-weight: 650;
-  color: #222c39;
+  color: #193c5b;
 }
 .summary b.poor,
 .poor {
@@ -82,8 +82,8 @@
 .mapPanel,
 .detailsPanel {
   min-width: 0;
-  border: 1px solid #dce1e7;
-  border-radius: 4px;
+  border: 1px solid #d7e3ee;
+  border-radius: 8px;
   background: #fff;
 }
 .callPanel {
@@ -95,7 +95,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px;
+  padding: 12px 12px 9px;
   gap: 8px;
 }
 .panelHeading h3 span {
@@ -106,39 +106,37 @@
 }
 .panelHeading select {
   font-size: 11px;
-  padding: 3px;
-  border: 0;
-  color: #66717e;
+  padding: 5px 7px;
+  color: #526f86;
 }
 .callTools {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 10px;
+  padding: 0 10px 8px;
   gap: 6px;
   border-bottom: 1px solid #e4e8ed;
 }
 .callTools select {
   font-size: 11px;
-  padding: 3px;
-  border: 0;
+  padding: 5px 7px;
   max-width: 105px;
 }
 .tabs {
   display: flex;
-  gap: 12px;
+  gap: 4px;
 }
 .workspace .tabs button {
-  border: 0;
-  border-bottom: 2px solid transparent;
-  border-radius: 0;
-  padding: 7px 3px;
-  color: #66717e;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 6px 10px;
+  color: #526f86;
   font-size: 12px;
 }
 .workspace .tabs button[aria-pressed='true'] {
-  border-bottom-color: #2369b5;
-  color: #2369b5;
+  border-color: #81d7cd;
+  background: #e8f8f5;
+  color: #087f74;
   font-weight: 600;
 }
 .callList {
@@ -158,14 +156,14 @@
   position: sticky;
   top: 0;
   padding: 9px 4px;
-  background: #f5f7f9;
-  color: #687380;
+  background: #f5f8fc;
+  color: #526f86;
   font-size: 11px;
   font-weight: 500;
   border-bottom: 1px solid #e6eaee;
 }
 .callList td {
-  padding: 10px 4px;
+  padding: 8px 4px;
   border-bottom: 1px solid #eef0f3;
 }
 .callList td:first-child {
@@ -174,7 +172,7 @@
 }
 .workspace .callList button {
   border: 0;
-  padding: 11px 3px;
+  padding: 9px 3px;
   width: 100%;
   background: transparent;
   font-size: 12px;
@@ -184,14 +182,14 @@
   background: #f7f9fc;
 }
 .callList .selected {
-  background: #eaf2fc;
+  background: #e8f8f5;
 }
 .callList .selected td:first-child {
-  border-left-color: #2168b5;
+  border-left-color: #00a995;
 }
 .callList .selected button {
   font-weight: 650;
-  color: #235c9b;
+  color: #193c5b;
 }
 .dataBadge {
   color: #6f7d8b;
@@ -213,6 +211,7 @@
 .callFoot {
   display: flex;
   align-items: center;
+  margin-top: auto;
   gap: 4px;
   padding: 12px;
   color: #65707d;
@@ -238,7 +237,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 7px 12px;
-  padding: 10px 12px;
+  padding: 10px 12px 8px;
 }
 .callTitle {
   display: flex;
@@ -341,7 +340,7 @@
   font-size: 11px;
 }
 .map {
-  height: clamp(300px, 39vh, 430px);
+  height: clamp(300px, 32vh, 380px);
   background: #edf0f2;
   position: relative;
 }
@@ -376,46 +375,56 @@
   color: #627080;
 }
 .cdrOnly {
-  min-height: clamp(300px, 39vh, 430px);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  padding: 28px;
-  background: #f7f9fb;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: baseline;
+  gap: 6px 12px;
+  padding: 12px;
+  background: #f8fbfe;
+  border-top: 1px solid #e2eaf1;
+  border-bottom: 1px solid #e2eaf1;
 }
 .cdrOnly > strong {
-  font-size: 16px;
+  font-size: 13px;
 }
 .cdrOnly p {
-  font-size: 12px;
+  font-size: 11px;
   color: #6e7987;
-  margin: 10px 0;
+  margin: 0;
+  line-height: 1.5;
+}
+.cdrOnly > p:last-child {
+  grid-column: 1 / -1;
 }
 .cdrOnly dl {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin: 16px 0;
+  grid-column: 1 / -1;
+  gap: 6px 12px;
+  margin: 0;
 }
 .cdrOnly dl > div {
-  border: 1px solid #dce3ea;
-  border-radius: 4px;
-  padding: 14px;
-  background: white;
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  min-width: 0;
 }
 .cdrOnly dt {
-  font-size: 12px;
+  font-size: 11px;
   color: #657280;
 }
 .cdrOnly dd {
-  margin: 8px 0 0;
-  font-size: 19px;
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  margin: 0;
+  font-size: 14px;
   font-weight: 600;
 }
 .cdrOnly dd span {
-  display: block;
-  font-size: 12px;
-  margin-top: 6px;
+  font-size: 11px;
   font-weight: 400;
   overflow-wrap: anywhere;
 }
@@ -494,7 +503,7 @@
     display: none;
   }
   .cdrOnly {
-    padding: 20px;
+    grid-template-columns: minmax(0, 1fr);
   }
   .cdrOnly dl {
     grid-template-columns: 1fr;
@@ -520,12 +529,12 @@
 
 /* Phone-call duration is displayed at whole-second precision. */
 .durationCell{white-space:nowrap;font-variant-numeric:tabular-nums;font-weight:650;letter-spacing:.1px}
-.positionSummary{padding:10px 12px;border-top:1px solid #dce6ec;border-bottom:1px solid #dce6ec;background:#f8fbfc}
-.positionSummaryTitle{display:flex;align-items:center;flex-wrap:wrap;gap:5px 12px;margin-bottom:9px}
+.positionSummary{padding:8px 12px;border-top:1px solid #e2eaf1;border-bottom:1px solid #e2eaf1;background:#f8fbfe}
+.positionSummaryTitle{display:flex;align-items:center;flex-wrap:wrap;gap:5px 12px;margin-bottom:7px}
 .positionSummaryTitle>b{color:#213f58;font-size:12px}
 .positionSummaryTitle>span{color:#65778a;font-size:11px}
 .positionBadges{display:flex;flex-wrap:wrap;gap:7px}
-.positionBadges>span{display:inline-flex;align-items:center;gap:6px;padding:6px 9px;border-radius:7px;border:1px solid transparent;font-size:11px;line-height:1.2}
+.positionBadges>span{display:inline-flex;align-items:center;gap:6px;padding:5px 8px;border-radius:6px;border:1px solid transparent;font-size:11px;line-height:1.2}
 .positionBadges b{margin-left:3px;white-space:nowrap;font-weight:750}
 .positionObserved{background:#eaf9f6;border-color:#b9e6dc!important;color:#087d72}
 .positionModel{background:#f1eeff;border-color:#d6cbf9!important;color:#5947a7}
@@ -536,7 +545,8 @@
 .modelSymbol{background:#6754c7;border:1.5px solid #fff;box-shadow:0 0 0 1px #6754c7;transform:rotate(45deg);border-radius:2px}
 
 .stationSymbol{width:0;height:0;border-left:7px solid transparent;border-right:7px solid transparent;border-bottom:13px solid #536575;background:transparent}
-.selectedPositionStatus{margin:9px 0 0;font-size:11px;color:#36516a;line-height:1.55}
+.selectedPositionStatus{margin:6px 12px;font-size:11px;color:#36516a;line-height:1.5}
+.positionSummary .selectedPositionStatus{margin:6px 0 0}
 .noGnssWarning{margin:8px 0 0;padding:7px 9px;border-left:3px solid #c58c30;border-radius:3px;background:#fff8ed;color:#866021;font-size:11px;line-height:1.5}
 .legend{gap:7px 15px}
 .legend>span:not(.legendNote){display:inline-flex;align-items:center;gap:7px;white-space:nowrap;font-weight:650;color:#47596d}
@@ -557,8 +567,9 @@
 .gnssReferenceSymbol{display:inline-block;width:13px;height:13px;border:2px dashed #0b8d82;border-radius:50%;background:#cdf0e7}
 
 /* Compact evidence affordances: verbose model/rejection details stay collapsed. */
-.technicalDetails{margin:7px 0 0;font-size:11px;color:#53697e}
-.technicalDetails>summary{display:inline-flex;align-items:center;gap:5px;padding:5px 8px;border:1px solid #d2dfec;border-radius:5px;background:#fff;color:#365d83;cursor:pointer;font-weight:600}
+.technicalDetails{margin:6px 12px;font-size:11px;color:#53697e}
+.positionSummary .technicalDetails{margin:6px 0 0}
+.technicalDetails>summary{display:inline-flex;align-items:center;gap:5px;padding:4px 8px;border:1px solid #d2dfec;border-radius:5px;background:#fff;color:#365d83;cursor:pointer;font-weight:600}
 .technicalDetails[open]>summary{background:#edf4fb}
 .technicalDetails:focus-within>summary{outline-offset:2px}
 .roughSummary{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:9px 0 2px;padding:8px 10px;border-radius:6px;border:1px solid #d5c6ee;background:#f6f1fc;color:#55438a;font-size:12px;line-height:1.5}

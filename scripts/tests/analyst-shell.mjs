@@ -100,8 +100,8 @@ try {
     'const QualityTopNav=()=>"QoE 분석";',
   );
   code = code.replace(
-    /import styles from ['"]\.\/analyst-shell.module.css['"];?/,
-    'const styles={};',
+    /import\s+([\w$]+)\s+from\s+['"]\.\/[^'"]+\.module\.css['"];?/g,
+    'const $1={};',
   );
   const shellPath = new URL('./.analyst-shell-test.mjs', import.meta.url);
   code += '\nexport {readFilters, urlFor};\n';
