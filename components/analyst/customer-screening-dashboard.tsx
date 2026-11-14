@@ -9,6 +9,7 @@ import {CustomerScreeningPreview} from './customer-screening-preview';
 import {CustomerQoeTimelinePanel} from './customer-qoe-timeline';
 import type {CustomerQoeCall} from '../../lib/analyst/customer-qoe-timeline';
 import {customerQoeMapFocus} from '../../lib/analyst/customer-qoe-map-focus';
+import {customerRouteCountSummary} from '../../lib/analyst/customer-screening-route';
 import {MapPanelFrame} from './map-panel-frame';
 const CustomerScreeningMap=lazy(()=>import('./customer-screening-map').then(module=>({default:module.CustomerScreeningMap})));
 import {number,percent,type CustomerGroup,type ScreeningResult,type ScreeningRow} from '../../lib/analyst/customer-screening';
@@ -85,22 +86,26 @@ function CustomerGroups({report}:{report:Omit<ScreeningResult,'rows'>}) {
 }
 function RankingTable({rows,selected,onPick,sortMode,setSortMode,onAll}:{rows:ScreeningRow[];selected:string;
   onPick:(s:string)=>void;sortMode:RankMode;setSortMode:(s:RankMode)=>void;onAll:()=>void}) {
-  return <section className={styles.panel}>
+  return <section className={styles.panel} data-screening-ranking>
     <Heading icon={Target} actions={<div className={styles.panelActions}>
       {([['poor','저품질 건수'],['drop','Drop 기준'],['repeat','반복 기준']] as const).map(([id,text])=>
         <button key={id} type="button" className={styles.tabButton+' '+(sortMode===id?styles.active:'')} onClick={()=>setSortMode(id)}>{text}</button>)}
-      <button type="button" className={styles.tabButton} onClick={onAll}>{rows.length>10?'목록 접기':'전체 목록'} <ChevronRight size={12}/></button>
+      <button type="button" className={styles.tabButton+' '+styles.rankingListButton} onClick={onAll}>{rows.length>10?'목록 접기':'전체 목록'} <ChevronRight size={12}/></button>
     </div>}>저품질 통화 집중 고객 TOP 10</Heading>
     <div className={styles.ranking}>
       <div className={styles.tableScroll}>
         <table className={styles.rankTable}>
-          <thead><tr><th>순위</th><th>서비스계약번호</th><th>총 통화 건수</th><th>저품질 통화 수</th><th>저품질 비율*</th>
-            <th>발생 일수</th><th>Drop</th><th>주요 행정동</th><th>최근 발생</th><th>분류</th></tr></thead>
+          <thead><tr><th>순위</th><th>서비스계약번호</th><th title="선택 기간의 SIP 원본에서 확인한 고객 단말입니다. 복수 기종이면 최근 관측 기종과 추가 기종 수를 표시합니다.">단말</th><th>총 통화</th><th>저품질 통화</th><th>저품질 비율*</th>
+            <th>발생일</th><th>Drop</th><th>주요 행정동</th><th>최근 발생</th><th>분류</th></tr></thead>
           <tbody>{rows.map((r,i)=><tr key={r.id} aria-selected={r.id===selected} onClick={()=>onPick(r.id)}>
             <td><span className={styles.rankNumber}>{i+1}</span></td>
             <td><button type="button" onClick={()=>onPick(r.id)}>{r.number}</button></td>
+            <td data-device-cell><span className={styles.deviceModel} data-customer-device data-device-count={r.deviceModels?.length??0}
+              title={r.deviceModels?.length?'SIP 원본 · 최근 관측순: '+r.deviceModels.join(' · '):'선택 기간의 고객 단말 기종을 확인할 수 없습니다.'}>
+              <span>{r.deviceModels?.[0]??'미확인'}</span>{(r.deviceModels?.length??0)>1&&<small>+{r.deviceModels!.length-1}</small>}
+            </span></td>
             <td>{number(r.total)}건</td>
-            <td><div className={styles.barCell}>{number(r.poor)}건
+            <td data-low-quality-calls><div className={styles.barCell}>{number(r.poor)}건
               <span className={styles.rateBar}><i style={{width:(rows[0]?.poor?Math.min(100,r.poor/Math.max(1,...rows.slice(0,10).map(x=>x.poor))*100):0)+'%'}}/></span>
             </div></td>
             <td>{percent(r.poor,r.eligible)}</td><td>{r.repeatedDays}일</td><td>{r.drop}건</td>
@@ -332,11 +337,11 @@ export function CustomerScreeningDashboard(){
                onSelectCell={cell=>{setSelectedCellId(cell);setSelectedAreaId('');setSelectedId('');setTimelineSelection(null);}}
               onSelectCustomer={pickCustomer}/></Suspense>}
             </div>
-            <div className={styles.scatterNote}>
+            <div className={styles.scatterNote+(mapView==='route'? ' '+styles.routeCountsNote:'')}
+              aria-label={mapView==='route'?'선택 고객 지도 표시 집계':undefined}>
               {!mapEnabled?'요약 표시 후 지도 영역이 보이면 자동으로 조회합니다.':!geography?'지도 집계를 조회하는 중…':mapView==='top10'?`상단 TOP 10과 동일한 고객 · 위치 표시 ${topCustomers.points.length}명 / ${topCustomers.total}명 · 최대 확대 시 전체 고객 통화 위치 흐름 자동 표시 · 위치 미확보 ${topCustomers.unlocated}명`:
                mapView==='route'?route?
-                '선택 '+route.name+' · GPS '+route.gnssCount+'건 / BYE Cell 참고 '+route.cellReferenceCount+
-                '건 · 시간순 점선은 관측점 연결(실제 이동경로 아님)':
+                customerRouteCountSummary(route):
                 '고객을 선택하면 GPS와 서빙 기지국 기준 통화 위치 흐름이 표시됩니다.':
                mapView==='dong'?'행정동별 '+metricLabel(mapMetric)+' · 행정동 경계(SHP) 및 BYE Cell 참고 권역':
                 mapView==='cell'?'BYE Cell별 '+metricLabel(mapMetric)+' · 지도 좌표는 기지국 참고 위치':

@@ -27,7 +27,7 @@ function fixture(){
     CREATE INDEX facts_customer_date ON facts(customer_id,date,start_second);`);
   return {db,file,close(){db.close();fs.rmSync(directory,{recursive:true,force:true});}};
 }
-function helpers(db){
+function helpers(db,deviceModelsFor){
   const queries=[],plain=row=>row?{...row}:row;
   const all=(sql,args=[])=>{queries.push(sql);return db.prepare(sql).all(...args).map(plain);};
   const one=(sql,args=[])=>{queries.push(sql);return plain(db.prepare(sql).get(...args));};
@@ -35,7 +35,7 @@ function helpers(db){
   const areas={dong:['실제동',37,127],other:['다른동',37.1,127.1]};
   const sourceMeta={schemaVersion:'customer-screening-v1',sourceRevision:'fixture',source:'MDT',dates,areas,customers:[],thresholds:{poor:3,good:3.5,concentratedRate:.5,concentratedCount:10,minEvaluatedForRate:5,repeatDays:2,dropCount:3,dropRate:.1}};
   const base=s=>({where:['c.date>=?','c.date<=?','c.start_second>=?','c.start_second<?'],args:[s.dateStart,s.dateEnd,s.min,s.max]});
-  const helper=createScreeningQueries({db,all,one,base,dates,areas,sourceMeta,rounded:value=>value==null?null:Math.round(value*1e6)/1e6,text:value=>value,pageOf:(page,pages)=>Math.max(0,Math.min(page??0,Math.max(0,pages-1)))});
+  const helper=createScreeningQueries({db,all,one,base,dates,areas,sourceMeta,deviceModelsFor,rounded:value=>value==null?null:Math.round(value*1e6)/1e6,text:value=>value,pageOf:(page,pages)=>Math.max(0,Math.min(page??0,Math.max(0,pages-1)))});
   return {helper,queries,sourceMeta};
 }
 test('screening uses compact original projections and preserves exact business totals',()=>{
@@ -45,6 +45,19 @@ test('screening uses compact original projections and preserves exact business t
     const actual=helper.screening(full,options);const {rows,...report}=expected;
     assert.deepEqual(actual.report,report);assert.deepEqual(actual.rows,rows.map(row=>({...row,badCalls:[]})));
     assert.ok(queries.some(sql=>sql.includes('FROM facts c NOT INDEXED LEFT JOIN locations')));
+  }finally{f.close();}
+});
+test('supplementary handset evidence follows the same customer and date/time scope without changing ranking totals',()=>{
+  const f=fixture();try{
+    const lookup=(id,scope)=>id==='a'?[scope.dateStart===dates[0]?'SM-S916N':'iPhone']:[];
+    const {helper}=helpers(f.db,lookup);
+    const actual=helper.screening(full,options);
+    assert.deepEqual(actual.topRows[0].deviceModels,['SM-S916N']);
+    assert.equal(actual.topRows[1].deviceModels,undefined);
+    assert.deepEqual([actual.report.calls,actual.topRows[0].total,actual.topRows[0].poor],[4,2,2]);
+    const oneDay=helper.screening({...full,dateStart:dates[1]},options);
+    assert.deepEqual(oneDay.selected.deviceModels,['iPhone']);
+    assert.deepEqual([oneDay.selected.total,oneDay.selected.poor],[1,1]);
   }finally{f.close();}
 });
 test('map mode/ranking changes reuse geography without rereading every source call',()=>{

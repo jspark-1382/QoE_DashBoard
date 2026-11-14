@@ -56,7 +56,21 @@ export interface CustomerRoute {
   observations:CustomerRoutePoint[];sites:CustomerRouteCellSite[];
   segments:CustomerRouteSegment[];
   totalCalls:number;gnssCount:number;cellReferenceCount:number;unlocatedCalls:number;
+  /** Disjoint reasons for unlocatedCalls; older API responses may omit them. */
+  cellCoordinateUnmatchedCalls?:number;missingCellIdCalls?:number;
   skippedLongGaps:number;
+}
+export function customerRouteCountSummary(route:CustomerRoute):string {
+  const count=(value:number)=>value.toLocaleString('ko-KR');
+  const parts=['선택 '+route.name,'전체 통화 '+count(route.totalCalls)+'건',
+    '지도 표시 '+count(route.observations.length)+'건'];
+  if(typeof route.cellCoordinateUnmatchedCalls==='number'&&typeof route.missingCellIdCalls==='number'){
+    parts.push('Cell 좌표 미매칭 '+count(route.cellCoordinateUnmatchedCalls)+'건');
+    if(route.missingCellIdCalls>0)parts.push('Cell ID 미제공 '+count(route.missingCellIdCalls)+'건');
+  }else parts.push('지도 미표시 '+count(route.unlocatedCalls)+'건');
+  parts.push('GPS '+count(route.gnssCount)+'건 / BYE Cell 참고 '+count(route.cellReferenceCount)+'건',
+    '시간순 점선은 관측점 연결(실제 이동경로 아님)');
+  return parts.join(' · ');
 }
 const seconds=(v:string)=>{
   const m=/^([01]\d|2[0-3]):([0-5]\d)$/.exec(v);
@@ -91,7 +105,7 @@ export function buildCustomerRoute(
   selected.sort((a,b)=>a.day-b.day||
     ((a.endSecond??a.startSecond)+(a.endSecond!=null&&a.endSecond<a.startSecond?86400:0))-
     ((b.endSecond??b.startSecond)+(b.endSecond!=null&&b.endSecond<b.startSecond?86400:0)));
-  let noLocation=0,gnssCount=0,cellReferenceCount=0;
+  let noLocation=0,cellCoordinateUnmatchedCalls=0,missingCellIdCalls=0,gnssCount=0,cellReferenceCount=0;
   const points:CustomerRoutePoint[]=[];
   const siteGroups=new Map<string,CustomerRouteCellSite>();
   for(const row of selected){
@@ -107,7 +121,11 @@ export function buildCustomerRoute(
     // No BYE-site value should ever be presented as a GNSS measured location.
     const location = gps||cellSite ? [lat!,lon!] as const :
       site&&validLocation(site[0],site[1]) ? [site[0],site[1]] as const : null;
-    if(!location){noLocation++;continue;}
+    if(!location){
+      noLocation++;
+      if(String(cell??'').trim())cellCoordinateUnmatchedCalls++;else missingCellIdCalls++;
+      continue;
+    }
     const kind:RouteEvidence=gps?'gnss':'bye-cell';
     if(kind==='gnss')gnssCount++;else cellReferenceCount++;
     const t=(row.endSecond??row.startSecond)+(row.endSecond!==null&&row.endSecond<row.startSecond?86400:0);
@@ -136,5 +154,6 @@ export function buildCustomerRoute(
       'gnss-observed-link':'reference-order',distanceM:Math.round(meters),minutes:Math.round(delta/60)});
   }
   return {customerId,name:customer.number,observations:points,sites:[...siteGroups.values()],
-    segments,totalCalls:selected.length,gnssCount,cellReferenceCount,unlocatedCalls:noLocation,skippedLongGaps};
+    segments,totalCalls:selected.length,gnssCount,cellReferenceCount,unlocatedCalls:noLocation,
+    cellCoordinateUnmatchedCalls,missingCellIdCalls,skippedLongGaps};
 }

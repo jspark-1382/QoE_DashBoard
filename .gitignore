@@ -81,6 +81,7 @@ __pycache__/
 /public/customer-screening-data/
 /public/gps-map-stations/
 /public/voice-query-index.json
+/public/customer-device-index.json
 /public/quality-improvement-mixed-evaluation/
 /public/quality-improvement-mixed-full/
 /public/quality-models-mixed-evaluation/
