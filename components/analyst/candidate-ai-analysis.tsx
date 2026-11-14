@@ -488,6 +488,7 @@ export function CandidateAiDialog({
             investigationSelection={effectiveSelection}
             onSelectCause={(category, targetId) => setInvestigationSelection(previous => ({ category, targetId, source: 'criteria', selection: (previous?.selection ?? 0) + 1 }))}
           />
+          <div className={styles.reportTools} aria-label="판정 기준 및 AI 도구">
           <details key={sourceAssessmentJob?.id} className={styles.legacyReport} data-summary-detail="criteria" data-summary-disclosure="criteria"><summary>판정 기준</summary>
             <p>{sourceAssessmentJob?.evidence?.versions.evidence === 'candidate-evidence-v7'
               ? '커버리지는 날짜·대역별 RSRP 분포와 통화의 RSRP·PHR를 대조합니다. 셀 중첩은 같은 주파수에서의 서빙 셀 복귀, 전환은 서빙 셀 반복 변경 또는 EARFCN 변경을 확인합니다. 용량과 장비·전송·단말 이상은 각각 셀 자원 기록과 통화 종료 원문을 확인합니다.'
@@ -1371,6 +1372,7 @@ export function CandidateAiDialog({
           )}
         </section>
           </details>}
+          </div>
         </div>
       </div>
       <footer className={styles.dialogFoot}><output className={styles.workspaceJobStatus}>{statusText(selectedSavedId && !busy ? displayedEntry : entry)}</output></footer>

@@ -10,7 +10,7 @@ import { formatInvestigationBand, gridReading, gridWeakPercent, investigationCov
 import { getCandidateGridContrast, getCandidateRepresentativeCause, getCandidateSelectedGrid } from '../../lib/analyst/candidate-representative-cause';
 import type { MdtGridMode } from '../../lib/analyst/mdt-25m-grid';
 import { CandidateInvestigationMap } from './candidate-investigation-map';
-import { CandidateTargetCriteria, CandidateCauseAssessments, getCandidateInvestigationPlans } from './candidate-investigation-list';
+import { CandidateTargetCriteria, CandidateCauseAssessments, CandidateInvestigationPoints, getCandidateInvestigationPlans } from './candidate-investigation-list';
 import Link from './document-link';
 import styles from './candidate-pot-workspace.module.css';
 
@@ -310,9 +310,10 @@ export function PotInvestigationContent({ context, entry, contextError, contextL
   const _ruleChoices = ruleOptions.length ? <section className={styles.ruleChoices} aria-label="근거 규칙 조사 대상"><header><strong>근거 규칙 검토 · {allRulePotIds.length} POT</strong><span>Qwen과 별도로 선정 · 누르면 지도와 근거 확인</span></header><div>{ruleOptions.slice(0,5).map(ruleButton)}</div>{ruleOptions.length > 5 && <details><summary>다른 규칙 대상 {ruleOptions.length - 5}개</summary><div>{ruleOptions.slice(5).map((option,index) => ruleButton(option,index + 5))}</div></details>}</section> : null;
   return <section className={styles.workspace} aria-label="AI 선정 원인과 조사 대상" data-context-fingerprint={context?.fingerprint ?? 'unavailable'} data-ai-finding-count={findings.length} data-rule-pot-count={allRulePotIds.length} data-investigation-pot-count={investigationPotIds.length}>
     {failed && <aside className={styles.modelFailure} role="alert" aria-label="Qwen 분석 실패 상세"><strong>Qwen 분석 실패{modelError?.code && ' · ' + modelError.code}</strong><p>{modelError?.message || '모델의 분석 결과를 완료하지 못했습니다.'}</p><span>{selectedRule ? '아래는 확보한 관측 근거의 규칙 검토입니다. Qwen 원인 해석·보고서는 적용하지 않았습니다.' : '상단에서 실제 응답을 확인하거나 프롬프트를 수정해 다시 전송할 수 있습니다.'}</span></aside>}
-    <div className={styles.columns}>
+    <div className={styles.columns} data-investigation-columns>
       <section className={styles.mapPanel} aria-label="조사 후보 지도 패널" data-map-panel="true">
-        <header className={styles.mapHeader}><h3>조사 지도</h3><span>조사 지점 {investigationPotIds.length}곳</span></header>
+        <header className={styles.mapHeader}><h3><MapPinned size={22} aria-hidden="true" />조사 지도</h3><span>조사 지점 {investigationPotIds.length}곳</span></header>
+        {selectedGrid && <p className={styles.mapCaption}>MDT {selectedGrid.sourceDate || '측정일 미확인'} · {formatInvestigationBand(selectedGrid.band) || '대역 미확인'} · EARFCN {selectedGrid.earfcn || '미확인'}</p>}
         <div className={styles.mapArea}>
           {context ? <CandidateInvestigationMap context={context} selectedPot={potId} primaryPot={reading?.point.pot} band={showMdt ? (point ? band : 'top1') : 'hidden'}
             date={backgroundDate} showPots={showPots} showStations={showStations} investigationPoints={investigationPoints}
@@ -346,10 +347,11 @@ export function PotInvestigationContent({ context, entry, contextError, contextL
           {selectedField ? null :
             selectedInvestigation ? <div className={styles.autoTarget}>{selectedCriteria ? '원본 관측 기준' : 'AI 조사 제안'} <select aria-label={selectedCriteria ? '원본 기준 대상 선택' : 'AI 조사 제안 대상 선택'} value={selectedInvestigation.target.id} onChange={event => selectedCriteria ? selectCriteria(event.target.value) : selectInvestigation(event.target.value)}>{(selectedCriteria ? criteriaOptions.filter(option => option.assessment.category === selectedCriteria.assessment.category) : investigationOptions).map((option, index) => <option key={index} value={option.target.id}>{option.target.mapPoints[0]?.pot ?? option.target.title}</option>)}</select></div> : selectedRule ? <div className={styles.autoTarget}><strong>{ruleSourceLabel}</strong><span>{targetLabel(selectedRule.target)}</span></div> : target && finding ? <div className={styles.autoTarget}>AI 선정 대상 {options.length > 1 ? <select aria-label="AI 선정 조사 대상" value={finding.id + ':' + target.id} onChange={e => { const option = options.find(o => o.key === e.target.value); if (option) selectTarget(option.finding.id, option.target.id); }}>{options.map(o => <option key={o.key} value={o.key}>{targetLabel(o.target)} · {findingLabel(o.finding)}</option>)}</select> : <strong>{targetLabel(target)}</strong>}</div> : <div className={styles.autoTarget}>{busy ? 'Qwen 선정 대기' : 'Qwen 선정 대상 없음'}</div>}
           <small>기지국: 후보 통화 BYE 연결 / 복수 등록 / 주변 참고 위치</small>
+          {sourceJob?.evidence && <CandidateInvestigationPoints coverage={coverage} selectedTargetId={activePoint?.targetId ?? target?.id} onInspectPoint={selectField} />}
         </div>
       </section>
       <div className={styles.priorityPanel} data-results-panel="true">
-        <CandidateCauseAssessments job={sourceJob} coverage={coverage} representative={representative} selectedTargetId={target?.id} activeSurveyId={activePoint?.targetId} selectedGrid={selectedGrid} gridContrast={selectedContrast} onInspectPoint={selectField} onInspectPlan={id => { selectInvestigation(id); showDetail(); }} onInspectTarget={(id, category) => {
+        <CandidateCauseAssessments job={sourceJob} coverage={coverage} representative={representative} selectedTargetId={target?.id} activeSurveyId={activePoint?.targetId} selectedGrid={selectedGrid} gridContrast={selectedContrast} showPointNavigation={false} onInspectPoint={selectField} onInspectPlan={id => { selectInvestigation(id); showDetail(); }} onInspectTarget={(id, category) => {
           selectCriteria(id, category);
           showDetail();
         }} />

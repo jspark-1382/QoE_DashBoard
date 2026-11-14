@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Layers, MapPin, PhoneCall } from 'lucide-react';
 import type { CandidateAnalysisJob, CandidateEvidenceTarget, CandidateCauseCategory } from '../../lib/analyst/candidate-ai-analysis';
 import { isAnalysisActive } from '../../lib/analyst/customer-ai-analysis';
 import { getCandidateSelectedFindings, getCandidateSourceCauseAssessments } from '../../lib/analyst/candidate-ai-selections';
@@ -77,7 +78,7 @@ function WeakSignalPlot({ point, contrast }: { point: CandidateSelectedGrid; con
   </figure>;
 }
 
-export function CandidateCauseAssessments({ job, coverage: providedCoverage, representative: providedRepresentative, activeSurveyId, selectedGrid, gridContrast, selectedTargetId, onInspectPoint, onInspectPlan, onInspectTarget }: {
+export function CandidateCauseAssessments({ job, coverage: providedCoverage, representative: providedRepresentative, activeSurveyId, selectedGrid, gridContrast, selectedTargetId, showPointNavigation = true, onInspectPoint, onInspectPlan, onInspectTarget }: {
   job?: CandidateAnalysisJob | null;
   coverage?: InvestigationCoverage;
   representative?: ReturnType<typeof getCandidateRepresentativeCause>;
@@ -85,6 +86,7 @@ export function CandidateCauseAssessments({ job, coverage: providedCoverage, rep
   selectedGrid?: CandidateSelectedGrid;
   gridContrast?: GridContrast;
   selectedTargetId?: string;
+  showPointNavigation?: boolean;
   onInspectPoint?: (targetId: string) => void;
   onInspectPlan?: (targetId: string) => void;
   onInspectTarget?: (targetId: string, category: CandidateCauseCategory) => void;
@@ -100,6 +102,8 @@ export function CandidateCauseAssessments({ job, coverage: providedCoverage, rep
   const representative = providedRepresentative ?? getCandidateRepresentativeCause(job, coverage);
   const { points } = coverage;
   const representativePoint = points.find(point => point.targetId === representative.targetId);
+  const representativeContrast = representative.category === 'coverage' && representative.thresholdDbm != null && representativePoint?.metric?.kind === 'dl-rsrp'
+    ? getCandidateGridContrast(evidence, representativePoint, { thresholdDbm: representative.thresholdDbm }) : undefined;
   const selectedPoint = points.find(point => point.targetId === (activeSurveyId ?? selectedTargetId));
   const survey = points.find(point => point.targetId === (selectedTargetId ?? activeSurveyId ?? representative.targetId));
   const plotPoint = selectedGrid ?? (survey ? { ...survey, role:'survey' as const } : undefined);
@@ -139,8 +143,8 @@ export function CandidateCauseAssessments({ job, coverage: providedCoverage, rep
     : rows;
   const collecting = !!job && isAnalysisActive(job.status);
   return <>
-    <section className={styles.fieldPriority} aria-label="후보 지역 대표 원인 가설" data-representative-cause={representative.category ?? 'insufficient'} data-investigation-priority={representative.category ?? 'unavailable'} data-priority-source={representative.category ? 'source' : 'unavailable'}>
-      <small className={styles.dateLabel}>후보 지역 대표 원인 가설</small>
+    <section className={styles.fieldPriority} aria-label="후보 지역 대표 원인 가설" data-result-block="regional" data-representative-cause={representative.category ?? 'insufficient'} data-investigation-priority={representative.category ?? 'unavailable'} data-priority-source={representative.category ? 'source' : 'unavailable'}>
+      <header className={styles.regionHeading}><small className={styles.dateLabel}><Layers size={17} aria-hidden="true" />후보 지역 대표 원인 가설</small><span className={styles.hypothesisBadge}>{representative.category ? '우선 조사 · 원인 미확정' : '대표 원인 판단 보류'}</span></header>
       <h3 data-representative-title>{collecting && !evidence ? '후보 근거 수집 중' : representative.title.replace(/커버리지 검토 필요$/, '커버리지 우선 점검')}</h3>
       {representativePoint ? <div className={styles.sourceLine} data-representative-origin>
         <b>대표 POT {representativePoint.pot}</b><span>MDT {representativePoint.sourceDate}</span>
@@ -148,26 +152,32 @@ export function CandidateCauseAssessments({ job, coverage: providedCoverage, rep
       </div> : representativeDates.length > 0 && <div className={styles.sourceLine} data-representative-origin>
         <b>근거 통화 {representative.callIds.length}건</b><span>{representativeDates.join(' · ')}</span>
       </div>}
-      <p data-representative-summary>{collecting && !evidence ? '통화 및 MDT 측정값을 확인하고 있습니다.' : representative.summary}</p>
-      {representative.details.length > 0 && <details className={styles.heroDetails} data-representative-details>
+      {representativeContrast ? <section className={styles.representativeMetrics} aria-label="대표 POT와 인접 POT 측정 비교">
+        <dl><dt>약전 비율</dt><dd>{representativeContrast.own.toFixed(2)}%</dd></dl>
+        <dl><dt>인접 {representativeContrast.peers.length}곳{representativeContrast.peers.length > 1 ? ' 평균' : ''}</dt><dd>{representativeContrast.average.toFixed(2)}%</dd></dl>
+        <dl><dt>차이</dt><dd>{Math.abs(representativeContrast.gap) < .005 ? '0.00' : (representativeContrast.gap > 0 ? '+' : '−') + Math.abs(representativeContrast.gap).toFixed(2)}%p</dd></dl>
+        <small>RSRP {representativeContrast.threshold} dBm 이하로 측정된 비율</small>
+      </section> : <p data-representative-summary>{collecting && !evidence ? '통화 및 MDT 측정값을 확인하고 있습니다.' : representative.summary}</p>}
+      {(representative.details.length > 0 || representativeContrast) && <details className={styles.heroDetails} data-representative-details>
         <summary>판단 근거 상세</summary>
+        {representativeContrast && <p data-representative-summary>{representative.summary}</p>}
         <ul>{representative.details.map((detail, index) => <li key={index}>{detail}</li>)}</ul>
       </details>}
     </section>
-    {plotPoint ? <section className={styles.potMeasurement} aria-label="선택 POT 측정 결과" data-selected-pot-result={plotPoint.pot} data-selected-pot-role={plotPoint.role}>
-      <div className={styles.sectionHeading}><h3>선택 POT 측정 결과</h3><b>{plotPoint.role === 'comparison' ? '비교 지점' : '조사 지점' + (survey ? ' ' + survey.rank : '')} · {plotPoint.pot}</b></div>
+    {plotPoint ? <section className={styles.potMeasurement} aria-label="선택 POT 측정 결과" data-result-block="measurement" data-selected-pot-result={plotPoint.pot} data-selected-pot-role={plotPoint.role}>
+      <div className={styles.sectionHeading}><span className={styles.sectionIcon} aria-hidden="true">{plotPoint.role !== 'comparison' && survey ? survey.rank : <MapPin size={17} />}</span><h3>선택 POT 측정 결과</h3><b>{plotPoint.role === 'comparison' ? '비교 지점' : '조사 지점' + (survey ? ' ' + survey.rank : '')} · {plotPoint.pot}</b></div>
       <div className={styles.sourceLine}>
         <span data-pot-measure-date>MDT 측정일 <b>{plotPoint.sourceDate || '미확인'}</b></span>
         <span data-pot-measure-frequency>{formatInvestigationBand(plotPoint.band) || '주파수 미확인'}{plotPoint.earfcn && ' · EARFCN ' + plotPoint.earfcn}</span>
       </div>
       {showGridPlot ? <WeakSignalPlot point={plotPoint} contrast={contrast} /> :
         <p className={styles.measureNote}>{plotPoint.metric?.kind === 'ul-phr' ? 'PHR 원본 평균 ' + plotPoint.metric.mean + ' · 기준 3 이하 (단위 미확인)' : '이 격자의 약전 비율 미확보'}</p>}
-    </section> : evidence && <section className={styles.potMeasurement} aria-label="선택 POT 측정 결과" data-selected-pot-result="">
+    </section> : evidence && <section className={styles.potMeasurement} aria-label="선택 POT 측정 결과" data-result-block="measurement" data-selected-pot-result="">
       <div className={styles.sectionHeading}><h3>선택 POT 측정 결과</h3></div>
       <p className={styles.measureNote}>{points.length ? '지도에서 조사 지점을 선택하면 해당 POT의 측정값을 볼 수 있습니다.' : '이 분석에서 조사 기준을 충족한 POT가 없습니다.'}</p>
     </section>}
-    {insight && callSource && <section className={styles.callEvidence} data-call-insight={insight.kind} data-call-evidence-target={insight.targetId}>
-      <header><h3>선택 통화 관측</h3>
+    {insight && callSource && <section className={styles.callEvidence} data-result-block="call" data-call-insight={insight.kind} data-call-evidence-target={insight.targetId}>
+      <header><h3><PhoneCall size={20} aria-hidden="true" />선택 통화 관측</h3>
         <span>{linkedComparison && view ? (view.comparison.assessment === 'prioritize' ? potCauseLabel(view.primary.category)+' 우선 조사' : '통화 원인 미확정') : '원본 관측'}</span></header>
       <div className={styles.callSelector}>
         <details className={styles.relation} data-call-pot-relation={checkingLocation ? 'loading' : callSource.relation} data-call-pot={plotPoint?.pot} data-call-location-scope={callSource.locationScope}>
@@ -199,7 +209,7 @@ export function CandidateCauseAssessments({ job, coverage: providedCoverage, rep
         </li>)}
       </ol>}
       <strong className={styles.eventConclusion} data-insight-conclusion>{insight.conclusion}</strong>
-      {insight.context && <p className={styles.eventContext}>{insight.context}</p>}
+      {insight.context && <p className={styles.eventContext} data-insight-context>{insight.context}</p>}
       <div className={styles.eventAction}><b>먼저 확인</b><span>{insight.firstCheck}</span>
         <Link href={insight.call.href} data-insight-source-call={insight.call.id} target="_blank" rel="noreferrer">해당 통화 보기 ↗</Link>
       </div>
@@ -292,7 +302,15 @@ export function CandidateCauseAssessments({ job, coverage: providedCoverage, rep
         </details>;
       })}
     </details>
-    {evidence && <section className={styles.pointGroup} aria-label="커버리지 조사 POT" data-coverage-source={coverage.savedSubset ? 'saved-measurements' : 'source-measurements'}>
+    {evidence && showPointNavigation && <CandidateInvestigationPoints coverage={coverage} selectedTargetId={selectedPoint?.targetId} onInspectPoint={onInspectPoint} />}
+  </>;
+}
+
+export function CandidateInvestigationPoints({ coverage, selectedTargetId, onInspectPoint }: { coverage: InvestigationCoverage; selectedTargetId?: string; onInspectPoint?: (targetId: string) => void }) {
+  const { points } = coverage;
+  const selectedPoint = points.find(point => point.targetId === selectedTargetId);
+  const potCount = new Set(points.map(point => point.pot)).size;
+  return <section className={styles.pointGroup} aria-label="커버리지 조사 POT" data-coverage-source={coverage.savedSubset ? 'saved-measurements' : 'source-measurements'}>
       <header><h3>조사 POT <b>{potCount}곳</b></h3></header>
       {points.length ? <>
         <ol className={styles.points}>{points.map(({targetId, pot, band, earfcn, reason}, index) => <li key={targetId}>
@@ -306,8 +324,7 @@ export function CandidateCauseAssessments({ job, coverage: providedCoverage, rep
           <p>{coverage.savedSubset ? '저장된 측정' : '원본 측정'} {coverage.catalog.reviewedCombinations.toLocaleString('ko-KR')}개 조합 검토 · 기준 충족 {coverage.catalog.qualifiedPotCount.toLocaleString('ko-KR')}곳 중 {potCount}곳 표시</p>
         </details>}
       </> : <p>{coverage.savedSubset ? '저장된' : '확보한'} 측정값에서 조사 기준을 충족한 POT가 없습니다.</p>}
-    </section>}
-  </>;
+    </section>;
 }
 
 /** Reconnect only complete references in the displayed run's own source snapshot. */
