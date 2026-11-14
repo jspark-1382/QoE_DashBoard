@@ -49,6 +49,7 @@ export function ServerQualityOverview(){
   const [meta,setMeta]=useState<VoiceMeta|null>(null),[state,setState]=useState<QualityComparisonState|null>(null);
   const [initialError,setInitialError]=useState<string|null>(null),[attempt,setAttempt]=useState(0);
   const [mapRequested,setMapRequested]=useState(false),[callsOpen,setCallsOpen]=useState(false);
+  const [candidateAnalysisMode,setCandidateAnalysisMode]=useState<'all'|'evaluation'>('all');
   const [showMapStations,setShowMapStations]=useState(false);
   const [pager,setPager]=useState({key:'',page:0});
   const [table,setTable]=useState<{key:string;rows:OverviewCall[];locations:OverviewCallLocation[];total:number}>({key:'',rows:[],locations:[],total:0});
@@ -175,7 +176,7 @@ export function ServerQualityOverview(){
         <label className={styles.dateField} data-date-filter>종료일<select aria-label="분석 종료일" value={state.dateEnd} onChange={e=>{
           const d=adjustDateRange(dates,state.dateStart,state.dateEnd,'end',e.target.value);update({dateStart:d.start,dateEnd:d.end,chosenCall:null});
         }}>{dates.map(d=><option key={d}>{d}</option>)}</select></label>
-        <button type="button" className={styles.allDatesButton} aria-label="전체 분석기간 조회" aria-pressed={state.dateStart===dates[0]&&state.dateEnd===dates.at(-1)} onClick={()=>update({dateStart:dates[0],dateEnd:dates.at(-1)!,chosenCall:null})}>전체 기간</button>
+        <button type="button" className={styles.allDatesButton} aria-label="전체 분석기간 조회" aria-pressed={state.dateStart===dates[0]&&state.dateEnd===dates.at(-1)} onClick={()=>{setCandidateAnalysisMode('all');update({dateStart:dates[0],dateEnd:dates.at(-1)!,chosenCall:null});}}>전체 기간</button>
         <span className={styles.rangeHint}>{datesInRange(dates,state.dateStart,state.dateEnd).length}일 선택</span>
         <label>시간<input aria-label="시작 시간" type="time" value={state.from} onChange={e=>update({from:e.target.value,selectedHour:null,chosenCall:null})}/></label><span className={styles.separator}>~</span>
         <label><input aria-label="종료 시간" type="time" value={state.to} onChange={e=>update({to:e.target.value,selectedHour:null,chosenCall:null})}/></label>
@@ -214,7 +215,7 @@ export function ServerQualityOverview(){
             </section>
           </div>
         </>}
-        {state.mapMode==='improvement'&&(candidateOverview&&meta?<Suspense fallback={<p className={ui.loading}>개선후보를 준비하는 중입니다…</p>}><Candidates proposalTwo scope={candidateScope} overview={candidateOverview} onInvestigate={selection=>{setInvestigation(selection);setInvestigationMode('members');setCallsOpen(true);update({chosenCall:null,selectedBand:null,distributionMode:'mos',selectedHour:null,district:null,evidence:'all',cohort:null,search:'',sipFilter:'all'});}}/></Suspense>:<p className={ui.loading}>{candidateMap.error??'개선후보의 위치 근거를 조회하는 중입니다…'}</p>)}
+        {state.mapMode==='improvement'&&(candidateOverview&&meta?<Suspense fallback={<p className={ui.loading}>개선후보를 준비하는 중입니다…</p>}><Candidates proposalTwo scope={candidateScope} overview={candidateOverview} analysisMode={candidateAnalysisMode} onAnalysisModeChange={setCandidateAnalysisMode} onInvestigate={selection=>{setInvestigation(selection);setInvestigationMode('members');setCallsOpen(true);update({chosenCall:null,selectedBand:null,distributionMode:'mos',selectedHour:null,district:null,evidence:'all',cohort:null,search:'',sipFilter:'all'});}}/></Suspense>:<p className={ui.loading}>{candidateMap.error??'개선후보의 위치 근거를 조회하는 중입니다…'}</p>)}
         {state.mapMode==='current'&&<button type="button" className={qualityTheme.callToggle} aria-label={callsOpen?'통화 목록 접기':'통화 목록 보기'} aria-expanded={callsOpen} onClick={()=>setCallsOpen(value=>!value)}><span><List size={18} aria-hidden="true"/>통화 상세 목록</span><span>{callsOpen?'통화 목록 접기':'통화 목록 보기'}<ChevronDown size={16} aria-hidden="true"/></span></button>}
         {callsOpen?<>
           {packet.error&&<p role="alert" className={ui.error}>{packet.error}</p>}
